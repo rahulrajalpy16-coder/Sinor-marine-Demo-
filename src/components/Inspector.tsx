@@ -33,7 +33,7 @@ export function Inspector({ bare = false }: { bare?: boolean }) {
       aria-label={`${eq.name} details`}
       data-testid="inspector"
       data-equipment={eq.id}
-      className={`pointer-events-auto flex max-h-full flex-col gap-3 overflow-y-auto ${
+      className={`pointer-events-auto flex max-h-full min-h-0 flex-col gap-3 overflow-y-auto ${
         bare ? 'px-4 pb-4' : 'rounded-sm border border-cyan/25 bg-abyss/85 p-4 shadow-[0_0_40px_rgba(0,217,255,0.08)] backdrop-blur-md'
       }`}
     >

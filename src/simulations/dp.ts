@@ -14,6 +14,9 @@
  * This is a teaching model; it does not imitate any proprietary DP algorithm.
  */
 
+import { HPT5000_REPEATABILITY } from '../equipment/hprData';
+import { HPR_NOMINAL_SLANT_M } from './acoustic';
+
 export type DPClass = 1 | 2 | 3;
 export type DPMode = 'STANDBY' | 'JOYSTICK' | 'AUTO_HEADING' | 'AUTO_POSITION';
 export type DPStatus = 'stopped' | 'running' | 'paused';
@@ -35,7 +38,8 @@ export type DPAlarm =
   | 'CONSEQUENCE'
   | 'POSITION_WARNING'
   | 'HEADING_WARNING'
-  | 'BACKUP_IN_COMMAND';
+  | 'BACKUP_IN_COMMAND'
+  | 'HPR_NOT_DEPLOYED';
 
 export const DP_ALARM_TEXT: Record<DPAlarm, string> = {
   DP_LOST: 'DP lost: thrusters zeroed, vessel drifting',
@@ -51,6 +55,7 @@ export const DP_ALARM_TEXT: Record<DPAlarm, string> = {
   POSITION_WARNING: 'Position error above warning limit',
   HEADING_WARNING: 'Heading error above warning limit',
   BACKUP_IN_COMMAND: 'Backup DP (A60 room) in command',
+  HPR_NOT_DEPLOYED: 'HPR transceiver not deployed: reference unavailable',
 };
 
 export interface ThrusterGeom {
@@ -131,6 +136,8 @@ export interface RefState {
   /** Accumulated drift for a drifting reference, metres (north, east). */
   drift: [number, number];
   rejected: boolean;
+  /** Physically able to measure (HPR: transceiver deployed through an open gate valve). */
+  ready: boolean;
   /** Last measured position (north, east). */
   meas: [number, number];
 }
@@ -211,6 +218,7 @@ export function initialDPState(dpClass: DPClass = 2): DPState {
       fault: null,
       drift: [0, 0],
       rejected: false,
+      ready: true,
       meas: [0, 0],
     })),
     controllers: (['A', 'B', 'C'] as ControllerId[]).map((id, i) => ({ id, installed: i < lay.controllers, failed: false })),
@@ -394,14 +402,20 @@ function rand(s: { seed: number }) {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296 - 0.5;
 }
 
-const REF_NOISE: Record<RefId, number> = { GNSS1: 0.4, GNSS2: 0.4, HPR: 0.8 };
+// HPR: HPT 5000 repeatability, 0.1 % of slant range (1 Drms, UM-8142 §12.1.3), at the scene's nominal slant range.
+const REF_NOISE: Record<RefId, number> = { GNSS1: 0.4, GNSS2: 0.4, HPR: HPT5000_REPEATABILITY * HPR_NOMINAL_SLANT_M };
 const DRIFT_RATE = 0.08; // m/s for a drifting reference
 const REJECT_M = 3;
 
 /** Measure, vote and blend position references. Returns updated refs and the blended fix (or null). */
-export function processReferences(s: DPState, dt: number): { refs: RefState[]; fix: [number, number] | null; deviation: boolean } {
+export function processReferences(
+  s: DPState,
+  dt: number,
+  hprReady = true,
+): { refs: RefState[]; fix: [number, number] | null; deviation: boolean } {
   const noiseState = { seed: s.seed };
   const refs = s.refs.map((r) => {
+    if (r.id === 'HPR' && r.ready !== hprReady) r = { ...r, ready: hprReady };
     if (!r.installed) return r;
     const drift: [number, number] = r.fault === 'drift' ? [r.drift[0] + DRIFT_RATE * dt * 0.8, r.drift[1] + DRIFT_RATE * dt * 0.6] : r.drift;
     const n = REF_NOISE[r.id];
@@ -409,7 +423,7 @@ export function processReferences(s: DPState, dt: number): { refs: RefState[]; f
     return { ...r, drift, meas };
   });
   s.seed = noiseState.seed;
-  const usable = refs.filter((r) => r.installed && r.enabled && r.fault !== 'lost');
+  const usable = refs.filter((r) => r.installed && r.enabled && r.ready && r.fault !== 'lost');
   const rejected = new Set<RefId>();
   let deviation = false;
   if (usable.length >= 3) {
@@ -436,6 +450,8 @@ export function processReferences(s: DPState, dt: number): { refs: RefState[]; f
 export interface DPStepInput {
   /** Bow thruster as seen by DP: available when in DP command and running; force in N (+ starboard). */
   bt1: { available: boolean; forceN: number };
+  /** HPR transceiver deployed and able to measure (Type 7950 state). Defaults to ready. */
+  hpr?: { ready: boolean };
 }
 
 export interface DPStepOutput {
@@ -467,7 +483,7 @@ export function stepDP(prev: DPState, dt: number, input: DPStepInput, p: DPParam
   const joystickLost = s.mode === 'JOYSTICK' && !integrity.ok;
 
   // Position references and estimate.
-  const refsOut = processReferences(s, dt);
+  const refsOut = processReferences(s, dt, input.hpr?.ready ?? true);
   s.refs = refsOut.refs;
   if (refsOut.fix) {
     const k = Math.min(1, dt / 4);
@@ -580,6 +596,7 @@ export function stepDP(prev: DPState, dt: number, input: DPStepInput, p: DPParam
   setAlarm(s.alarms, 'NETWORK_FAIL', s.networks.some((nw) => nw.installed && nw.failed));
   setAlarm(s.alarms, 'REF_REJECTED', s.refs.some((r) => r.rejected));
   setAlarm(s.alarms, 'REF_DEVIATION', refsOut.deviation);
+  setAlarm(s.alarms, 'HPR_NOT_DEPLOYED', s.mode !== 'STANDBY' && s.refs.some((r) => r.id === 'HPR' && r.installed && r.enabled && !r.ready));
   setAlarm(s.alarms, 'DEAD_RECKONING', s.mode === 'AUTO_POSITION' && !refsOut.fix);
   setAlarm(s.alarms, 'THRUSTER_FAIL', s.thrusters.some((t) => t.failed));
   setAlarm(s.alarms, 'BT1_NOT_AVAILABLE', s.mode !== 'STANDBY' && !input.bt1.available && !s.thrusters[0].failed);

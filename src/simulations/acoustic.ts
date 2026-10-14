@@ -2,6 +2,8 @@
  * Illustrative two-way acoustic ranging (not a proprietary HPR implementation).
  * Measurement type: two-way travel time to a seabed transponder, converted with an assumed sound speed.
  */
+import { STROKE, T7950, transceiverY } from '../equipment/hprData';
+
 export const ASSUMED_SOUND_SPEED = 1500; // m/s, nominal sea water
 
 export type Vec3 = [number, number, number];
@@ -29,3 +31,19 @@ export function pingProgress(phase: number): { leg: 'outbound' | 'return'; along
 
 export const SEABED_Y = -42;
 export const TRANSPONDER: Vec3 = [9, SEABED_Y + 1.2, 2];
+
+/**
+ * Where the Type 7950 sits on this vessel (scene metres): pole axis on the centreline at frame +12 m,
+ * standing on the bottom plating (keel at -5 m there). Datum = top of the 150 mm hull penetrator.
+ */
+export const HPR_AXIS = { x: 0, z: 12 };
+export const HULL_BOTTOM_Y = -5;
+export const HPR_DATUM_Y = HULL_BOTTOM_Y + T7950.penetratorHeight.value;
+
+/** Scene position of the transceiver face for a given pole travel. */
+export function transceiverFace(travel: number): Vec3 {
+  return [HPR_AXIS.x, HPR_DATUM_Y + transceiverY(travel).face, HPR_AXIS.z];
+}
+
+/** Slant range from the fully deployed transceiver to the seabed transponder (illustrative scene). */
+export const HPR_NOMINAL_SLANT_M = slantRange(transceiverFace(STROKE), TRANSPONDER);

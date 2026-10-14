@@ -54,7 +54,8 @@ export function InspectorDock({ layout, orientation }: { layout: LayoutClass; or
   }
 
   return (
-    <div className="pointer-events-none max-h-full w-[22rem] shrink-0 self-start">
+    // A column flex box so the Inspector's own max-height resolves and long HMI panels scroll inside it.
+    <div className="pointer-events-none flex max-h-full min-h-0 w-[22rem] shrink-0 flex-col self-start">
       <Inspector />
     </div>
   );

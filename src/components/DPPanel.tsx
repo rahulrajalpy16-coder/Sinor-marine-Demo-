@@ -490,7 +490,7 @@ function RedundancyPage({
         {s.refs
           .filter((r) => r.installed)
           .map((r) => (
-            <Unit key={r.id} name={r.id} status={refStatus(r)} bad={r.rejected || !!r.fault} testid={`dp-ref-${r.id}`}>
+            <Unit key={r.id} name={r.id} status={refStatus(r)} bad={r.rejected || !!r.fault || !r.ready} testid={`dp-ref-${r.id}`}>
               <SmallBtn onClick={() => send({ type: 'ref-fault', id: r.id, fault: r.fault === 'drift' ? null : 'drift' })} label={r.fault === 'drift' ? 'Stop drift' : 'Drift'} testid={`dp-drift-${r.id}`} />
               <SmallBtn onClick={() => send({ type: 'ref-fault', id: r.id, fault: r.fault === 'lost' ? null : 'lost' })} label={r.fault === 'lost' ? 'Restore' : 'Lose'} testid={`dp-lose-${r.id}`} />
             </Unit>
@@ -517,6 +517,7 @@ function RedundancyPage({
 
 function refStatus(r: RefState) {
   if (!r.enabled) return 'DISABLED';
+  if (!r.ready) return 'NOT DEPLOYED';
   if (r.fault === 'lost') return 'LOST';
   if (r.rejected) return 'REJECTED';
   if (r.fault === 'drift') return 'DRIFTING';

@@ -66,6 +66,8 @@ export interface EquipmentPlacement {
   underwater: boolean;
   /** Inside a compartment (bridge): the camera orbits close, inside the room. */
   interior?: boolean;
+  /** Override the interior orbit's maximum distance (tall spaces such as the 6.1 m HPR trunk). */
+  interiorMaxDistance?: number;
   /** Assembly supports the exploded visual mode. */
   explodable: boolean;
   /** Phase-1 slice: the system is modelled and selectable in the scene. */

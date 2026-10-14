@@ -3,13 +3,16 @@ import type { SimulationController } from './controller';
 import { applyDPCommand, initialDPState, stepDP, type DPCommand, type DPState } from './dp';
 import { bowThruster } from './controller';
 import { DEFAULT_THRUSTER_PARAMS } from './thruster';
+import { hprDeployment } from './deploymentController';
+import { hprReady } from './deployment';
 
 /** Simulated seconds per fixed step. The model is slow (vessel time constants are minutes). */
 const DP_STEP = 0.05;
 
 /**
  * Holds DP state outside React. Each frame advances simulated time by frame × timeScale and couples
- * the bow thruster: DP reads BT1's delivered thrust and, when BT1 is in DP command, writes its pitch.
+ * the bow thruster (DP reads BT1's delivered thrust and, when BT1 is in DP command, writes its pitch)
+ * and the HPR (its reference only measures while the Type 7950 has the transceiver deployed).
  */
 export class DPController implements SimulationController<DPState, DPCommand> {
   readonly id = 'dp-3dof';
@@ -42,13 +45,25 @@ export class DPController implements SimulationController<DPState, DPCommand> {
   }
 
   tick(frameSeconds: number) {
-    if (this.state.status !== 'running') return;
+    if (this.state.status !== 'running') {
+      // Keep the HPR reference's readiness current for the panels even while DP is stopped.
+      const ready = hprReady(hprDeployment.getState());
+      const hpr = this.state.refs.find((r) => r.id === 'HPR');
+      if (hpr && hpr.ready !== ready) {
+        this.state = { ...this.state, refs: this.state.refs.map((r) => (r.id === 'HPR' ? { ...r, ready } : r)) };
+        this.emit();
+      }
+      return;
+    }
     const before = this.state;
     const n = this.stepper.advance(frameSeconds * this.state.timeScale);
     for (let i = 0; i < n; i++) {
       const bt = bowThruster.getState();
       const available = bt.station === 'DP' && bt.status === 'running';
-      const out = stepDP(this.state, DP_STEP, { bt1: { available, forceN: bt.thrustKN * 1000 } });
+      const out = stepDP(this.state, DP_STEP, {
+        bt1: { available, forceN: bt.thrustKN * 1000 },
+        hpr: { ready: hprReady(hprDeployment.getState()) },
+      });
       this.state = out.state;
       if (bt.station === 'DP') {
         // Thrust ~ |pitch|^1.5 at rated speed, so invert for the pitch setpoint.
