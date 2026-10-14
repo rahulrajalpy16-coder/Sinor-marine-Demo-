@@ -1,0 +1,30 @@
+import { chromium } from '@playwright/test';
+const exe = process.env.PW_CHROMIUM || '/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell';
+const b = await chromium.launch({ executablePath: exe, args: ['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist'] });
+const out = process.argv[2] || 'screenshots';
+const base = process.argv[3] || 'http://localhost:4173';
+const logs = [];
+async function open(vp) {
+  const p = await b.newPage({ viewport: vp, isMobile: true, hasTouch: true });
+  p.on('pageerror', e => logs.push('pageerror: ' + e.message));
+  await p.goto(base + '/?intro=0&quality=medium');
+  await p.waitForFunction(() => !!window.__SINOR__, null, { timeout: 45000 });
+  await p.waitForTimeout(2500);
+  return p;
+}
+const focused = (p, id) => p.waitForFunction((i) => { const s = window.__SINOR__.state(); return s.selectedId === i && s.phase === 'focused'; }, id, { timeout: 30000 });
+const phone = await open({ width: 390, height: 844 });
+await phone.screenshot({ path: `${out}/20-phone-overview.png` });
+await phone.tap('[data-testid=tree-toggle]'); await phone.waitForTimeout(400);
+await phone.screenshot({ path: `${out}/21-phone-systems.png` });
+await phone.tap('[data-testid=tree-bow-thruster-001]'); await focused(phone, 'bow-thruster-001'); await phone.waitForTimeout(600);
+await phone.screenshot({ path: `${out}/22-phone-thruster-sheet.png` });
+await phone.setViewportSize({ width: 844, height: 390 }); await phone.waitForTimeout(1500);
+await phone.screenshot({ path: `${out}/23-phone-landscape.png` });
+const tab = await open({ width: 1180, height: 820 });
+await tab.tap('[data-testid=tree-toggle]'); await tab.tap('[data-testid=tree-dp-console-001]'); await focused(tab, 'dp-console-001'); await tab.waitForTimeout(800);
+await tab.screenshot({ path: `${out}/24-tablet-landscape-dp.png` });
+await tab.setViewportSize({ width: 820, height: 1180 }); await tab.waitForTimeout(1500);
+await tab.screenshot({ path: `${out}/25-tablet-portrait.png` });
+console.log('errors:', JSON.stringify(logs));
+await b.close();

@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useAppStore } from '../store/useAppStore';
 import { MODE_STYLES } from '../rendering/modes';
+import { useQualityProfile } from '../rendering/quality';
 import { getEquipment, design } from '../equipment/registry';
 
 const vertex = /* glsl */ `
@@ -67,9 +68,8 @@ const fragment = /* glsl */ `
 
 /** Animated dark ocean with fresnel, a technical grid and mode-driven transparency. */
 export function Ocean() {
-  const quality = useAppStore((s) => s.quality);
+  const segments = useQualityProfile().oceanSegments;
   const reducedMotion = useAppStore((s) => s.reducedMotion);
-  const segments = quality === 'low' ? 96 : quality === 'medium' ? 192 : 288;
   const geometry = useMemo(() => new THREE.PlaneGeometry(1200, 1200, segments, segments).rotateX(-Math.PI / 2), [segments]);
   const material = useMemo(
     () =>

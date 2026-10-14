@@ -10,6 +10,8 @@ import { INTRO_START_POSE, OVERVIEW_POSE, orbitLimitsFor, overviewPoseFor, type 
 import { registerPoseProvider } from '../interactions/poseRegistry';
 import { getEquipment } from '../equipment/registry';
 import { reveal } from '../scene/reveal';
+import { ORBIT_MOUSE, ORBIT_TOUCH, isEditableTarget, keyAction, orbitStep, orbitTuning } from '../interactions/input';
+import { useDevice } from '../responsive/useDevice';
 
 // Wall-clock timing even on slow (software-rendered) frames: a focus flight always ends on time.
 gsap.ticker.lagSmoothing(0);
@@ -30,6 +32,9 @@ export function CameraRig() {
   const selectedId = useAppStore((s) => s.selectedId);
   const reducedMotion = useAppStore((s) => s.reducedMotion);
   const tl = useRef<gsap.core.Timeline | null>(null);
+  const layout = useDevice((s) => s.layout);
+  const coarse = useDevice((s) => s.coarse);
+  const tuning = orbitTuning(layout, coarse);
 
   // Expose the live pose so Return can restore it later.
   useEffect(() => {
@@ -147,6 +152,50 @@ export function CameraRig() {
     prevM.current.copy(curM.current);
   });
 
+  // Rotation or resize while in the overview: re-fit the hull to the new aspect ratio.
+  const aspect = size.width / Math.max(1, size.height);
+  const lastAspect = useRef(aspect);
+  useEffect(() => {
+    const prev = lastAspect.current;
+    lastAspect.current = aspect;
+    if (Math.abs(prev - aspect) < 0.05) return;
+    const st = useAppStore.getState();
+    if (st.cameraMode !== 'overview' || st.cameraMoving || st.introActive || st.selectedId) return;
+    useAppStore.setState({ cameraRequest: { seq: st.cameraRequest.seq + 1, kind: 'overview' } });
+  }, [aspect]);
+
+  // Keyboard camera: arrows orbit (Shift for bigger steps), +/- zoom, Home or O overview, F refocus.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || isEditableTarget(e.target)) return;
+      const a = keyAction(e.key, e.shiftKey);
+      const c = controls.current;
+      if (!a || !c) return;
+      const st = useAppStore.getState();
+      if (a.kind === 'overview') {
+        st.resetToOverview();
+      } else if (a.kind === 'focus') {
+        if (st.selectedId) st.select(st.selectedId);
+      } else {
+        if (st.introActive) st.endIntro();
+        if (st.cameraMoving) tl.current?.progress(1);
+        const pl = st.selectedId ? getEquipment(st.selectedId)?.placement : undefined;
+        const lim = orbitLimitsFor(st.cameraMode, !!pl?.underwater, !!pl?.interior);
+        const next = orbitStep(
+          { position: camera.position.toArray() as CameraPose['position'], target: c.target.toArray() as CameraPose['target'] },
+          a.kind === 'orbit' ? { azimuth: a.azimuth, polar: a.polar } : { zoom: a.factor },
+          lim,
+        );
+        camera.position.set(...next.position);
+        c.update();
+        st.cameraEvent({ type: 'USER_ORBIT' });
+      }
+      e.preventDefault();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [camera]);
+
   // A user drag interrupts any flight and counts as free orbiting.
   const onStart = () => {
     const st = useAppStore.getState();
@@ -170,10 +219,12 @@ export function CameraRig() {
       ref={controls}
       makeDefault
       enableDamping
-      dampingFactor={0.08}
-      rotateSpeed={0.6}
-      zoomSpeed={0.9}
-      panSpeed={0.8}
+      dampingFactor={tuning.dampingFactor}
+      rotateSpeed={tuning.rotateSpeed}
+      zoomSpeed={tuning.zoomSpeed}
+      panSpeed={tuning.panSpeed}
+      mouseButtons={ORBIT_MOUSE}
+      touches={ORBIT_TOUCH}
       onStart={onStart}
     />
   );

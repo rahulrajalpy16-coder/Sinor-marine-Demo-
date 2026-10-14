@@ -1,8 +1,6 @@
 import { CATEGORY_LABELS, getEquipment } from '../equipment/registry';
 import { useAppStore } from '../store/useAppStore';
-import { ThrusterPanel } from './ThrusterPanel';
-import { HPRPanel } from './HPRPanel';
-import { DPPanel } from './DPPanel';
+import { SYSTEM_PANELS } from './systemPanels';
 
 const PHASE_LABEL: Record<string, string> = {
   selected: 'Moving camera',
@@ -11,8 +9,11 @@ const PHASE_LABEL: Record<string, string> = {
   simulating: 'Simulating',
 };
 
-/** Contextual technical panel for the selected system. Only actions the system supports are shown as active. */
-export function Inspector() {
+/**
+ * Contextual technical panel for the selected system. Only actions the system supports are shown as active.
+ * `bare` drops the card chrome when a container (the phone bottom sheet) already draws it.
+ */
+export function Inspector({ bare = false }: { bare?: boolean }) {
   const selectedId = useAppStore((s) => s.selectedId);
   const phase = useAppStore((s) => s.phase);
   const asset = useAppStore((s) => (s.selectedId ? s.assetStatus[s.selectedId] : undefined));
@@ -25,12 +26,16 @@ export function Inspector() {
   if (!eq) return null;
 
   const p = eq.placement;
+  const Panel = SYSTEM_PANELS[eq.id];
+  const btn = 'rounded-sm border border-cyan/40 px-2.5 py-1.5 text-xs text-ink hover:bg-cyan/10 coarse:min-h-[44px] coarse:px-3';
   return (
     <aside
       aria-label={`${eq.name} details`}
       data-testid="inspector"
       data-equipment={eq.id}
-      className="pointer-events-auto flex max-h-full flex-col gap-3 overflow-y-auto rounded-sm border border-cyan/25 bg-abyss/85 p-4 shadow-[0_0_40px_rgba(0,217,255,0.08)] backdrop-blur-md"
+      className={`pointer-events-auto flex max-h-full flex-col gap-3 overflow-y-auto ${
+        bare ? 'px-4 pb-4' : 'rounded-sm border border-cyan/25 bg-abyss/85 p-4 shadow-[0_0_40px_rgba(0,217,255,0.08)] backdrop-blur-md'
+      }`}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -69,7 +74,7 @@ export function Inspector() {
           data-testid="action-inspect"
           onClick={inspect}
           disabled={phase === 'inspecting' || phase === 'simulating'}
-          className="rounded-sm border border-cyan/40 px-2.5 py-1.5 text-xs text-ink hover:bg-cyan/10 disabled:opacity-35"
+          className={`${btn} disabled:opacity-35`}
         >
           Inspect details
         </button>
@@ -77,7 +82,7 @@ export function Inspector() {
           type="button"
           data-testid="action-focus"
           onClick={() => select(eq.id)}
-          className="rounded-sm border border-cyan/40 px-2.5 py-1.5 text-xs text-ink hover:bg-cyan/10"
+          className={btn}
         >
           Refocus
         </button>
@@ -87,7 +92,7 @@ export function Inspector() {
             data-testid="action-explode"
             aria-pressed={mode === 'exploded'}
             onClick={() => setMode(mode === 'exploded' ? 'hybrid' : 'exploded')}
-            className="rounded-sm border border-cyan/40 px-2.5 py-1.5 text-xs text-ink hover:bg-cyan/10"
+            className={btn}
           >
             {mode === 'exploded' ? 'Assemble' : 'Explode assembly'}
           </button>
@@ -97,7 +102,7 @@ export function Inspector() {
           data-testid="action-isolate"
           aria-pressed={mode === 'isolation'}
           onClick={() => setMode(mode === 'isolation' ? 'hybrid' : 'isolation')}
-          className="rounded-sm border border-cyan/40 px-2.5 py-1.5 text-xs text-ink hover:bg-cyan/10"
+          className={btn}
         >
           {mode === 'isolation' ? 'Show all' : 'Isolate'}
         </button>
@@ -105,14 +110,12 @@ export function Inspector() {
           type="button"
           data-testid="action-return"
           onClick={returnToPrevious}
-          className="ml-auto rounded-sm border border-cyan bg-cyan/15 px-2.5 py-1.5 text-xs text-ink hover:bg-cyan/25"
+          className="ml-auto rounded-sm border border-cyan bg-cyan/15 px-2.5 py-1.5 text-xs text-ink hover:bg-cyan/25 coarse:min-h-[44px] coarse:px-3"
         >
           Return
         </button>
       </div>
-      {eq.id === 'bow-thruster-001' && <ThrusterPanel />}
-      {eq.id === 'hpr-001' && <HPRPanel />}
-      {eq.id === 'dp-console-001' && <DPPanel />}
+      {Panel && <Panel />}
       <p className="order-3 border-t border-white/5 pt-2 text-[10px] leading-snug text-mute md:order-none">
         Illustrative, non-certified representation. Not connected to live equipment and not OEM-verified.
       </p>
