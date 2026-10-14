@@ -11,7 +11,10 @@ import {
   radascanRange,
   sprintNavAltitude,
   sprintNavDepth,
+  cyscanMaxRange,
   tautWireAngle,
+  tautWireAxes,
+  tautWireNmea,
   tautWireStatus,
   TW_VERTICAL,
   WATER_DEPTH,
@@ -120,6 +123,81 @@ function Note({ children }: { children: ReactNode }) {
   return <p className="text-[9px] leading-snug text-[#7f93a3]">{children}</p>;
 }
 
+/** RadaScan View style radar picture: range rings, own ship, the coded responder and the platform echo (illustrative). */
+function RadarView({ on, tracking, range, bearing }: { on: boolean; tracking: boolean; range: number; bearing: number }) {
+  const max = RADASCAN.maxRange.value;
+  const R = 70;
+  const px = (r: number, b: number): [number, number] => [80 + (r / max) * R * Math.sin((b * Math.PI) / 180), 80 - (r / max) * R * Math.cos((b * Math.PI) / 180)];
+  const [rx, ry] = px(range, bearing);
+  const [ex, ey] = px(range + 12, bearing);
+  return (
+    <svg data-testid="radascan-ppi" viewBox="0 0 160 160" className="mx-auto h-36 w-36" role="img" aria-label="Radar picture">
+      <circle cx={80} cy={80} r={R + 4} fill="#0d3f86" />
+      {[90, 225, 450].map((r) => (
+        <g key={r}>
+          <circle cx={80} cy={80} r={(r / max) * R} fill="none" stroke="#ffffff55" strokeWidth={0.6} />
+          <text x={82} y={80 - (r / max) * R - 1.5} fontSize={6} fill="#ffffffaa">
+            {r}m
+          </text>
+        </g>
+      ))}
+      <path d="M80 72 L83 77 L83 88 L77 88 L77 77 Z" fill="#f2f4f6" />
+      {on && <ellipse cx={ex} cy={ey} rx={9} ry={6} fill="#e53935" opacity={0.85} transform={`rotate(${bearing} ${ex} ${ey})`} />}
+      {tracking && <circle cx={rx} cy={ry} r={3.2} fill="#ffd400" stroke="#000" strokeWidth={0.4} />}
+      {!on && (
+        <text x={80} y={112} fontSize={8} textAnchor="middle" fill="#ffffffaa">
+          SENSOR OFF
+        </text>
+      )}
+    </svg>
+  );
+}
+
+/** Seastar 9410-AUT front panel: 32 characters × 4 rows (layout mock-up). */
+function ReceiverDisplay({ unit, lost, eta }: { unit: number; lost: boolean; eta: readonly number[] }) {
+  const pad = (t: string) => t.slice(0, 32).padEnd(32, ' ');
+  const rows = [
+    pad(`SEASTAR 9410-AUT       DGPS ${unit}`),
+    pad(lost ? 'MODE: AUTONOMOUS  NO CORR' : 'MODE: G4 DIFF      L-BAND'),
+    pad(`N ${eta[0] >= 0 ? '+' : '-'}${Math.abs(eta[0]).toFixed(2)}  E ${eta[1] >= 0 ? '+' : '-'}${Math.abs(eta[1]).toFixed(2)} m`),
+    pad('GGA GST VTG ZDA   1PPS'),
+  ];
+  return (
+    <pre data-testid={`dgps-display-${unit}`} className="overflow-x-auto rounded-sm border border-[#4a5560] bg-[#0b1a12] px-2 py-1 font-mono text-[9px] leading-tight text-[#8fe3a1]">
+      {rows.join('\n')}
+    </pre>
+  );
+}
+
+/** SMT Z Range Mk2 datasheet accuracy table at 0 m/s current. */
+function AccuracyTable() {
+  return (
+    <table className="w-full border-collapse font-mono text-[9px] text-[#c9d6df]">
+      <caption className="pb-0.5 text-left text-[9px] text-[#7f93a3]">Datasheet accuracy, current 0 m/s (m)</caption>
+      <thead>
+        <tr className="text-[#7f93a3]">
+          <th className="text-left font-normal">Depth</th>
+          <th className="font-normal">0°</th>
+          <th className="font-normal">10°</th>
+          <th className="font-normal">20°</th>
+        </tr>
+      </thead>
+      <tbody>
+        {SMT_TW.accuracyTable.value.map((r) => (
+          <tr key={r.depth}>
+            <td>{r.depth} m</td>
+            {r.err.map((e, i) => (
+              <td key={i} className="text-center">
+                {e.toFixed(1)}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 const scanText = (phase: string, inRange: boolean) => (phase === 'off' ? 'OFF' : phase === 'tracking' ? 'TRACKING' : inRange ? 'ACQUIRING' : 'NO TARGET');
 
 export function RadaScanPanel() {
@@ -128,7 +206,7 @@ export function RadaScanPanel() {
   const inRange = rb.range <= RADASCAN.maxRange.value;
   const on = s.radascan.phase !== 'off';
   return (
-    <Shell title="RADASCAN · MICROWAVE RADAR" status={scanText(s.radascan.phase, inRange)} ok={ready.RADASCAN} testid="radascan-hmi">
+    <Shell title="RADASCAN VIEW · RADAR" status={scanText(s.radascan.phase, inRange)} ok={ready.RADASCAN} testid="radascan-hmi">
       <div className="flex flex-wrap gap-1 text-[10px]">
         <HmiBtn testid="radascan-start" label="START" tone="go" disabled={on} onClick={() => send({ type: 'radascan', on: true })} />
         <HmiBtn testid="radascan-stop" label="STOP" disabled={!on} onClick={() => send({ type: 'radascan', on: false })} />
@@ -136,14 +214,16 @@ export function RadaScanPanel() {
       <dl className="grid grid-cols-2 gap-1 font-mono text-[11px]">
         <Readout label="Responder range" value={ready.RADASCAN ? `${rb.range.toFixed(1)} m` : '—'} testid="radascan-range" />
         <Readout label="Bearing (rel. bow)" value={ready.RADASCAN ? `${rb.bearing.toFixed(1)}°` : '—'} />
-        <Readout label="Responder" value="Red (coded)" />
-        <Readout label="Max range" value={`${RADASCAN.maxRange.value} m`} />
+        <Readout label="Responder" value="Coded responder" />
+        <Readout label="Working range" value={`${RADASCAN.maxRange.value} m zone`} />
       </dl>
+      <RadarView on={on} tracking={ready.RADASCAN} range={rb.range} bearing={rb.bearing} />
       <DpRef id="RADASCAN" testid="radascan" />
       <Alarms list={s.alarms.filter((a) => a === 'RADASCAN_NO_TARGET')} testid="radascan-alarms" />
       <Note>
-        Datasheet: range up to 1,000 m, 9.2–9.3 GHz FMCW, 360° scan, sensor Ø1.2 × 0.9 m. Illustrative: lock-on time {RADASCAN.acquireSeconds.value} s, position
-        noise {RADASCAN.accuracy.value} m, the platform and its responder. Relative reference: it fixes the vessel to the structure.
+        RadaScan View brochure: combined position reference and navigation radar for the 500 m zone, range and bearing to coded responders, works through rain,
+        fog, steam and dust, −25 to +55 °C. Not stated, so illustrative: sensor size (drawn from the photo), maximum range, lock-on time{' '}
+        {RADASCAN.acquireSeconds.value} s, position noise {RADASCAN.accuracy.value} m, the platform and its radar echo.
       </Note>
     </Shell>
   );
@@ -152,11 +232,11 @@ export function RadaScanPanel() {
 export function CyScanPanel() {
   const { s, send, pose, ready } = usePosRefs();
   const rb = cyscanRange(pose.eta);
-  const max = s.fog ? CYSCAN.fogRangeM.value : CYSCAN.maxRange.value;
+  const max = cyscanMaxRange(s);
   const inRange = rb.range >= CYSCAN.minRange.value && rb.range <= max;
   const on = s.cyscan.phase !== 'off';
   return (
-    <Shell title="CYSCAN · LASER" status={scanText(s.cyscan.phase, inRange)} ok={ready.CYSCAN} testid="cyscan-hmi">
+    <Shell title="CYSCAN AS · LASER" status={scanText(s.cyscan.phase, inRange)} ok={ready.CYSCAN} testid="cyscan-hmi">
       <div className="flex flex-wrap items-center gap-1 text-[10px]">
         <HmiBtn testid="cyscan-start" label="START" tone="go" disabled={on} onClick={() => send({ type: 'cyscan', on: true })} />
         <HmiBtn testid="cyscan-stop" label="STOP" disabled={!on} onClick={() => send({ type: 'cyscan', on: false })} />
@@ -165,14 +245,17 @@ export function CyScanPanel() {
       <dl className="grid grid-cols-2 gap-1 font-mono text-[11px]">
         <Readout label="Target range" value={ready.CYSCAN ? `${rb.range.toFixed(1)} m` : '—'} testid="cyscan-range" />
         <Readout label="Bearing (rel. bow)" value={ready.CYSCAN ? `${rb.bearing.toFixed(1)}°` : '—'} />
-        <Readout label="Usable range" value={`${CYSCAN.minRange.value}–${max} m${s.fog ? ' (fog)' : ''}`} />
-        <Readout label="Laser" value="Class 1 eye-safe" />
+        <Readout label="Usable range" value={`${CYSCAN.minRange.value}–${max} m${s.fog ? ' (fog)' : ' (1.9 m cylinder)'}`} />
+        <Readout label="Laser" value="Class 1M" />
+        <Readout label="Range noise" value={`${CYSCAN.rangeNoise.value * 1000} mm`} />
+        <Readout label="Bearing noise" value={`${CYSCAN.bearingNoiseMrad.value} mrad`} />
       </dl>
       <DpRef id="CYSCAN" testid="cyscan" />
       <Alarms list={s.alarms.filter((a) => a === 'CYSCAN_NO_TARGET')} testid="cyscan-alarms" />
       <Note>
-        Datasheet: 10–2,500 m, Class 1, beam 12° × 0.13°, 360°. Illustrative: head size, lock-on time {CYSCAN.acquireSeconds.value} s, noise {CYSCAN.accuracy.value} m,
-        and the {CYSCAN.fogRangeM.value} m range in fog (lasers lose range in fog, rain, spray and exhaust; RadaScan does not).
+        CyScan AS leaflet: 10–2,500 m with prisms, 10–400 m with the 1.9 m cylindrical target used here; beam 12° × 0.13°; ±20° gimbal; 30 targets detectable,
+        9 trackable; sensor 405 × 407 × 565 mm, 28 kg. Not stated, so illustrative: lock-on time {CYSCAN.acquireSeconds.value} s and the {CYSCAN.fogRangeM.value} m
+        range in fog (lasers lose range in fog and spray; the radar does not).
       </Note>
     </Shell>
   );
@@ -183,18 +266,19 @@ export function DGPSPanel() {
   const units: RefId[] = ['GNSS1', 'GNSS2'];
   const live = dp.refs.filter((r) => units.includes(r.id) && r.installed && r.enabled && r.fault !== 'lost');
   return (
-    <Shell title="DGPS · FUGRO SEASTAR" status={`${live.length} / ${dp.refs.filter((r) => units.includes(r.id) && r.installed).length} ONLINE`} ok={live.length > 0} testid="dgps-hmi">
+    <Shell title="DGPS · SEASTAR 9410-AUT" status={`${live.length} / ${dp.refs.filter((r) => units.includes(r.id) && r.installed).length} ONLINE`} ok={live.length > 0} testid="dgps-hmi">
       <dl className="grid grid-cols-2 gap-1 font-mono text-[11px]">
         <Readout label="Correction service" value="Seastar G4" />
-        <Readout label="Accuracy" value={`${SEASTAR.accuracy.value * 100} cm`} />
-        <Readout label="Constellations" value="GPS · GLO · GAL · BDS" />
-        <Readout label="Link" value="L-band (NTRIP back-up)" />
+        <Readout label="Horizontal (95 %)" value={`< ${SEASTAR.accuracy.value * 100} cm`} />
+        <Readout label="Vertical (95 %)" value={`< ${SEASTAR.vertical.value * 100} cm`} />
+        <Readout label="Channels" value="672 · GPS GLO GAL BDS" />
       </dl>
       {units.map((id) => {
         const r = dp.refs.find((x) => x.id === id)!;
         return (
           <div key={id} className="flex flex-col gap-1">
             <DpRef id={id} testid={`dgps-${id}`} />
+            {r.installed && <ReceiverDisplay unit={id === 'GNSS1' ? 1 : 2} lost={r.fault === 'lost'} eta={dp.eta} />}
             {r.installed && (
               <div className="flex gap-1 text-[10px]">
                 <HmiBtn
@@ -209,8 +293,9 @@ export function DGPSPanel() {
         );
       })}
       <Note>
-        Datasheet (Fugro Seastar page): G4 service, 10 cm, dual satellite delivery, Spatial Integrity Analysis and SatGuard. The receiver model was not specified, so
-        the antennas are drawn as illustrative. DGPS 2 is fitted from DP2. Losing corrections removes that receiver from DP voting.
+        Seastar 9410-AUT datasheet: 672 channels, G4 &lt; 10 cm horizontal / &lt; 15 cm vertical (95 %), L-band or NTRIP corrections through one antenna, 24 V DC 6 W,
+        270 × 140 × 70 mm. Antenna option GA 830 or AD 492 (not stated which); its size is drawn from the photo. The display text is a mock-up. DGPS 2 is fitted from
+        DP2. Losing corrections removes that receiver from DP voting.
       </Note>
     </Shell>
   );
@@ -220,9 +305,10 @@ export function TautWirePanel() {
   const { s, send, error, pose, ready } = usePosRefs();
   const tw = s.tautwire;
   const { angleDeg, offset } = tautWireAngle(s, pose.eta);
+  const axes = tautWireAxes(s, pose.eta);
   const moving = tw.phase === 'lowering' || tw.phase === 'hoisting';
   return (
-    <Shell title="TAUT WIRE · SMT TW-1.0" status={tautWireStatus(s, pose.eta)} ok={ready.TAUTWIRE} testid="tautwire-hmi">
+    <Shell title="TAUT WIRE · SMT TW-2.0 Z MK2" status={tautWireStatus(s, pose.eta)} ok={ready.TAUTWIRE} testid="tautwire-hmi">
       <div className="flex flex-wrap items-center gap-1 text-[10px]">
         <HmiBtn testid="tw-deploy" label="LOWER WEIGHT" tone="go" disabled={tw.phase === 'on-bottom' || tw.phase === 'lowering'} onClick={() => send({ type: 'tw-deploy' })} />
         <HmiBtn testid="tw-recover" label="RECOVER" disabled={tw.phase === 'stowed' || tw.phase === 'hoisting'} onClick={() => send({ type: 'tw-recover' })} />
@@ -234,14 +320,21 @@ export function TautWirePanel() {
         <Readout label="Water depth" value={`${WATER_DEPTH} m (rated ${SMT_TW.waterDepth.value} m)`} />
         <Readout label="Wire angle" value={tw.anchor ? `${angleDeg.toFixed(1)}°` : '—'} testid="tw-angle" />
         <Readout label="Offset from weight" value={tw.anchor ? `${offset.toFixed(1)} m` : '—'} />
+        <Readout label="Across / along ship" value={tw.anchor ? `${axes.across.toFixed(1)}° / ${axes.along.toFixed(1)}°` : '—'} testid="tw-axes" />
+        <Readout label="Operating range" value={`±${SMT_TW.angleLimitDeg.value}°`} />
       </dl>
+      <p data-testid="tw-nmea" className="overflow-x-auto whitespace-nowrap rounded-sm bg-black/40 px-2 py-1 font-mono text-[10px] text-[#8fe3a1]">
+        {tautWireNmea(s, pose.eta)}
+      </p>
+      <AccuracyTable />
       <DpRef id="TAUTWIRE" testid="tautwire" />
       <ErrorLine error={error} testid="tw-error" />
       <Alarms list={s.alarms.filter((a) => a.startsWith('TW_'))} testid="tw-alarms" />
       <Note>
-        Datasheet: 300 m water depth (500 m cable), 460 kg depressor weight, 3 m overboard reach, constant-tension heave-compensated winch, gimbal head sensor.
-        Illustrative: winch speed {SMT_TW.winchSpeed.value} m/s, angle warning {SMT_TW.angleWarnDeg.value}° and limit {SMT_TW.angleLimitDeg.value}°, weight shape
-        (sized for 460 kg of steel). Move the vessel in DP to see the wire angle change.
+        SMT Z Range Mk2 and manual PJ 0044-13: 500 m depth (700 m cable), 400 kg weight, 1700 × 1600 mm skid, 2085 mm stored, 2395 mm max while deploying, head
+        2510 mm outboard and 1059 mm up when deployed, ±30° range, $PCPTW output. Not stated, so illustrative: winch speed {SMT_TW.winchSpeed.value} m/s,{' '}
+        {SMT_TW.angleWarnDeg.value}° warning, alarm codes in the NMEA line, the bell size, and the boom path between the two drawn poses. Move the vessel in DP to see
+        the angles change.
       </Note>
     </Shell>
   );
@@ -276,9 +369,9 @@ export function SprintNavPanel() {
       <Alarms list={s.alarms.filter((a) => a === 'POLE_OVERSPEED')} testid="sn-alarms" />
       <Note>
         Datasheet: SPRINT-Nav DP {SPRINTNAV.diameter.value * 1000} × {SPRINTNAV.height.value * 1000} mm titanium, 100 m rating, 375 kHz DVL, bottom lock 0.4–200 m, station
-        keeping &lt; 3.2 m over 12 h (modelled as a slow drift). Type 8097 pole: 9 m from the pivot, 3 sections with strakes, hydraulic hull lock, 5 kn. Illustrative: pole
-        diameter and swing geometry, swing {POLE_8097.swingSeconds.value} s, lock {POLE_8097.lockSeconds.value} s, INS alignment {SPRINTNAV.alignSeconds.value} s, DVL beam
-        angle.
+        keeping &lt; 3.2 m over 12 h (modelled as a slow drift); public datasheet, no document supplied. Type 8097 pole datasheet: 9190 mm pivot to end, joints at 3110
+        and 6170 mm, strakes, 1,000 kg, axis 525 mm above the deck edge, hull lock 2415 mm below it, 5 kn. Illustrative: pole diameter (scaled), swing{' '}
+        {POLE_8097.swingSeconds.value} s, lock {POLE_8097.lockSeconds.value} s, INS alignment {SPRINTNAV.alignSeconds.value} s, DVL beam angle.
       </Note>
     </Shell>
   );

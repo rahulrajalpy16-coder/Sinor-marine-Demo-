@@ -8,6 +8,8 @@ import {
   sprintNavAltitude,
   stepPosRefs,
   tautWireAngle,
+  tautWireAxes,
+  tautWireNmea,
   toWorld,
   TW_VERTICAL,
   type PosRefCommand,
@@ -50,12 +52,16 @@ describe('position reference sensors', () => {
     s = run(s, TW_VERTICAL / SMT_TW.winchSpeed.value + 2);
     expect(s.tautwire.phase).toBe('on-bottom');
     expect(posRefReadiness(s, still).TAUTWIRE).toBe(true);
-    // 10 m east of where the weight landed: angle = atan(10 / vertical)
-    const moved: VesselPose = { eta: [0, 10, 0], speed: 0 };
-    expect(tautWireAngle(s, moved.eta).angleDeg).toBeCloseTo((Math.atan2(10, TW_VERTICAL) * 180) / Math.PI, 3);
+    expect(tautWireNmea(s, still.eta)).toMatch(/^\$PCPTW,000\.00,000\.00,A,00,\d{3}\.\d\*[0-9A-F]{2}$/);
+    // 20 m east of where the weight landed: angle = atan(20 / vertical), above the 20° warning
+    const moved: VesselPose = { eta: [0, 20, 0], speed: 0 };
+    expect(tautWireAngle(s, moved.eta).angleDeg).toBeCloseTo((Math.atan2(20, TW_VERTICAL) * 180) / Math.PI, 3);
+    // Vessel moved east (to starboard at heading 0), so the weight is inboard: across-ship angle negative.
+    expect(tautWireAxes(s, moved.eta).across).toBeLessThan(-20);
     s = run(s, 1, moved);
     expect(s.alarms).toContain('TW_ANGLE_WARN');
-    const far: VesselPose = { eta: [0, 25, 0], speed: 0 };
+    // Beyond the ±30° operating range
+    const far: VesselPose = { eta: [0, 30, 0], speed: 0 };
     s = run(s, 1, far);
     expect(s.alarms).toContain('TW_ANGLE_LIMIT');
     expect(posRefReadiness(s, far).TAUTWIRE).toBe(false);

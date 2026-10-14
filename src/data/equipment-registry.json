@@ -75,7 +75,7 @@
     },
     {
       "id": "radascan-001",
-      "name": "RadaScan \u00b7 Microwave Radar",
+      "name": "RadaScan View \u00b7 Radar",
       "category": "position-reference",
       "location": "bridge-top",
       "model": "/models/radascan.glb",
@@ -89,7 +89,7 @@
     },
     {
       "id": "cyscan-001",
-      "name": "CyScan \u00b7 Laser",
+      "name": "CyScan AS \u00b7 Laser",
       "category": "position-reference",
       "location": "bridge-top",
       "model": "/models/cyscan.glb",
@@ -103,7 +103,7 @@
     },
     {
       "id": "dgps-001",
-      "name": "DGPS \u00b7 Fugro SeaSTAR",
+      "name": "DGPS \u00b7 Fugro Seastar 9410-AUT",
       "category": "position-reference",
       "location": "mast",
       "model": "/models/seastar-antennas.glb",
@@ -115,10 +115,10 @@
     },
     {
       "id": "tautwire-001",
-      "name": "Taut Wire \u00b7 SMT TW-1.0",
+      "name": "Taut Wire \u00b7 SMT TW 2.0 Z Mk2",
       "category": "position-reference",
       "location": "main-deck",
-      "model": "/models/smt-tw1.glb",
+      "model": "/models/smt-tw2.glb",
       "simulation": "taut-wire",
       "actions": [
         "inspect",

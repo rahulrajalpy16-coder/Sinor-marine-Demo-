@@ -151,8 +151,8 @@ export function buildDeckGeometry(): THREE.BufferGeometry {
   return g;
 }
 
-/** Bulwark: a 1.1 m rail-height strip along both deck edges. */
-export function buildBulwarkGeometry(height = 1.1): THREE.BufferGeometry {
+/** Bulwark: a 1.1 m rail-height strip along both deck edges, with optional openings (side ±1, z range). */
+export function buildBulwarkGeometry(height = 1.1, gaps: readonly { side: number; z0: number; z1: number }[] = []): THREE.BufferGeometry {
   const pos: number[] = [];
   const idx: number[] = [];
   let v = 0;
@@ -162,7 +162,9 @@ export function buildBulwarkGeometry(height = 1.1): THREE.BufferGeometry {
       const w = halfBreadth(z, 1) * side;
       const y = deckY(z);
       pos.push(w, y, z, w, y + height, z);
-      if (i > 0) idx.push(v - 2, v, v - 1, v - 1, v, v + 1);
+      const zPrev = i > 0 ? stationZ(i - 1) : z;
+      const open = gaps.some((g) => g.side === side && Math.max(z, zPrev) > g.z0 && Math.min(z, zPrev) < g.z1);
+      if (i > 0 && !open) idx.push(v - 2, v, v - 1, v - 1, v, v + 1);
       v += 2;
     }
   }

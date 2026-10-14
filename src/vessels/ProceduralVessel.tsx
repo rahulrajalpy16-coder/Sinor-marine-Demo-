@@ -1,3 +1,4 @@
+import { BULWARK_GAPS } from '../equipment/posrefData';
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { dpSystem } from '../simulations/dpController';
@@ -22,7 +23,7 @@ export function ProceduralVessel() {
       hull: buildHullGeometry(),
       hullLines: buildHullLines(),
       deck: buildDeckGeometry(),
-      bulwark: buildBulwarkGeometry(),
+      bulwark: buildBulwarkGeometry(1.1, BULWARK_GAPS),
       transom: buildTransomGeometry(),
     }),
     [],
