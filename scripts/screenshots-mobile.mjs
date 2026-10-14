@@ -8,4 +8,6 @@ await m.screenshot({ path: `${out}/07-mobile.png` });
 await m.tap('[data-testid=tree-toggle]'); await m.tap('[data-testid=tree-bow-thruster-001] >> nth=-1');
 await m.waitForFunction(() => window.__SINOR__.state().phase === 'focused', null, { timeout: 30000 }); await m.waitForTimeout(500);
 await m.screenshot({ path: `${out}/08-mobile-thruster.png` });
+await m.tap('[data-testid=hmi-expand]'); await m.waitForTimeout(600);
+await m.screenshot({ path: `${out}/09-mobile-zthrust-hmi.png` });
 await b.close();

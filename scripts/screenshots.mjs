@@ -16,8 +16,8 @@ await p.screenshot({ path: `${out}/01-overview-hybrid.png` });
 for (const m of ['realistic','blueprint','xray']) { await p.click(`[data-testid=mode-${m}]`); await p.waitForTimeout(1500); await p.screenshot({ path: `${out}/02-mode-${m}.png` }); }
 await p.click('[data-testid=mode-hybrid]');
 await p.click('[data-testid=tree-bow-thruster-001]'); await focused('bow-thruster-001');
-await p.fill('[data-testid=thrust-input]', '80'); await p.press('[data-testid=thrust-input]', 'Enter');
-await p.click('[data-testid=thruster-start]'); await p.waitForTimeout(3500);
+await p.click('[data-testid=thruster-start]'); await p.waitForTimeout(4500);
+await p.fill('[data-testid=thrust-input]', '80'); await p.press('[data-testid=thrust-input]', 'Enter'); await p.waitForTimeout(3500);
 await p.screenshot({ path: `${out}/03-bow-thruster-running.png` });
 await p.click('[data-testid=action-explode]'); await p.waitForTimeout(2500);
 await p.screenshot({ path: `${out}/04-bow-thruster-exploded.png` });

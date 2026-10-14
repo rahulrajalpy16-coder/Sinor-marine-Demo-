@@ -50,12 +50,15 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
     explodable: true,
     implemented: true,
     summary:
-      'Fixed-axis transverse tunnel thruster in the bow. It produces lateral force to port or starboard for low-speed manoeuvring and station keeping. It has no azimuth steering.',
+      'P2 standard bow thruster: a fixed transverse tunnel with a controllable-pitch propeller driven by a constant-speed electric motor. Blade pitch, set from the Z-Thrust CPP control system, decides how hard and to which side it pushes the bow. It has no azimuth steering.',
     specs: [
       { label: 'Location', value: 'Bow, frame ~ +31 m' },
-      { label: 'Orientation', value: 'Fixed, transverse (±X)' },
-      { label: 'Max thrust (illustrative)', value: '120 kN' },
-      { label: 'Max propeller speed (illustrative)', value: '300 rpm' },
+      { label: 'Type', value: 'Tunnel, controllable pitch (CPP)' },
+      { label: 'Drive', value: '800 kW electric motor, constant speed' },
+      { label: 'Tunnel / blades', value: 'Ø2.1 m, 4 blades' },
+      { label: 'Propeller speed', value: '300 rpm (fixed)' },
+      { label: 'Max thrust (illustrative)', value: '105 kN' },
+      { label: 'Control system', value: 'Z-Thrust CPP control (FU / NFU, DP interface)' },
     ],
   },
   'deployment-001': {

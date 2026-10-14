@@ -14,7 +14,7 @@ declare global {
         introActive: boolean;
         assetStatus: Record<string, string>;
       };
-      thruster: () => { status: string; rpm: number; thrustKN: number; angle: number; command: number };
+      thruster: () => { status: string; rpm: number; thrustKN: number; angle: number; command: number; pitch: number };
       camera: () => { position: number[] };
     };
   }
@@ -153,10 +153,19 @@ test('thruster demonstration animates and reset stops it', async ({ page }) => {
   await page.getByTestId('thrust-input').fill('-150');
   await page.getByTestId('thrust-input').press('Enter');
   expect((await page.evaluate(() => window.__SINOR__!.thruster())).command).toBe(-1); // clamped
+  // Start interlock: lever must be at zero.
   await page.getByTestId('thruster-start').click();
-  await expect(page.getByTestId('thruster-status')).toHaveText('running');
+  await expect(page.getByTestId('thruster-alarms')).toContainText('lever not at zero');
+  await expect(page.getByTestId('thruster-status')).toHaveText('stopped');
+  await page.getByTestId('thrust-input').fill('0');
+  await page.getByTestId('thrust-input').press('Enter');
+  await page.getByTestId('thruster-start').click();
+  await expect(page.getByTestId('thruster-status')).toHaveText('running', { timeout: 15_000 });
   const a0 = (await page.evaluate(() => window.__SINOR__!.thruster())).angle;
-  await expect.poll(async () => (await page.evaluate(() => window.__SINOR__!.thruster())).rpm).toBeLessThan(-100);
+  expect((await page.evaluate(() => window.__SINOR__!.thruster())).rpm).toBeGreaterThan(290);
+  await page.getByTestId('thrust-input').fill('-100');
+  await page.getByTestId('thrust-input').press('Enter');
+  await expect.poll(async () => (await page.evaluate(() => window.__SINOR__!.thruster())).pitch, { timeout: 15_000 }).toBeLessThan(-0.5);
   const t = await page.evaluate(() => window.__SINOR__!.thruster());
   expect(t.thrustKN).toBeLessThan(0); // port
   expect(t.angle).not.toBe(a0);

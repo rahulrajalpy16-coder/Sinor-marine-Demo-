@@ -4,7 +4,10 @@ import {
   initialThrusterState,
   InvalidCommandError,
   stepThruster,
-  thrustFromRpm,
+  thrustFrom,
+  powerFrom,
+  maxPitchForLimit,
+  unacknowledged,
   DEFAULT_THRUSTER_PARAMS as P,
   type ThrusterState,
 } from './thruster';
@@ -28,55 +31,113 @@ describe('thruster command validation', () => {
   });
 });
 
-describe('thruster dynamics', () => {
-  it('does not spin while stopped, even with a command', () => {
-    let s = applyThrusterCommand(initialThrusterState(), { type: 'set-command', value: 1 });
-    s = run(s, 2);
+const started = (cmd = 0) => {
+  let s = applyThrusterCommand(initialThrusterState(), { type: 'start' });
+  s = run(s, P.startRampS + 0.5);
+  return applyThrusterCommand(s, { type: 'set-command', value: cmd });
+};
+
+describe('CPP thruster dynamics', () => {
+  it('does not turn or push while stopped', () => {
+    const s = run(applyThrusterCommand(initialThrusterState(), { type: 'set-command', value: 1 }), 2);
     expect(s.rpm).toBe(0);
     expect(s.thrustKN).toBe(0);
   });
 
-  it('approaches commanded rpm and signed thrust (starboard positive)', () => {
-    let s = applyThrusterCommand(initialThrusterState(), { type: 'set-command', value: 1 });
-    s = applyThrusterCommand(s, { type: 'start' });
-    s = run(s, 10);
-    expect(s.rpm).toBeCloseTo(P.maxRpm, 0);
-    expect(s.thrustKN).toBeCloseTo(P.maxThrustKN, 0);
-    s = applyThrusterCommand(s, { type: 'set-command', value: -0.5 });
-    s = run(s, 10);
-    expect(s.rpm).toBeCloseTo(-0.5 * P.maxRpm, 0);
-    expect(s.thrustKN).toBeCloseTo(-0.25 * P.maxThrustKN, 0);
+  it('blocks a start with the lever off zero and raises an alarm', () => {
+    const s = applyThrusterCommand(applyThrusterCommand(initialThrusterState(), { type: 'set-command', value: 0.6 }), { type: 'start' });
+    expect(s.status).toBe('stopped');
+    expect(s.alarms).toContain('LEVER_NOT_ZERO');
+    const zeroed = applyThrusterCommand(s, { type: 'set-command', value: 0 });
+    expect(zeroed.alarms).not.toContain('LEVER_NOT_ZERO');
+    expect(applyThrusterCommand(zeroed, { type: 'start' }).status).toBe('starting');
   });
 
-  it('thrust scales with rpm squared and keeps sign', () => {
-    expect(thrustFromRpm(P.maxRpm / 2)).toBeCloseTo(P.maxThrustKN / 4);
-    expect(thrustFromRpm(-P.maxRpm)).toBeCloseTo(-P.maxThrustKN);
+  it('soft-starts to constant rated speed at zero pitch with only idle load', () => {
+    let s = applyThrusterCommand(initialThrusterState(), { type: 'start' });
+    s = run(s, P.startRampS / 2);
+    expect(s.status).toBe('starting');
+    s = run(s, P.startRampS);
+    expect(s.status).toBe('running');
+    expect(s.rpm).toBe(P.ratedRpm);
+    expect(s.thrustKN).toBe(0);
+    expect(s.powerKW).toBeCloseTo(P.zeroPitchLoad * P.ratedPowerKW);
+  });
+
+  it('pitch follows the lever at the servo rate and sets signed thrust', () => {
+    let s = started(1);
+    s = run(s, 1);
+    expect(s.pitch).toBeCloseTo(P.pitchRatePerS, 1);
+    s = run(s, 10);
+    expect(s.pitch).toBeCloseTo(1);
+    expect(s.thrustKN).toBeCloseTo(P.maxThrustKN);
+    expect(s.powerKW).toBeCloseTo(P.ratedPowerKW);
+    s = run(applyThrusterCommand(s, { type: 'set-command', value: -0.5 }), 10);
+    expect(s.rpm).toBe(P.ratedRpm); // speed never reverses on a CPP
+    expect(s.thrustKN).toBeCloseTo(-P.maxThrustKN * 0.5 ** 1.5);
+  });
+
+  it('thrust and power formulas', () => {
+    expect(thrustFrom(1, P.ratedRpm)).toBeCloseTo(P.maxThrustKN);
+    expect(thrustFrom(-1, P.ratedRpm)).toBeCloseTo(-P.maxThrustKN);
+    expect(thrustFrom(1, 0)).toBe(0);
+    expect(powerFrom(0, P.ratedRpm)).toBeCloseTo(P.zeroPitchLoad * P.ratedPowerKW);
+  });
+
+  it('load clipping keeps power within the limit', () => {
+    let s = applyThrusterCommand(started(1), { type: 'set-power-limit', value: 0.5 });
+    s = run(s, 10);
+    expect(s.loadClipping).toBe(true);
+    expect(s.alarms).toContain('LOAD_CLIPPING');
+    expect(s.powerKW).toBeLessThanOrEqual(0.5 * P.ratedPowerKW + 1e-6);
+    expect(s.pitch).toBeCloseTo(maxPitchForLimit(0.5));
+    s = run(applyThrusterCommand(s, { type: 'set-power-limit', value: 1 }), 10);
+    expect(s.loadClipping).toBe(false);
+    expect(s.alarms).not.toContain('LOAD_CLIPPING');
+  });
+
+  it('NFU nudges the setpoint and DP command locks the bridge lever', () => {
+    let s = applyThrusterCommand(initialThrusterState(), { type: 'nudge', delta: 0.1 });
+    expect(s.command).toBeCloseTo(0.1);
+    s = applyThrusterCommand(s, { type: 'set-station', station: 'DP' });
+    expect(s.command).toBe(0);
+    expect(s.alarms).toContain('NOT_IN_COMMAND');
+    expect(() => applyThrusterCommand(s, { type: 'set-command', value: 0.5 })).toThrow(InvalidCommandError);
   });
 
   it('pause freezes state; resume continues', () => {
-    let s = applyThrusterCommand(applyThrusterCommand(initialThrusterState(), { type: 'set-command', value: 0.8 }), { type: 'start' });
-    s = run(s, 1);
+    let s = run(started(0.8), 1);
     const paused = applyThrusterCommand(s, { type: 'pause' });
     expect(run(paused, 3)).toEqual(paused);
     const resumed = run(applyThrusterCommand(paused, { type: 'resume' }), 1);
-    expect(Math.abs(resumed.rpm)).toBeGreaterThan(Math.abs(paused.rpm));
+    expect(resumed.status).toBe('running');
+    expect(Math.abs(resumed.pitch)).toBeGreaterThan(Math.abs(paused.pitch));
   });
 
-  it('stop zeroes the command and spins down to a full stop', () => {
-    let s = applyThrusterCommand(applyThrusterCommand(initialThrusterState(), { type: 'set-command', value: 1 }), { type: 'start' });
-    s = run(s, 5);
+  it('stop de-pitches first, then runs the motor down', () => {
+    let s = run(started(1), 6);
     s = applyThrusterCommand(s, { type: 'stop' });
     expect(s.status).toBe('stopping');
     expect(s.command).toBe(0);
-    s = run(s, 15);
+    s = run(s, 1);
+    expect(s.rpm).toBe(P.ratedRpm); // still de-pitching under power
+    s = run(s, 20);
     expect(s.status).toBe('stopped');
     expect(s.rpm).toBe(0);
+    expect(s.pitch).toBe(0);
     expect(s.thrustKN).toBe(0);
   });
 
-  it('reset returns to the initial state immediately', () => {
-    let s = applyThrusterCommand(applyThrusterCommand(initialThrusterState(), { type: 'set-command', value: 1 }), { type: 'start' });
-    s = run(s, 2);
+  it('emergency stop trips the motor and latches until reset', () => {
+    let s = run(started(1), 6);
+    s = applyThrusterCommand(s, { type: 'emergency-stop' });
+    expect(s.status).toBe('shutdown');
+    s = run(s, 20);
+    expect(s.rpm).toBe(0);
+    expect(s.status).toBe('shutdown');
+    expect(applyThrusterCommand(s, { type: 'start' })).toBe(s);
+    expect(unacknowledged(s)).toEqual(['EMERGENCY_STOP']);
+    expect(unacknowledged(applyThrusterCommand(s, { type: 'acknowledge' }))).toEqual([]);
     expect(applyThrusterCommand(s, { type: 'reset' })).toEqual(initialThrusterState());
   });
 
@@ -84,12 +145,13 @@ describe('thruster dynamics', () => {
     const s = initialThrusterState();
     expect(applyThrusterCommand(s, { type: 'pause' })).toBe(s);
     expect(applyThrusterCommand(s, { type: 'resume' })).toBe(s);
+    expect(applyThrusterCommand(s, { type: 'emergency-stop' })).toBe(s);
   });
 
   it('is stable for a large timestep', () => {
-    let s = applyThrusterCommand(applyThrusterCommand(initialThrusterState(), { type: 'set-command', value: 1 }), { type: 'start' });
+    let s = applyThrusterCommand(initialThrusterState(), { type: 'start' });
     s = stepThruster(s, 50);
-    expect(s.rpm).toBeLessThanOrEqual(P.maxRpm);
+    expect(s.rpm).toBeLessThanOrEqual(P.ratedRpm);
     expect(Number.isFinite(s.angle)).toBe(true);
     expect(s.angle).toBeGreaterThanOrEqual(0);
     expect(s.angle).toBeLessThan(Math.PI * 2);
@@ -127,7 +189,7 @@ describe('thruster controller', () => {
     const seen: string[] = [];
     const off = c.subscribe((s) => seen.push(s.status));
     c.dispatch({ type: 'start' });
-    expect(seen).toContain('running');
+    expect(seen).toContain('starting');
     expect(c.listenerCount()).toBe(1);
     off();
     expect(c.listenerCount()).toBe(0);
