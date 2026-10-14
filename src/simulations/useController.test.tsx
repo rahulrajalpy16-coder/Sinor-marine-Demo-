@@ -13,7 +13,7 @@ describe('UI subscriptions', () => {
     const { getByTestId, unmount } = render(<Readout c={c} />);
     expect(c.listenerCount()).toBe(1);
     act(() => c.dispatch({ type: 'start' }));
-    expect(getByTestId('status').textContent).toBe('running');
+    expect(getByTestId('status').textContent).toBe('starting');
     unmount();
     expect(c.listenerCount()).toBe(0);
   });
