@@ -4,6 +4,8 @@ import * as THREE from 'three';
 import { useAppStore } from '../store/useAppStore';
 import { getEquipment } from '../equipment/registry';
 import { bowThruster } from '../simulations/controller';
+import { dpSystem } from '../simulations/dpController';
+import { toScene } from './vesselTransform';
 
 declare global {
   interface Window {
@@ -12,6 +14,7 @@ declare global {
       sample: () => { lit: number; cyan: number; total: number };
       state: () => ReturnType<typeof useAppStore.getState>;
       thruster: () => ReturnType<typeof bowThruster.getState>;
+      dp: () => ReturnType<typeof dpSystem.getState>;
       camera: () => { position: number[] };
     };
   }
@@ -25,7 +28,7 @@ export function TestBridge() {
       project: (id) => {
         const eq = getEquipment(id);
         if (!eq) return null;
-        const v = new THREE.Vector3(...eq.placement.target).project(camera);
+        const v = new THREE.Vector3(...toScene(eq.placement.target)).project(camera);
         const r = gl.domElement.getBoundingClientRect();
         return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height };
       },
@@ -48,6 +51,7 @@ export function TestBridge() {
       },
       state: () => useAppStore.getState(),
       thruster: () => bowThruster.getState(),
+      dp: () => dpSystem.getState(),
       camera: () => ({ position: camera.position.toArray() }),
     };
     return () => {

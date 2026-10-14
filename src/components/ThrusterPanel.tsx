@@ -341,7 +341,7 @@ function Gauge({
   );
 }
 
-function Status({ k, v, warn }: { k: string; v: string; warn?: boolean }) {
+export function Status({ k, v, warn }: { k: string; v: string; warn?: boolean }) {
   return (
     <div className="flex items-center justify-between rounded-sm bg-[#16324a] px-1.5 py-0.5">
       <dt className="text-[#9fb3c2]">{k}</dt>
@@ -353,7 +353,7 @@ function Status({ k, v, warn }: { k: string; v: string; warn?: boolean }) {
   );
 }
 
-function Readout({ label, value, testid }: { label: string; value: string; testid?: string }) {
+export function Readout({ label, value, testid }: { label: string; value: string; testid?: string }) {
   return (
     <div className="rounded-sm border border-white/10 bg-black/30 px-1.5 py-1">
       <dt className="text-[9px] uppercase text-[#9fb3c2]">{label}</dt>
@@ -364,7 +364,7 @@ function Readout({ label, value, testid }: { label: string; value: string; testi
   );
 }
 
-function Toggle({ label, active, onClick, testid }: { label: string; active: boolean; onClick: () => void; testid: string }) {
+export function Toggle({ label, active, onClick, testid }: { label: string; active: boolean; onClick: () => void; testid: string }) {
   return (
     <button
       type="button"
@@ -378,7 +378,7 @@ function Toggle({ label, active, onClick, testid }: { label: string; active: boo
   );
 }
 
-function HmiBtn({
+export function HmiBtn({
   label,
   onClick,
   disabled,

@@ -117,7 +117,7 @@ describe('visual modes', () => {
     const s = createAppStore();
     s.getState().setVisualMode('exploded');
     expect(s.getState().visualMode).toBe('hybrid');
-    s.getState().select('dp-console-001');
+    s.getState().select('hpr-001');
     s.getState().setVisualMode('exploded');
     expect(s.getState().visualMode).toBe('hybrid');
     s.getState().select('bow-thruster-001');

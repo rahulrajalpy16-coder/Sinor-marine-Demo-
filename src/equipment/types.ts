@@ -64,6 +64,8 @@ export interface EquipmentPlacement {
   camera: [number, number, number];
   /** True when the equipment sits below the waterline (ocean is made see-through on focus). */
   underwater: boolean;
+  /** Inside a compartment (bridge): the camera orbits close, inside the room. */
+  interior?: boolean;
   /** Assembly supports the exploded visual mode. */
   explodable: boolean;
   /** Phase-1 slice: the system is modelled and selectable in the scene. */

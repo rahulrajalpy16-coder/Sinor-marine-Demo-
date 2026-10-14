@@ -1,4 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { dpSystem } from '../simulations/dpController';
 import * as THREE from 'three';
 import { Box, HybridPart } from '../rendering/HybridPart';
 import {
@@ -67,7 +69,7 @@ function Superstructure() {
   );
 }
 
-/** Bridge deck built as an open shell so the DP console inside is visible through the front glass. */
+/** Bridge deck built as an open shell: IBS console forward, aft-facing DP station behind aft windows. */
 function Bridge() {
   const y0 = 9;
   const y1 = 12;
@@ -75,7 +77,12 @@ function Bridge() {
     <group name="segment:bridge">
       <Box min={[-7.4, y0 - 0.15, 12]} max={[7.4, y0, 23]} material="deck" holo={false} />
       <Box min={[-7.4, y1, 12]} max={[7.4, y1 + 0.35, 23.3]} material="superstructure" />
-      <Box min={[-7.4, y0, 12]} max={[7.4, y1, 12.3]} material="superstructure" />
+      {/* Aft bulkhead with windows so the aft-facing DP station overlooks the working deck */}
+      <Box min={[-7.4, y0, 12]} max={[7.4, y0 + 0.95, 12.3]} material="superstructure" />
+      <Box min={[-7.4, y1 - 0.3, 12]} max={[7.4, y1, 12.3]} material="superstructure" />
+      <Box min={[-7.4, y0 + 0.95, 12]} max={[-3.6, y1 - 0.3, 12.3]} material="superstructure" />
+      <Box min={[3.6, y0 + 0.95, 12]} max={[7.4, y1 - 0.3, 12.3]} material="superstructure" />
+      <Box min={[-3.6, y0 + 0.95, 12.1]} max={[3.6, y1 - 0.3, 12.2]} material="glass" holo={false} />
       {/* Sills and corner posts */}
       <Box min={[-7.4, y0, 22.7]} max={[7.4, y0 + 0.45, 23]} material="superstructure" />
       <Box min={[-7.4, y0, 12.3]} max={[-7.1, y1, 22.7]} material="superstructure" />
@@ -143,18 +150,34 @@ function AftDeck() {
   );
 }
 
-/** Aft azimuth propulsion pods (visual only in Phase 1). */
+/** Aft azimuth propulsion pods AZ1 (port) and AZ2 (stbd); they slew to the angle the DP allocation commands. */
 function AzimuthPods() {
   const strut = useMemo(() => new THREE.CylinderGeometry(0.5, 0.5, 2.2, 12), []);
   const pod = useMemo(() => new THREE.CapsuleGeometry(0.9, 2.4, 6, 14), []);
   const nozzle = useMemo(() => new THREE.TorusGeometry(1.5, 0.28, 8, 24), []);
+  const refs = useRef<(THREE.Group | null)[]>([]);
+  useFrame(() => {
+    const th = dpSystem.getState().thrusters;
+    ['AZ1', 'AZ2'].forEach((id, i) => {
+      const t = th.find((x) => x.id === id);
+      const g = refs.current[i];
+      // Thrust angle 0 = ahead, +90° = starboard; the nozzle sits aft of the pod, so rotation.y = angle.
+      if (t && g) g.rotation.y = t.angle;
+    });
+  });
   return (
     <group name="segment:azimuth-pods">
-      {[-4.6, 4.6].map((x) => (
-        <group key={x} position={[x, -3.4, -34.5]}>
+      {[-4.6, 4.6].map((x, i) => (
+        <group key={x} position={[x, -3.4, -34.5]} name={i === 0 ? 'AZ1' : 'AZ2'}>
           <HybridPart geometry={strut} material="dark" position={[0, 0.4, 0]} />
-          <HybridPart geometry={pod} material="dark" position={[0, -1.2, 0]} rotation={[Math.PI / 2, 0, 0]} />
-          <HybridPart geometry={nozzle} material="dark" position={[0, -1.2, -1.4]} />
+          <group
+            ref={(el) => {
+              refs.current[i] = el;
+            }}
+          >
+            <HybridPart geometry={pod} material="dark" position={[0, -1.2, 0]} rotation={[Math.PI / 2, 0, 0]} />
+            <HybridPart geometry={nozzle} material="dark" position={[0, -1.2, -1.4]} />
+          </group>
         </group>
       ))}
     </group>

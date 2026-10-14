@@ -20,6 +20,8 @@ export interface AppState {
   introActive: boolean;
   /** HPR acoustic path visualisation toggle (registry action "show-signals"). */
   hprSignals: boolean;
+  /** Show the DP network, controllers and IO units as a 3D overlay. */
+  dpNetwork: boolean;
   /** Which representation each equipment item is using (planned GLB or procedural fallback). */
   assetStatus: Record<string, 'probing' | 'glb' | 'procedural'>;
 
@@ -50,6 +52,7 @@ export interface AppState {
   cameraEvent: (ev: CameraEvent) => void;
   setCameraMoving: (v: boolean) => void;
   setHprSignals: (v: boolean) => void;
+  setDpNetwork: (v: boolean) => void;
   setAssetStatus: (id: string, status: 'probing' | 'glb' | 'procedural') => void;
   startIntro: () => void;
   endIntro: () => void;
@@ -67,6 +70,7 @@ export const createAppStore = () =>
     reducedMotion: prefersReducedMotion(),
     introActive: false,
     hprSignals: false,
+    dpNetwork: false,
     assetStatus: {},
 
     hoveredId: null,
@@ -176,6 +180,7 @@ export const createAppStore = () =>
     setCameraMoving: (v) => set({ cameraMoving: v }),
 
     setHprSignals: (v) => set({ hprSignals: v }),
+    setDpNetwork: (v) => set({ dpNetwork: v }),
     setAssetStatus: (id, status) => set({ assetStatus: { ...get().assetStatus, [id]: status } }),
     startIntro: () => {
       const s = get();

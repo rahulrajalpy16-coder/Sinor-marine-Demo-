@@ -13,19 +13,41 @@ export const design = parseDesignConfig(designJson);
  * chosen for legibility on an 80 m concept hull; they are not engineering drawings.
  */
 export const PLACEMENTS: Record<string, EquipmentPlacement> = {
-  'dp-console-001': {
-    target: [0, 10, 21.6],
-    camera: [2.6, 11.4, 15.2],
+  'ibs-001': {
+    target: [0, 10.2, 21.4],
+    camera: [1.4, 11.1, 17.6],
     underwater: false,
+    interior: true,
     explodable: false,
     implemented: true,
     summary:
-      'Operator station for the dynamic positioning system on the forward bridge. It is where position and heading set-points are entered and thruster allocation is monitored.',
+      'Integrated bridge system on a dual redundant network. The forward console carries five multi-function workstations (X-band radar, ECDIS, conning, ECDIS, S-band radar); any application can run on any workstation. Overhead displays, steering stand with the Z-Thrust BT1 panel, navigator chairs and chart table complete the layout.',
     specs: [
-      { label: 'Location', value: 'Bridge, forward centreline' },
-      { label: 'Role', value: 'Position & heading set-points' },
-      { label: 'Redundancy class', value: 'Illustrative DP2 layout' },
-      { label: 'Simulation', value: '3-DOF educational model (Phase 3)' },
+      { label: 'Workstations', value: '5 × MFW, 26" displays' },
+      { label: 'Applications', value: 'ARPA radar, ECDIS, conning, ICAS, DP, cameras, thruster control' },
+      { label: 'Network', value: 'Dual redundant Ethernet' },
+      { label: 'Radar', value: 'X-band (port) and S-band (stbd)' },
+      { label: 'Bridge type', value: 'One-man bridge operation (illustrative)' },
+      { label: 'Reference', value: 'Bridge Mate IBS datasheet layout' },
+    ],
+  },
+  'dp-console-001': {
+    target: [0, 10.1, 12.95],
+    camera: [0.7, 11.25, 16.3],
+    underwater: false,
+    interior: true,
+    explodable: true,
+    implemented: true,
+    summary:
+      'Aft-facing DP station on the bridge, overlooking the working deck. 26-inch pedestal operator stations hold the DP panel (joystick, trackball, mode keys), the display and a 19-inch rack with the DP control and operator computers. Class 2 has three voting controllers, two stations and a dual network; class 3 adds a backup station in a separate A60 room.',
+    specs: [
+      { label: 'Location', value: 'Bridge, aft-facing station' },
+      { label: 'Console', value: '26" pedestal, 654 × 1206 mm (drawing 5000-501092)' },
+      { label: 'Rack', value: 'MT computer, DP control + operator computers, PoE switch' },
+      { label: 'Class options', value: 'DP1 · DP2 (default) · DP3' },
+      { label: 'Thrusters', value: 'BT1 + BT2 (bow, P2 CPP), AZ1 + AZ2 (stern)' },
+      { label: 'References', value: 'GNSS1, GNSS2, HPR' },
+      { label: 'Simulation', value: '3-DOF educational model, not certified' },
     ],
   },
   'hpr-001': {
@@ -85,6 +107,7 @@ export function getEquipment(id: string): Equipment | undefined {
 }
 
 export const CATEGORY_LABELS: Record<string, string> = {
+  navigation: 'Bridge & Navigation',
   'dynamic-positioning': 'Dynamic Positioning',
   'position-reference': 'Position Reference',
   propulsion: 'Propulsion',

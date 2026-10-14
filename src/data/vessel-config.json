@@ -29,6 +29,7 @@
     }
   ],
   "equipmentIds": [
+    "ibs-001",
     "dp-console-001",
     "hpr-001",
     "bow-thruster-001",
