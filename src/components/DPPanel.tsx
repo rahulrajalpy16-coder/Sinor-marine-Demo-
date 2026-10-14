@@ -17,6 +17,7 @@ import {
   type DPMode,
   type DPState,
   type RefState,
+  REF_LABEL,
 } from '../simulations/dp';
 import { useAppStore } from '../store/useAppStore';
 import { HmiBtn, Readout, Toggle } from './ThrusterPanel';
@@ -462,7 +463,7 @@ function RedundancyPage({
       <p className="rounded-sm bg-black/20 p-1.5 leading-snug text-[#c7d3dc]" data-testid="dp-architecture">
         DP{s.dpClass}: {lay.controllers} controller{lay.controllers > 1 ? 's' : ''}
         {lay.controllers > 1 ? ' (majority voting)' : ''}, {lay.operatorStations} operator station{lay.operatorStations > 1 ? 's' : ''}, {lay.networks === 2 ? 'dual' : 'single'} network,{' '}
-        {lay.refs.length} position references{lay.backupStation ? ', backup controller + station in a separate A60 room' : ''}.
+        {s.refs.filter((r) => r.installed).length} position references fitted{lay.backupStation ? ', backup controller + station in a separate A60 room' : ''}.
       </p>
       <Group title="Controllers">
         {s.controllers
@@ -490,7 +491,8 @@ function RedundancyPage({
         {s.refs
           .filter((r) => r.installed)
           .map((r) => (
-            <Unit key={r.id} name={r.id} status={refStatus(r)} bad={r.rejected || !!r.fault || !r.ready} testid={`dp-ref-${r.id}`}>
+            <Unit key={r.id} name={REF_LABEL[r.id]} status={refStatus(r)} bad={r.enabled && (r.rejected || !!r.fault || !r.ready)} testid={`dp-ref-${r.id}`}>
+              <SmallBtn onClick={() => send({ type: 'ref-enable', id: r.id, enabled: !r.enabled })} label={r.enabled ? 'Desel' : 'Select'} testid={`dp-sel-${r.id}`} />
               <SmallBtn onClick={() => send({ type: 'ref-fault', id: r.id, fault: r.fault === 'drift' ? null : 'drift' })} label={r.fault === 'drift' ? 'Stop drift' : 'Drift'} testid={`dp-drift-${r.id}`} />
               <SmallBtn onClick={() => send({ type: 'ref-fault', id: r.id, fault: r.fault === 'lost' ? null : 'lost' })} label={r.fault === 'lost' ? 'Restore' : 'Lose'} testid={`dp-lose-${r.id}`} />
             </Unit>
@@ -516,8 +518,8 @@ function RedundancyPage({
 }
 
 function refStatus(r: RefState) {
-  if (!r.enabled) return 'DISABLED';
-  if (!r.ready) return 'NOT DEPLOYED';
+  if (!r.enabled) return r.ready ? 'DESELECTED' : 'OFF · NOT READY';
+  if (!r.ready) return r.id === 'HPR' ? 'NOT DEPLOYED' : 'NOT READY';
   if (r.fault === 'lost') return 'LOST';
   if (r.rejected) return 'REJECTED';
   if (r.fault === 'drift') return 'DRIFTING';

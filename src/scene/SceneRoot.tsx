@@ -13,6 +13,7 @@ import { CameraRig } from '../camera/CameraRig';
 import { VesselWithEquipment } from '../vessels/VesselWithEquipment';
 import { VesselMotion } from './VesselMotion';
 import { DPSetpointMarker } from './DPSceneOverlay';
+import { PositionReferenceWorld } from '../equipment/PositionReferences';
 import { OVERVIEW_POSE } from '../camera/cameraMachine';
 import { useQualityProfile } from '../rendering/quality';
 
@@ -55,6 +56,7 @@ export function SceneRoot({ onError }: { onError?: (e: unknown) => void }) {
           <Hotspots />
         </VesselMotion>
         <DPSetpointMarker />
+        <PositionReferenceWorld />
         <ModeController />
         <SimulationDriver />
         <CameraRig />

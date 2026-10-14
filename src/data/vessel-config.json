@@ -33,6 +33,11 @@
     "dp-console-001",
     "hpr-001",
     "bow-thruster-001",
-    "deployment-001"
+    "deployment-001",
+    "radascan-001",
+    "cyscan-001",
+    "dgps-001",
+    "tautwire-001",
+    "sprintnav-001"
   ]
 }

@@ -343,7 +343,7 @@ function Gauge({
 
 export function Status({ k, v, warn }: { k: string; v: string; warn?: boolean }) {
   return (
-    <div className="flex items-center justify-between rounded-sm bg-[#16324a] px-1.5 py-0.5">
+    <div className="flex items-center justify-between gap-2 rounded-sm bg-[#16324a] px-1.5 py-0.5">
       <dt className="text-[#9fb3c2]">{k}</dt>
       <dd className={`font-mono ${warn ? 'text-amber-300' : 'text-[#e6edf2]'}`}>
         {warn ? '⚠ ' : ''}

@@ -169,7 +169,16 @@ describe('DP commands', () => {
     expect(c(2).controllers.filter((x) => x.installed)).toHaveLength(3);
     expect(c(1).networks.filter((x) => x.installed)).toHaveLength(1);
     expect(c(2).networks.filter((x) => x.installed)).toHaveLength(2);
-    expect(c(1).refs.filter((x) => x.installed).map((r) => r.id)).toEqual(['GNSS1', 'HPR']);
+    expect(c(1).refs.filter((x) => x.installed && x.enabled).map((r) => r.id)).toEqual(['GNSS1', 'HPR']);
+    expect(c(2).refs.filter((x) => x.installed && x.enabled).map((r) => r.id)).toEqual(['GNSS1', 'GNSS2', 'HPR']);
+    // RadaScan, CyScan, taut wire and SPRINT-Nav are fitted on every class but start deselected and not ready.
+    expect(c(1).refs.filter((x) => !x.enabled).map((r) => [r.id, r.installed, r.ready])).toEqual([
+      ['GNSS2', false, true],
+      ['RADASCAN', true, false],
+      ['CYSCAN', true, false],
+      ['TAUTWIRE', true, false],
+      ['SPRINTNAV', true, false],
+    ]);
   });
   it('pause freezes, reset returns to start keeping the environment', () => {
     let s = run(started(2), 50);

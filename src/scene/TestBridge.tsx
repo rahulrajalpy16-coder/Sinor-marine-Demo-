@@ -6,6 +6,7 @@ import { getEquipment } from '../equipment/registry';
 import { bowThruster } from '../simulations/controller';
 import { dpSystem } from '../simulations/dpController';
 import { hprDeployment } from '../simulations/deploymentController';
+import { posRefs } from '../simulations/posrefsController';
 import { toScene } from './vesselTransform';
 
 declare global {
@@ -17,6 +18,7 @@ declare global {
       thruster: () => ReturnType<typeof bowThruster.getState>;
       dp: () => ReturnType<typeof dpSystem.getState>;
       hpr: () => ReturnType<typeof hprDeployment.getState>;
+      posrefs: () => ReturnType<typeof posRefs.getState>;
       camera: () => { position: number[] };
     };
   }
@@ -55,6 +57,7 @@ export function TestBridge() {
       thruster: () => bowThruster.getState(),
       dp: () => dpSystem.getState(),
       hpr: () => hprDeployment.getState(),
+      posrefs: () => posRefs.getState(),
       camera: () => ({ position: camera.position.toArray() }),
     };
     return () => {

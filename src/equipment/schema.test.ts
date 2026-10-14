@@ -7,7 +7,7 @@ import { equipment, PLACEMENTS, registry } from './registry';
 describe('content schemas', () => {
   it('parses the shipped registry, vessel and design config', () => {
     const reg = parseEquipmentRegistry(registryJson);
-    expect(reg.equipment).toHaveLength(5);
+    expect(reg.equipment).toHaveLength(10);
     const v = parseVesselConfig(vesselJson, new Set(reg.equipment.map((e) => e.id)));
     expect(v.certified).toBe(false);
     expect(v.dimensionsMeters).toEqual({ length: 80, beam: 18, depth: 8 });
@@ -44,7 +44,18 @@ describe('content schemas', () => {
 
   it('marks the modelled systems as implemented', () => {
     expect(equipment.filter((e) => e.placement.implemented).map((e) => e.id).sort()).toEqual(
-      ['bow-thruster-001', 'deployment-001', 'dp-console-001', 'hpr-001', 'ibs-001'],
+      [
+        'bow-thruster-001',
+        'cyscan-001',
+        'deployment-001',
+        'dgps-001',
+        'dp-console-001',
+        'hpr-001',
+        'ibs-001',
+        'radascan-001',
+        'sprintnav-001',
+        'tautwire-001',
+      ],
     );
   });
 });

@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 import { ThrusterPanel } from './ThrusterPanel';
 import { HPRPanel } from './HPRPanel';
 import { DPPanel } from './DPPanel';
+import { CyScanPanel, DGPSPanel, RadaScanPanel, SprintNavPanel, TautWirePanel } from './PosRefPanel';
 
 /**
  * Simulation/HMI panel for each equipment id. The Inspector hosts these inside the responsive
@@ -13,4 +14,9 @@ export const SYSTEM_PANELS: Record<string, ComponentType> = {
   'hpr-001': HPRPanel,
   'deployment-001': HPRPanel,
   'dp-console-001': DPPanel,
+  'radascan-001': RadaScanPanel,
+  'cyscan-001': CyScanPanel,
+  'dgps-001': DGPSPanel,
+  'tautwire-001': TautWirePanel,
+  'sprintnav-001': SprintNavPanel,
 };
