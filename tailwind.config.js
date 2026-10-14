@@ -3,6 +3,10 @@ export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
+      screens: {
+        // Finger-first devices: larger touch targets for the shell controls.
+        coarse: { raw: '(pointer: coarse)' },
+      },
       colors: {
         abyss: '#020813',
         ocean: '#061725',

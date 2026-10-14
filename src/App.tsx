@@ -1,26 +1,28 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { TopBar } from './components/TopBar';
-import { EquipmentTree } from './components/EquipmentTree';
-import { Inspector } from './components/Inspector';
 import { BottomBar } from './components/BottomBar';
+import { SystemsPanel } from './components/shell/SystemsPanel';
+import { InspectorDock } from './components/shell/InspectorDock';
 import { IntroOverlay } from './components/IntroOverlay';
 import { SceneErrorBoundary, hasWebGL } from './components/SceneErrorBoundary';
 import { useAppStore } from './store/useAppStore';
-import { registry } from './equipment/registry';
+import { initialQuality } from './rendering/quality';
+import { installViewportListeners, useDevice } from './responsive/useDevice';
 
 const SceneRoot = lazy(() => import('./scene/SceneRoot').then((m) => ({ default: m.SceneRoot })));
 
 export default function App() {
   const [webgl] = useState(() => hasWebGL());
-  const [treeOpen, setTreeOpen] = useState(false);
-  const selectedId = useAppStore((s) => s.selectedId);
+  const layout = useDevice((s) => s.layout);
+  const orientation = useDevice((s) => s.orientation);
+
+  useEffect(() => installViewportListeners(), []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const st = useAppStore.getState();
     if (params.get('intro') !== '0' && !st.reducedMotion) st.startIntro();
-    const q = params.get('quality');
-    if (q === 'low' || q === 'medium' || q === 'high') st.setQuality(q);
+    st.setQuality(initialQuality(window.location.search).quality);
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       const s = useAppStore.getState();
@@ -47,33 +49,13 @@ export default function App() {
       </SceneErrorBoundary>
       <div className="scanlines pointer-events-none absolute inset-0" aria-hidden />
 
-      <div className="pointer-events-none absolute inset-0 flex flex-col">
-        <TopBar />
-        <div className="relative flex min-h-0 flex-1 gap-3 p-3">
-          <div className="pointer-events-auto hidden w-60 shrink-0 flex-col gap-3 self-start rounded-sm border border-cyan/20 bg-abyss/75 p-3 backdrop-blur-md md:flex">
-            <EquipmentTree />
-            <p className="border-t border-white/5 pt-2 text-[10px] leading-snug text-mute">{registry.note}</p>
-          </div>
-          <button
-            type="button"
-            className="pointer-events-auto absolute left-3 top-3 rounded-sm border border-cyan/40 bg-abyss/80 px-3 py-1.5 text-xs md:hidden"
-            aria-expanded={treeOpen}
-            data-testid="tree-toggle"
-            onClick={() => setTreeOpen((v) => !v)}
-          >
-            ☰ Systems
-          </button>
-          {treeOpen && (
-            <div className="pointer-events-auto absolute left-3 top-14 z-10 w-64 rounded-sm border border-cyan/30 bg-abyss/95 p-3 md:hidden">
-              <EquipmentTree onPicked={() => setTreeOpen(false)} />
-            </div>
-          )}
+      {/* One shell for every device: only the containers change with the layout class. */}
+      <div className="pointer-events-none absolute inset-0 flex flex-col" data-layout={layout} data-testid="app-shell">
+        <TopBar layout={layout} />
+        <div className={`relative flex min-h-0 flex-1 gap-3 ${layout === 'desktop' ? 'p-3' : 'safe-x'}`}>
+          <SystemsPanel layout={layout} />
           <div className="flex-1" />
-          {selectedId && (
-            <div className="pointer-events-none absolute inset-x-3 bottom-3 max-h-[55%] md:static md:inset-auto md:max-h-full md:w-[22rem] md:shrink-0 md:self-start">
-              <Inspector />
-            </div>
-          )}
+          <InspectorDock layout={layout} orientation={orientation} />
         </div>
         <BottomBar />
       </div>

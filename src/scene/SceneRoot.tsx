@@ -1,8 +1,8 @@
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
+import { PerformanceMonitor } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
-import { useAppStore } from '../store/useAppStore';
 import { design } from '../equipment/registry';
 import { Ocean } from './Ocean';
 import { Hotspots } from './Hotspots';
@@ -14,15 +14,19 @@ import { VesselWithEquipment } from '../vessels/VesselWithEquipment';
 import { VesselMotion } from './VesselMotion';
 import { DPSetpointMarker } from './DPSceneOverlay';
 import { OVERVIEW_POSE } from '../camera/cameraMachine';
-
-const DPR: Record<string, [number, number]> = { low: [1, 1], medium: [1, 1.5], high: [1, 2] };
+import { useQualityProfile } from '../rendering/quality';
 
 export function SceneRoot({ onError }: { onError?: (e: unknown) => void }) {
-  const quality = useAppStore((s) => s.quality);
+  const profile = useQualityProfile();
+  const [lo, hi] = profile.dpr;
+  // Start at the top of the preset's pixel-ratio range; the monitor steps down if frames drop.
+  const [dpr, setDpr] = useState(hi);
+  useEffect(() => setDpr(hi), [hi]);
   return (
     <Canvas
       className="!absolute inset-0"
-      dpr={DPR[quality]}
+      dpr={[lo, dpr]}
+      resize={{ scroll: false, debounce: { scroll: 0, resize: 60 } }}
       camera={{ position: OVERVIEW_POSE.position, fov: 42, near: 0.1, far: 2000 }}
       gl={{ antialias: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' }}
       onCreated={({ gl, scene }) => {
@@ -35,6 +39,11 @@ export function SceneRoot({ onError }: { onError?: (e: unknown) => void }) {
       onError={onError as never}
       aria-label="Interactive 3D view of the representative offshore vessel"
     >
+      <PerformanceMonitor
+        flipflops={3}
+        onChange={({ factor }) => setDpr(Math.round((lo + (hi - lo) * factor) * 4) / 4)}
+        onFallback={() => setDpr(lo)}
+      />
       <Suspense fallback={null}>
         <hemisphereLight args={['#9cc8e8', '#02060c', 0.65]} />
         <directionalLight position={[60, 80, 40]} intensity={2.2} color="#e8f2ff" />
@@ -50,9 +59,9 @@ export function SceneRoot({ onError }: { onError?: (e: unknown) => void }) {
         <SimulationDriver />
         <CameraRig />
         <TestBridge />
-        {quality !== 'low' && (
-          <EffectComposer multisampling={quality === 'high' ? 4 : 0}>
-            <Bloom intensity={quality === 'high' ? 0.9 : 0.6} luminanceThreshold={0.62} luminanceSmoothing={0.2} mipmapBlur />
+        {profile.postprocessing && (
+          <EffectComposer multisampling={profile.multisampling}>
+            <Bloom intensity={profile.bloomIntensity} luminanceThreshold={0.62} luminanceSmoothing={0.2} mipmapBlur />
             <Vignette eskil={false} offset={0.25} darkness={0.7} />
           </EffectComposer>
         )}

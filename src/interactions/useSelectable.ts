@@ -6,8 +6,13 @@ import { useAppStore } from '../store/useAppStore';
 import { currentCameraPose } from './poseRegistry';
 import { equipmentVisual } from './equipmentVisual';
 import { CYAN } from '../rendering/materials';
+import { isTap } from './input';
 
-/** Pointer handlers shared by every selectable equipment group. Scene and tree call the same store action. */
+/**
+ * Pointer handlers shared by every selectable equipment group (mouse, touch and pen alike).
+ * Scene and tree call the same store action. A drag that happens to end over a system is an
+ * orbit, not a selection, so only a genuine tap or click selects.
+ */
 export function useSelectable(id: string) {
   const hover = useAppStore((s) => s.hover);
   const select = useAppStore((s) => s.select);
@@ -18,10 +23,13 @@ export function useSelectable(id: string) {
     () => ({
       onClick: (e: ThreeEvent<MouseEvent>) => {
         e.stopPropagation();
+        if (!isTap(e.delta, (e.nativeEvent as PointerEvent).pointerType)) return;
         select(id, currentCameraPose());
       },
       onPointerOver: (e: ThreeEvent<PointerEvent>) => {
         e.stopPropagation();
+        // Fingers have no hover; a highlight would stick after the tap.
+        if (e.pointerType === 'touch') return;
         hover(id);
         document.body.style.cursor = 'pointer';
       },
