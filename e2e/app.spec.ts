@@ -14,7 +14,8 @@ declare global {
         introActive: boolean;
         assetStatus: Record<string, string>;
       };
-      thruster: () => { status: string; rpm: number; thrustKN: number; angle: number; command: number; pitch: number };
+      thruster: () => { status: string; rpm: number; thrustKN: number; angle: number; command: number; pitch: number; station: string };
+      dp: () => { status: string; mode: string; dpLost: boolean; eta: number[]; time: number; alarms: string[]; thrusters: { id: string; available: boolean; forceN: number }[] };
       camera: () => { position: number[] };
     };
   }
@@ -71,7 +72,8 @@ test('orbit drag and wheel zoom move the camera', async ({ page }) => {
 for (const [id, title] of [
   ['bow-thruster-001', 'Bow Tunnel Thruster'],
   ['hpr-001', 'Hydroacoustic PRS'],
-  ['dp-console-001', 'DP Console'],
+  ['dp-console-001', 'DP System'],
+  ['ibs-001', 'Integrated Bridge System'],
 ] as const) {
   test(`clicking the ${title} mesh in the 3D scene opens its panel and focuses the camera`, async ({ page }) => {
     await boot(page, '?intro=0&quality=low');
@@ -139,7 +141,7 @@ test('switching hybrid/realistic/blueprint/X-ray/isolate keeps the scene drawn, 
     expect(Math.hypot(...now.map((v, i) => v - cam[i]))).toBeLessThan(0.01);
   }
   // Exploded is unavailable for a non-explodable system.
-  await page.getByTestId('tree-dp-console-001').click();
+  await page.getByTestId('tree-hpr-001').click();
   await expect(page.getByTestId('mode-exploded')).toBeDisabled();
 });
 
@@ -180,6 +182,43 @@ test('thruster demonstration animates and reset stops it', async ({ page }) => {
   expect(r.thrustKN).toBe(0);
   await page.waitForTimeout(500);
   expect((await page.evaluate(() => window.__SINOR__!.thruster())).angle).toBe(0);
+});
+
+test('DP system: station keeping, BT1 handover, DP1 controller failure loses position', async ({ page }) => {
+  await boot(page, '?intro=0&quality=low');
+  await page.getByTestId('tree-dp-console-001').click();
+  await waitFocused(page, 'dp-console-001');
+  await expect(page.getByTestId('dp-hmi')).toBeVisible();
+  await page.getByTestId('dp-speed').selectOption('20');
+  await page.getByTestId('dp-start').click();
+  await expect(page.getByTestId('dp-status')).toHaveText('running');
+  expect((await page.evaluate(() => window.__SINOR__!.dp())).mode).toBe('AUTO_POSITION');
+  // Hand BT1 from the bridge lever to DP: the Z-Thrust unit starts and DP drives its pitch.
+  await page.getByTestId('dp-tab-thrusters').click();
+  await page.getByTestId('dp-bt1-take').click();
+  await expect.poll(async () => (await page.evaluate(() => window.__SINOR__!.thruster())).station).toBe('DP');
+  await expect
+    .poll(async () => (await page.evaluate(() => window.__SINOR__!.dp())).thrusters.find((t) => t.id === 'BT1')!.available, { timeout: 30_000 })
+    .toBe(true);
+  // Simulated time advances (20x) and the vessel holds near the setpoint.
+  await expect.poll(async () => (await page.evaluate(() => window.__SINOR__!.dp())).time, { timeout: 30_000 }).toBeGreaterThan(60);
+  const held = await page.evaluate(() => window.__SINOR__!.dp());
+  expect(Math.hypot(held.eta[0], held.eta[1])).toBeLessThan(5);
+  // DP1 has a single controller: failing it loses DP and the vessel drifts.
+  await page.getByTestId('dp-class-1').click();
+  await page.getByTestId('dp-start').click();
+  await page.getByTestId('dp-tab-redundancy').click();
+  await expect(page.getByTestId('dp-architecture')).toContainText('1 controller');
+  await page.getByTestId('dp-fail-ctrl-A').click();
+  await expect(page.getByTestId('dp-alarms')).toContainText('DP lost', { timeout: 15_000 });
+  await expect
+    .poll(async () => {
+      const d = await page.evaluate(() => window.__SINOR__!.dp());
+      return Math.hypot(d.eta[0], d.eta[1]);
+    }, { timeout: 40_000 })
+    .toBeGreaterThan(5);
+  await page.getByTestId('dp-reset').click();
+  await expect(page.getByTestId('dp-status')).toHaveText('stopped');
 });
 
 test('intro plays, can be skipped, and reduced motion skips it', async ({ page, browser }) => {

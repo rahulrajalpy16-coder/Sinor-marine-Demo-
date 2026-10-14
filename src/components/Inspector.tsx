@@ -2,6 +2,7 @@ import { CATEGORY_LABELS, getEquipment } from '../equipment/registry';
 import { useAppStore } from '../store/useAppStore';
 import { ThrusterPanel } from './ThrusterPanel';
 import { HPRPanel } from './HPRPanel';
+import { DPPanel } from './DPPanel';
 
 const PHASE_LABEL: Record<string, string> = {
   selected: 'Moving camera',
@@ -43,9 +44,9 @@ export function Inspector() {
           {PHASE_LABEL[phase] ?? phase}
         </span>
       </div>
-      <p className="text-sm leading-relaxed text-ink/85">{p.summary}</p>
+      <p className="order-3 text-sm leading-relaxed text-ink/85 md:order-none">{p.summary}</p>
       {phase === 'inspecting' || phase === 'simulating' ? (
-        <dl className="grid grid-cols-1 gap-1.5 text-xs">
+        <dl className="order-3 grid grid-cols-1 gap-1.5 text-xs md:order-none">
           {p.specs.map((s) => (
             <div key={s.label} className="flex justify-between gap-3 border-b border-white/5 pb-1">
               <dt className="text-mute">{s.label}</dt>
@@ -111,15 +112,8 @@ export function Inspector() {
       </div>
       {eq.id === 'bow-thruster-001' && <ThrusterPanel />}
       {eq.id === 'hpr-001' && <HPRPanel />}
-      {eq.id === 'dp-console-001' && (
-        <section className="border-t border-cyan/15 pt-3 text-xs text-mute">
-          <button type="button" disabled className="mb-2 rounded-sm border border-white/10 px-2.5 py-1.5 text-mute/60" title="Planned for Phase 3">
-            DP simulation · Phase 3
-          </button>
-          <p>The 3-DOF educational DP model (wind, current and heading set-points) arrives in Phase 3. It is not wired to this console yet.</p>
-        </section>
-      )}
-      <p className="border-t border-white/5 pt-2 text-[10px] leading-snug text-mute">
+      {eq.id === 'dp-console-001' && <DPPanel />}
+      <p className="order-3 border-t border-white/5 pt-2 text-[10px] leading-snug text-mute md:order-none">
         Illustrative, non-certified representation. Not connected to live equipment and not OEM-verified.
       </p>
     </aside>

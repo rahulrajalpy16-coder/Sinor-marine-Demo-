@@ -28,7 +28,8 @@ export class ThrusterController implements SimulationController<ThrusterState, T
   readonly id = 'tunnel-thruster';
   private state: ThrusterState = initialThrusterState();
   private listeners = new Set<(s: ThrusterState) => void>();
-  private stepper = new FixedStepper();
+  // Up to 2 s of simulated time per frame so the thruster keeps pace with a fast-forwarded DP run.
+  private stepper = new FixedStepper(1 / 120, 240);
   private sinceNotify = 0;
   lastError: string | null = null;
 
@@ -70,6 +71,13 @@ export class ThrusterController implements SimulationController<ThrusterState, T
 
   listenerCount() {
     return this.listeners.size;
+  }
+
+  /** DP sets the pitch setpoint directly while it has command; silent (the UI picks it up on the next tick notify). */
+  setDpPitch(pitch: number) {
+    if (this.state.station !== 'DP') return;
+    const v = Math.max(-1, Math.min(1, pitch));
+    if (v !== this.state.command) this.state = { ...this.state, command: v };
   }
 
   private emit() {

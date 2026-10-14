@@ -11,6 +11,8 @@ import { SimulationDriver } from './SimulationDriver';
 import { TestBridge } from './TestBridge';
 import { CameraRig } from '../camera/CameraRig';
 import { VesselWithEquipment } from '../vessels/VesselWithEquipment';
+import { VesselMotion } from './VesselMotion';
+import { DPSetpointMarker } from './DPSceneOverlay';
 import { OVERVIEW_POSE } from '../camera/cameraMachine';
 
 const DPR: Record<string, [number, number]> = { low: [1, 1], medium: [1, 1.5], high: [1, 2] };
@@ -39,8 +41,11 @@ export function SceneRoot({ onError }: { onError?: (e: unknown) => void }) {
         <directionalLight position={[-50, 30, -60]} intensity={0.7} color="#5fd6ff" />
         <ambientLight intensity={0.15} />
         <Ocean />
-        <VesselWithEquipment />
-        <Hotspots />
+        <VesselMotion>
+          <VesselWithEquipment />
+          <Hotspots />
+        </VesselMotion>
+        <DPSetpointMarker />
         <ModeController />
         <SimulationDriver />
         <CameraRig />

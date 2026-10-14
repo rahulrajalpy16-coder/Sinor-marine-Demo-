@@ -151,7 +151,8 @@ export function stepThruster(s: ThrusterState, dt: number, p: ThrusterParams = D
 
   // Pitch setpoint: lever (clipped by load control) while the motor is under power, zero while stopping.
   const pMax = maxPitchForLimit(s.powerLimit, p);
-  const leverSet = s.station === 'BRIDGE' ? s.command : 0;
+  // In DP command the setpoint comes from the DP system (written through the controller), not the lever.
+  const leverSet = s.command;
   const powered = status === 'starting' || status === 'running';
   const setpoint = powered && status === 'running' ? Math.sign(leverSet) * Math.min(Math.abs(leverSet), pMax) : 0;
   const loadClipping = powered && Math.abs(leverSet) > pMax + 1e-9;

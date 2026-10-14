@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { OrbitControls } from '@react-three/drei';
-import { useThree } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
+import * as THREE from 'three';
+import { vesselMatrix } from '../scene/vesselTransform';
 import gsap from 'gsap';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { useAppStore } from '../store/useAppStore';
@@ -42,8 +44,8 @@ export function CameraRig() {
   useEffect(() => {
     const c = controls.current;
     if (!c) return;
-    const underwater = !!(selectedId && getEquipment(selectedId)?.placement.underwater);
-    const lim = orbitLimitsFor(cameraMode, underwater);
+    const pl = selectedId ? getEquipment(selectedId)?.placement : undefined;
+    const lim = orbitLimitsFor(cameraMode, !!pl?.underwater, !!pl?.interior);
     c.minDistance = lim.minDistance;
     c.maxDistance = lim.maxDistance;
     c.minPolarAngle = lim.minPolarAngle;
@@ -70,8 +72,8 @@ export function CameraRig() {
           c.update();
           useAppStore.getState().setCameraMoving(false);
           const st = useAppStore.getState();
-          const underwater = !!(st.selectedId && getEquipment(st.selectedId)?.placement.underwater);
-          Object.assign(c, orbitLimitsFor(st.cameraMode, underwater));
+          const pl = st.selectedId ? getEquipment(st.selectedId)?.placement : undefined;
+          Object.assign(c, orbitLimitsFor(st.cameraMode, !!pl?.underwater, !!pl?.interior));
           onDone?.();
         },
       });
@@ -80,9 +82,16 @@ export function CameraRig() {
       tl.current = t;
     };
 
+    // Equipment anchors are in vessel coordinates; the vessel may have moved under DP.
+    const onVessel = (pose: CameraPose): CameraPose => {
+      const m = vesselMatrix();
+      const p = new THREE.Vector3(...pose.position).applyMatrix4(m);
+      const t = new THREE.Vector3(...pose.target).applyMatrix4(m);
+      return { position: [p.x, p.y, p.z], target: [t.x, t.y, t.z] };
+    };
     switch (request.kind) {
       case 'focus':
-        if (request.pose) fly(request.pose, FOCUS_SECONDS, () => useAppStore.getState().focusArrived());
+        if (request.pose) fly(onVessel(request.pose), FOCUS_SECONDS, () => useAppStore.getState().focusArrived());
         break;
       case 'restore':
         if (request.pose) fly(request.pose, FOCUS_SECONDS);
@@ -112,6 +121,31 @@ export function CameraRig() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request.seq]);
+
+  // Ride with the vessel: apply the frame-to-frame change of the vessel pose to camera and target,
+  // so an inspected system stays framed while the DP model moves the ship.
+  const prevM = useRef(new THREE.Matrix4());
+  const curM = useRef(new THREE.Matrix4());
+  const delta = useRef(new THREE.Matrix4());
+  const first = useRef(true);
+  useFrame(() => {
+    const c = controls.current;
+    vesselMatrix(curM.current);
+    if (first.current) {
+      prevM.current.copy(curM.current);
+      first.current = false;
+      return;
+    }
+    if (curM.current.equals(prevM.current) || !c) return;
+    const st = useAppStore.getState();
+    if (st.selectedId) {
+      delta.current.copy(curM.current).multiply(prevM.current.clone().invert());
+      camera.position.applyMatrix4(delta.current);
+      c.target.applyMatrix4(delta.current);
+      c.update();
+    }
+    prevM.current.copy(curM.current);
+  });
 
   // A user drag interrupts any flight and counts as free orbiting.
   const onStart = () => {

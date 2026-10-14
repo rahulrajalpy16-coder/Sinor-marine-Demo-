@@ -3,8 +3,20 @@
   "note": "Illustrative, not OEM-verified; model paths are planned assets with procedural fallback.",
   "equipment": [
     {
+      "id": "ibs-001",
+      "name": "Integrated Bridge System",
+      "category": "navigation",
+      "location": "bridge",
+      "model": "/models/ibs-console.glb",
+      "simulation": null,
+      "actions": [
+        "inspect"
+      ],
+      "manufacturer": null
+    },
+    {
       "id": "dp-console-001",
-      "name": "DP Console",
+      "name": "DP System",
       "category": "dynamic-positioning",
       "location": "bridge",
       "model": "/models/dp-console.glb",
