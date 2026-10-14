@@ -76,8 +76,8 @@ for (const [id, title] of [
   ['deployment-001', 'Type 7950 Deployment Machine'],
   ['dp-console-001', 'DP System'],
   ['ibs-001', 'Integrated Bridge System'],
-  ['radascan-001', 'RadaScan · Microwave Radar'],
-  ['cyscan-001', 'CyScan · Laser'],
+  ['radascan-001', 'RadaScan View · Radar'],
+  ['cyscan-001', 'CyScan AS · Laser'],
 ] as const) {
   test(`clicking the ${title} mesh in the 3D scene opens its panel and focuses the camera`, async ({ page }) => {
     await boot(page, '?intro=0&quality=low');
@@ -279,6 +279,7 @@ test('position references: RadaScan, CyScan, DGPS, taut wire and SPRINT-Nav feed
   await page.getByTestId('radascan-start').click();
   await expect(page.getByTestId('radascan-hmi-status')).toHaveText('TRACKING', { timeout: 30_000 });
   await expect(page.getByTestId('radascan-range')).toHaveText(/^\d+\.\d m$/);
+  await expect(page.getByTestId('radascan-ppi')).toBeVisible();
   await page.getByTestId('radascan-dp-select').click();
   await page.getByTestId('tree-cyscan-001').click();
   await waitFocused(page, 'cyscan-001');
@@ -296,6 +297,7 @@ test('position references: RadaScan, CyScan, DGPS, taut wire and SPRINT-Nav feed
   await page.getByTestId('tree-dgps-001').click();
   await waitFocused(page, 'dgps-001');
   await expect(page.getByTestId('dgps-hmi-status')).toHaveText('2 / 2 ONLINE');
+  await expect(page.getByTestId('dgps-display-1')).toContainText('G4 DIFF');
 
   // Taut wire: weight lowered to the seabed.
   await page.getByTestId('tree-tautwire-001').click();
@@ -304,6 +306,7 @@ test('position references: RadaScan, CyScan, DGPS, taut wire and SPRINT-Nav feed
   await page.getByTestId('tw-deploy').click();
   await expect(page.getByTestId('tautwire-hmi-status')).toHaveText('ON BOTTOM · TENSIONED', { timeout: 60_000 });
   await expect(page.getByTestId('tw-angle')).toHaveText(/°$/);
+  await expect(page.getByTestId('tw-nmea')).toHaveText(/^\$PCPTW,-?\d{3}\.\d{2},-?\d{3}\.\d{2},A,00,\d{3}\.\d\*[0-9A-F]{2}$/);
   await page.getByTestId('tautwire-dp-select').click();
 
   // SPRINT-Nav: deploy the pole, power and align, then select into DP.

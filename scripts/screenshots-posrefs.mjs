@@ -25,12 +25,14 @@ await p.screenshot({ path: `${out}/41-cyscan.png` });
 await p.click('[data-testid=tree-dgps-001]'); await focused('dgps-001'); await p.waitForTimeout(800);
 await p.screenshot({ path: `${out}/42-dgps-seastar.png` });
 
-await p.click('[data-testid=tree-tautwire-001]'); await focused('tautwire-001');
+await p.click('[data-testid=tree-tautwire-001]'); await focused('tautwire-001'); await p.waitForTimeout(600);
+await p.screenshot({ path: `${out}/43a-taut-wire-recovered.png` });
 await p.selectOption('[data-testid=tw-speed]', '20');
-await p.click('[data-testid=tw-deploy]'); await p.waitForTimeout(1500);
+await p.click('[data-testid=tw-deploy]'); await p.waitForTimeout(2500);
 await p.screenshot({ path: `${out}/43-taut-wire-lowering.png` });
 await text('tautwire-hmi-status', 'ON BOTTOM · TENSIONED');
 await p.click('[data-testid=tautwire-dp-select]'); await p.waitForTimeout(500);
+await p.screenshot({ path: `${out}/43b-taut-wire-on-bottom.png` });
 
 await p.click('[data-testid=tree-sprintnav-001]'); await focused('sprintnav-001'); await p.waitForTimeout(600);
 await p.screenshot({ path: `${out}/44-sprintnav-stowed.png` });

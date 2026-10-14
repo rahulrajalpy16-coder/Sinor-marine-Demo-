@@ -1,15 +1,16 @@
 /**
  * Operating states of the position reference sensors that need operator action before DP can use them:
- * RadaScan and CyScan (start, lock on to the responder / reflector), the SMT taut wire (lower the
- * depressor weight to the seabed, hold constant tension) and SPRINT-Nav DP (swing the Type 8097 pole
+ * RadaScan View and CyScan AS (start, lock on to the responder / target), the SMT Taut Wire 2.0
+ * (lower the 400 kg depressor weight to the seabed, hold constant tension) and SPRINT-Nav DP (swing the Type 8097 pole
  * over the side, engage the hydraulic lock, power up and align the INS, DVL bottom lock).
  *
- * Datasheet limits (ranges, 300 m taut wire depth, 100 m SPRINT-Nav depth rating, DVL altitude, 5 kn
+ * Datasheet limits (ranges, 500 m taut wire depth, ±30° taut wire range, 100 m SPRINT-Nav depth rating, DVL altitude, 5 kn
  * pole speed) come from posrefData.ts. Timings, speeds and angle limits are illustrative and labelled
  * as such in the HMI. Pure functions: the controller holds the state.
  */
 import {
   CYSCAN,
+  CYSCAN_PEDESTAL,
   CYSCAN_POS,
   POLE_8097,
   POLE_PIVOT,
@@ -127,6 +128,37 @@ export function tautWireAngle(s: PosRefState, eta: readonly [number, number, num
   return { angleDeg: (Math.atan2(offset, TW_VERTICAL) * 180) / Math.PI, offset };
 }
 
+/**
+ * Taut wire angles as the SMT gimbal head reports them (installation manual PJ 0044-13, $PCPTW):
+ * across-ship positive when the weight is outboard, along-ship positive when the weight is to the
+ * right looking outboard (aft, for this starboard unit).
+ */
+export function tautWireAxes(s: PosRefState, eta: readonly [number, number, number]) {
+  if (!s.tautwire.anchor) return { across: 0, along: 0 };
+  const tip = toWorld(TAUTWIRE_TIP, eta);
+  const [an, ae] = s.tautwire.anchor;
+  const dx = ae - tip[0];
+  const dz = an - tip[2];
+  const c = Math.cos(eta[2]);
+  const sn = Math.sin(eta[2]);
+  const x = dx * c - dz * sn; // starboard (outboard for this unit)
+  const z = dx * sn + dz * c; // forward
+  const deg = (v: number) => (Math.atan2(v, TW_VERTICAL) * 180) / Math.PI;
+  return { across: deg(x), along: deg(-z) };
+}
+
+/** NMEA 0183 sentence from the SMT taut wire: $PCPTW,across,along,status,alarm,rope*hh. */
+export function tautWireNmea(s: PosRefState, eta: readonly [number, number, number]) {
+  const { across, along } = tautWireAxes(s, eta);
+  const ok = s.tautwire.phase === 'on-bottom' && Math.abs(across) < SMT_TW.angleLimitDeg.value && Math.abs(along) < SMT_TW.angleLimitDeg.value;
+  const f = (v: number) => (v < 0 ? '-' : '') + Math.abs(v).toFixed(2).padStart(6, '0');
+  const alarm = s.alarms.includes('TW_ANGLE_LIMIT') ? '02' : s.alarms.includes('TW_ANGLE_WARN') ? '01' : '00';
+  const body = `PCPTW,${f(across)},${f(along)},${ok ? 'A' : 'V'},${alarm},${s.tautwire.payout.toFixed(1).padStart(5, '0')}`;
+  let cs = 0;
+  for (const ch of body) cs ^= ch.charCodeAt(0);
+  return `$${body}*${cs.toString(16).toUpperCase().padStart(2, '0')}`;
+}
+
 /** SPRINT-Nav position (vessel frame) at a given pole angle. */
 export function sprintNavPos(angleDeg: number): [number, number, number] {
   const a = (angleDeg * Math.PI) / 180;
@@ -141,14 +173,22 @@ export function sprintNavAltitude(angleDeg: number) {
 }
 export const sprintNavDepth = (angleDeg: number) => -(sprintNavPos(angleDeg)[1] - SPRINTNAV.height.value);
 
+/** CyScan AS laser window: centre of the rotating head above the base. */
+export const CYSCAN_WINDOW: [number, number, number] = [
+  CYSCAN_POS[0],
+  CYSCAN_POS[1] + CYSCAN_PEDESTAL + CYSCAN.baseHeight.value + (CYSCAN.headHeight.value - CYSCAN.baseHeight.value) / 2,
+  CYSCAN_POS[2],
+];
+
 export function radascanRange(eta: readonly [number, number, number]) {
   return rangeBearing([RADASCAN_POS[0], RADASCAN_POS[1] + RADASCAN.pedestalHeight.value + RADASCAN.height.value / 2, RADASCAN_POS[2]], RESPONDER_WORLD, eta);
 }
 export function cyscanRange(eta: readonly [number, number, number]) {
-  return rangeBearing([CYSCAN_POS[0], CYSCAN_POS[1] + 0.4 + CYSCAN.headHeight.value / 2, CYSCAN_POS[2]], REFLECTOR_WORLD, eta);
+  return rangeBearing(CYSCAN_WINDOW, REFLECTOR_WORLD, eta);
 }
 
-const cyscanMaxRange = (s: PosRefState) => (s.fog ? CYSCAN.fogRangeM.value : CYSCAN.maxRange.value);
+/** The scene's CyScan AS target is the 1.9 m cylindrical target (10–400 m); prisms reach 2,500 m. */
+export const cyscanMaxRange = (s: Pick<PosRefState, 'fog'>) => (s.fog ? CYSCAN.fogRangeM.value : CYSCAN.cylinderRange.value);
 const radascanInRange = (eta: readonly [number, number, number]) => radascanRange(eta).range <= RADASCAN.maxRange.value;
 function cyscanInRange(s: PosRefState, eta: readonly [number, number, number]) {
   const r = cyscanRange(eta).range;

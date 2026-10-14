@@ -8,12 +8,14 @@ import { useQualityProfile } from '../rendering/quality';
 import { CYAN } from '../rendering/materials';
 import { posRefs } from '../simulations/posrefsController';
 import { dpSystem } from '../simulations/dpController';
-import { posRefReadiness, toWorld, sprintNavPos } from '../simulations/posrefs';
+import { CYSCAN_WINDOW, posRefReadiness, toWorld, sprintNavPos } from '../simulations/posrefs';
 import {
+  BULWARK_H,
   CYSCAN,
+  CYSCAN_PEDESTAL,
   CYSCAN_POS,
+  DECK_Y,
   GNSS_ANTENNAS,
-  LBAND_POS,
   PLATFORM,
   POLE_8097,
   POLE_PIVOT,
@@ -25,8 +27,8 @@ import {
   SEASTAR,
   SMT_TW,
   SPRINTNAV,
-  TAUTWIRE_POS,
-  TAUTWIRE_TIP,
+  TAUTWIRE_EDGE_X,
+  TAUTWIRE_Z,
 } from './posrefData';
 
 const RADASCAN_ID = 'radascan-001';
@@ -41,71 +43,82 @@ function useDisposeAll(g: Record<string, { dispose(): void }>) {
 
 const ease = (cur: number, target: number, dt: number, rate = 3) => cur + (target - cur) * (1 - Math.exp(-dt * rate));
 
-/** Guidance Marine RadaScan sensor (Ø1.2 × 0.9 m radome) on a pedestal on the bridge top. */
+/** Guidance Marine RadaScan View sensor: white radome with the blue base band (brochure photo), on a pedestal. */
 export function RadaScanSensor() {
   const handlers = useSelectable(RADASCAN_ID);
   const { mats, visual } = useEquipmentMaterials(RADASCAN_ID, {
-    radome: { color: '#e9edf0', metalness: 0.1, roughness: 0.55 },
+    radome: { color: '#eef1f3', metalness: 0.1, roughness: 0.55 },
     base: { color: '#3c434a', metalness: 0.6, roughness: 0.45 },
-    stripe: { color: '#1b5e9a', metalness: 0.2, roughness: 0.5 },
+    band: { color: '#2b6cb3', metalness: 0.2, roughness: 0.45 },
+    antenna: { color: '#9aa1a6', metalness: 0.6, roughness: 0.4 },
   });
   const radial = useQualityProfile().radialSegments;
   const R = RADASCAN.diameter.value / 2;
   const H = RADASCAN.height.value;
   const P = RADASCAN.pedestalHeight.value;
+  const band = H * 0.15;
+  const body = H * 0.55;
+  const cap = H - band - body;
   const g = useMemo(
     () => ({
-      pedestal: new THREE.CylinderGeometry(0.16, 0.22, P, radial),
-      flange: new THREE.CylinderGeometry(0.34, 0.34, 0.04, radial),
-      base: new THREE.CylinderGeometry(R * 0.96, R, 0.12, radial),
-      dome: new THREE.CylinderGeometry(R * 0.98, R * 0.98, H - 0.18, radial),
-      cap: new THREE.CylinderGeometry(R * 0.9, R * 0.98, 0.06, radial),
-      window: new THREE.BoxGeometry(0.06, H * 0.55, R * 0.7),
+      pedestal: new THREE.CylinderGeometry(0.1, 0.16, P, radial),
+      flange: new THREE.CylinderGeometry(0.26, 0.26, 0.03, radial),
+      band: new THREE.CylinderGeometry(R, R, band, radial),
+      body: new THREE.CylinderGeometry(R * 0.93, R * 0.98, body, radial),
+      cap: new THREE.SphereGeometry(R * 0.93, radial, 10, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, cap / (R * 0.93), 1),
+      antenna: new THREE.BoxGeometry(R * 1.5, body * 0.6, 0.05),
     }),
-    [R, H, P, radial],
+    [R, P, band, body, cap, radial],
   );
   useDisposeAll(g);
   const rotor = useRef<THREE.Group>(null);
   const reduced = useAppStore((s) => s.reducedMotion);
   useFrame((_, dt) => {
-    // Indicates the scanning antenna inside the radome while the sensor runs.
+    // Antenna inside the radome (seen in X-ray / ghost views) turns while the sensor runs.
     if (rotor.current && posRefs.getState().radascan.phase !== 'off') rotor.current.rotation.y += dt * (reduced ? 0.4 : 2.4);
   });
   const o = visual.outline;
   return (
     <group name={`equipment:${RADASCAN_ID}`} position={RADASCAN_POS} {...handlers}>
       <EqMesh geometry={g.pedestal} material={mats.base} outline={o} position={[0, P / 2, 0]} name="pedestal" />
-      <EqMesh geometry={g.flange} material={mats.base} outline={o} position={[0, 0.02, 0]} />
-      <EqMesh geometry={g.base} material={mats.base} outline={o} position={[0, P + 0.06, 0]} name="sensor-base" />
-      <EqMesh geometry={g.dome} material={mats.radome} outline={o} position={[0, P + 0.12 + (H - 0.18) / 2, 0]} name="radome" />
-      <EqMesh geometry={g.cap} material={mats.radome} outline={o} position={[0, P + H - 0.03, 0]} />
-      <group ref={rotor} position={[0, P + 0.12 + (H - 0.18) / 2, 0]}>
-        <mesh geometry={g.window} material={mats.stripe} position={[R * 0.985, 0, 0]} />
+      <EqMesh geometry={g.flange} material={mats.base} outline={o} position={[0, P + 0.015, 0]} />
+      <EqMesh geometry={g.band} material={mats.band} outline={o} position={[0, P + 0.03 + band / 2, 0]} name="radome-band" />
+      <EqMesh geometry={g.body} material={mats.radome} outline={o} position={[0, P + 0.03 + band + body / 2, 0]} name="radome" />
+      <EqMesh geometry={g.cap} material={mats.radome} outline={o} position={[0, P + 0.03 + band + body, 0]} />
+      <group ref={rotor} position={[0, P + 0.03 + band + body / 2, 0]} name="scanning-antenna">
+        <mesh geometry={g.antenna} material={mats.antenna} />
       </group>
     </group>
   );
 }
 
-/** Guidance Marine CyScan laser sensor: fixed base, rotating head with the laser window. */
+/** Guidance Marine CyScan AS: white base, blue ring and rotating grey head with the laser window (leaflet photo, 405 × 407 × 565 mm). */
 export function CyScanSensor() {
   const handlers = useSelectable(CYSCAN_ID);
   const { mats, visual } = useEquipmentMaterials(CYSCAN_ID, {
-    body: { color: '#d8dde1', metalness: 0.35, roughness: 0.45 },
-    base: { color: '#3c434a', metalness: 0.6, roughness: 0.45 },
+    head: { color: '#c9ced3', metalness: 0.3, roughness: 0.45 },
+    base: { color: '#eef0f2', metalness: 0.15, roughness: 0.5 },
+    ring: { color: '#2f6fdd', metalness: 0.2, roughness: 0.4 },
+    pedestal: { color: '#3c434a', metalness: 0.6, roughness: 0.45 },
     window: { color: '#14181c', metalness: 0.9, roughness: 0.1 },
   });
   const radial = useQualityProfile().radialSegments;
-  const R = CYSCAN.headDiameter.value / 2;
-  const H = CYSCAN.headHeight.value;
+  const W = CYSCAN.width.value;
+  const D = CYSCAN.depth.value;
+  const B = CYSCAN.baseHeight.value;
+  const ring = 0.025;
+  const HH = CYSCAN.headHeight.value - B - ring;
   const g = useMemo(
     () => ({
-      pedestal: new THREE.CylinderGeometry(0.09, 0.14, 0.4, radial),
-      base: new THREE.CylinderGeometry(R, R * 1.05, H * 0.35, radial),
-      head: new THREE.CylinderGeometry(R * 0.92, R * 0.92, H * 0.55, radial),
-      cap: new THREE.SphereGeometry(R * 0.92, radial, 8, 0, Math.PI * 2, 0, Math.PI / 2),
-      window: new THREE.BoxGeometry(0.03, H * 0.32, R * 0.9),
+      pedestal: new THREE.CylinderGeometry(0.09, 0.14, CYSCAN_PEDESTAL, radial),
+      base: new THREE.BoxGeometry(W, B, D),
+      ring: new THREE.CylinderGeometry(W * 0.4, W * 0.4, ring, radial),
+      head: new THREE.BoxGeometry(W * 0.74, HH, D * 0.74),
+      top: new THREE.CylinderGeometry(W * 0.37, W * 0.37, D * 0.74, radial, 1, false, 0, Math.PI).rotateZ(Math.PI / 2).rotateY(Math.PI / 2).scale(1, 0.25, 1),
+      window: new THREE.BoxGeometry(0.02, HH * 0.42, W * 0.52),
+      lens: new THREE.CylinderGeometry(0.035, 0.035, 0.012, 16).rotateZ(Math.PI / 2),
     }),
-    [R, H, radial],
+    [W, D, B, HH, radial],
   );
   useDisposeAll(g);
   const head = useRef<THREE.Group>(null);
@@ -114,170 +127,259 @@ export function CyScanSensor() {
     if (head.current && posRefs.getState().cyscan.phase !== 'off') head.current.rotation.y += dt * (reduced ? 0.5 : 3.2);
   });
   const o = visual.outline;
-  const baseY = 0.4 + (H * 0.35) / 2;
-  const headY = 0.4 + H * 0.35 + (H * 0.55) / 2;
+  const y0 = CYSCAN_PEDESTAL;
   return (
     <group name={`equipment:${CYSCAN_ID}`} position={CYSCAN_POS} {...handlers}>
-      <EqMesh geometry={g.pedestal} material={mats.base} outline={o} position={[0, 0.2, 0]} name="pedestal" />
-      <EqMesh geometry={g.base} material={mats.base} outline={o} position={[0, baseY, 0]} name="sensor-base" />
-      <group ref={head} position={[0, headY, 0]}>
-        <EqMesh geometry={g.head} material={mats.body} outline={o} name="rotating-head" />
-        <EqMesh geometry={g.cap} material={mats.body} outline={o} position={[0, (H * 0.55) / 2, 0]} />
-        <mesh geometry={g.window} material={mats.window} position={[R * 0.92, 0, 0]} />
+      <EqMesh geometry={g.pedestal} material={mats.pedestal} outline={o} position={[0, y0 / 2, 0]} name="pedestal" />
+      <EqMesh geometry={g.base} material={mats.base} outline={o} position={[0, y0 + B / 2, 0]} name="sensor-base" />
+      <EqMesh geometry={g.ring} material={mats.ring} outline={o} position={[0, y0 + B + ring / 2, 0]} name="blue-ring" />
+      <group ref={head} position={[0, y0 + B + ring + HH / 2, 0]}>
+        <EqMesh geometry={g.head} material={mats.head} outline={o} name="rotating-head" />
+        <mesh geometry={g.window} material={mats.window} position={[(W * 0.74) / 2 + 0.005, HH * 0.05, 0]} />
+        {[-1, 1].map((k) => (
+          <mesh key={k} geometry={g.lens} material={mats.head} position={[(W * 0.74) / 2 + 0.016, HH * 0.05, k * 0.06]} />
+        ))}
       </group>
     </group>
   );
 }
 
-/** Fugro SeaSTAR DGNSS antennas: two GNSS antennas on the yardarm and the L-band correction dome. */
+/** Fugro Seastar 9410-AUT: one GNSS antenna per receiver on the yardarm (yellow base, white dome, as in the datasheet photo). */
 export function DGPSAntennas() {
   const handlers = useSelectable(DGPS_ID);
   const { mats, visual } = useEquipmentMaterials(DGPS_ID, {
-    radome: { color: '#f1f3f4', metalness: 0.1, roughness: 0.5 },
+    dome: { color: '#f3f4f5', metalness: 0.1, roughness: 0.5 },
+    base: { color: '#e8b21c', metalness: 0.2, roughness: 0.45 },
+    ring: { color: '#202326', metalness: 0.2, roughness: 0.6 },
     mount: { color: '#5d656c', metalness: 0.7, roughness: 0.35 },
   });
   const radial = useQualityProfile().radialSegments;
   const r = SEASTAR.antennaDiameter.value / 2;
-  const rl = SEASTAR.lbandDiameter.value / 2;
+  const h = SEASTAR.antennaHeight.value;
   const g = useMemo(
     () => ({
       post: new THREE.CylinderGeometry(0.03, 0.03, 0.5, 8),
-      antenna: new THREE.CylinderGeometry(r * 0.7, r, 0.08, radial),
-      top: new THREE.SphereGeometry(r * 0.7, radial, 6, 0, Math.PI * 2, 0, Math.PI / 2),
-      lbandBase: new THREE.CylinderGeometry(rl, rl, 0.12, radial),
-      lband: new THREE.SphereGeometry(rl, radial, 10, 0, Math.PI * 2, 0, Math.PI / 2),
+      base: new THREE.CylinderGeometry(r * 0.8, r * 0.7, h * 0.5, radial),
+      ring: new THREE.CylinderGeometry(r, r, h * 0.15, radial),
+      dome: new THREE.SphereGeometry(r * 0.95, radial, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, (h * 0.35) / (r * 0.95), 1),
     }),
-    [r, rl, radial],
+    [r, h, radial],
   );
   useDisposeAll(g);
   const o = visual.outline;
   return (
     <group name={`equipment:${DGPS_ID}`} {...handlers}>
       {GNSS_ANTENNAS.map((p, i) => (
-        <group key={i} position={p} name={`gnss-antenna-${i + 1}`}>
+        <group key={i} position={p} name={`seastar-9410-antenna-${i + 1}`}>
           <EqMesh geometry={g.post} material={mats.mount} outline={o} position={[0, 0.25, 0]} />
-          <EqMesh geometry={g.antenna} material={mats.radome} outline={o} position={[0, 0.54, 0]} />
-          <EqMesh geometry={g.top} material={mats.radome} outline={o} position={[0, 0.58, 0]} />
+          <EqMesh geometry={g.base} material={mats.base} outline={o} position={[0, 0.5 + h * 0.25, 0]} />
+          <EqMesh geometry={g.ring} material={mats.ring} outline={o} position={[0, 0.5 + h * 0.575, 0]} />
+          <EqMesh geometry={g.dome} material={mats.dome} outline={o} position={[0, 0.5 + h * 0.65, 0]} />
         </group>
       ))}
-      <group position={LBAND_POS} name="seastar-lband-antenna">
-        <EqMesh geometry={g.lbandBase} material={mats.mount} outline={o} position={[0, 0.06, 0]} />
-        <EqMesh geometry={g.lband} material={mats.radome} outline={o} position={[0, 0.12, 0]} />
-      </group>
     </group>
   );
 }
 
-// Taut wire boom: pivot at the inboard top of the unit; telescopes out and luffs up when deploying.
-const TW_PIVOT: [number, number, number] = [TAUTWIRE_POS[0] - SMT_TW.footprintX.value / 2 + 0.1, 3 + 2.1, TAUTWIRE_POS[2]];
-const TW_STOWED_TIP: [number, number, number] = [9 - 0.1, 3 + SMT_TW.storedHeight.value, TAUTWIRE_POS[2]];
-const lerp3 = (a: readonly number[], b: readonly number[], t: number): [number, number, number] => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
-/** Gimbal head position (vessel frame) for a boom extension 0 (stowed) … 1 (deployed). */
-export const tautWireHead = (ext: number) => lerp3(TW_STOWED_TIP, TAUTWIRE_TIP, ext);
+// SMT Taut Wire 2.0 boom, in the skid's own frame: u outboard from the skid's outboard edge, h above the skid base.
+// End poses follow the drawings: recovered head over the weight basket at the top of the unit (stored height 2085),
+// deployed head 2510 outboard and 1059 up (SMT-TW-MD-28). A-frame pivot and elbow are scaled off SMT-TW-MD-21;
+// the path between the poses is illustrative, kept under the 2395 mm max height while deploying.
+const TW_PIVOT_UH: [number, number] = [0, 0.23];
+const TW_DEPLOYED_ELBOW: [number, number] = [1.16, 1.41];
+const TW_RECOVERED_HEAD: [number, number] = [-0.35, SMT_TW.storedHeight.value - 0.18];
+const TW_DEPLOYED_HEAD: [number, number] = [SMT_TW.reach.value, SMT_TW.headHeight.value];
+const TW_L1 = Math.hypot(TW_DEPLOYED_ELBOW[0] - TW_PIVOT_UH[0], TW_DEPLOYED_ELBOW[1] - TW_PIVOT_UH[1]);
+const TW_L2 = Math.hypot(TW_DEPLOYED_HEAD[0] - TW_DEPLOYED_ELBOW[0], TW_DEPLOYED_HEAD[1] - TW_DEPLOYED_ELBOW[1]);
+const TW_HEAD_Z = SMT_TW.headLateral.value;
+/** Gimbal head (u, h) for a boom position 0 (recovered) … 1 (deployed). */
+export function tautWireHeadUH(t: number): [number, number] {
+  const [u0, h0] = TW_RECOVERED_HEAD;
+  const [u1, h1] = TW_DEPLOYED_HEAD;
+  return [u0 + (u1 - u0) * t, h0 + (h1 - h0) * t + 0.78 * Math.sin(Math.PI * t)];
+}
+/** Knuckle between the A-frame and the cranked arm, for a head position (two-link, elbow up). */
+export function tautWireElbowUH(head: readonly [number, number]): [number, number] {
+  const [pu, ph] = TW_PIVOT_UH;
+  const du = head[0] - pu;
+  const dh = head[1] - ph;
+  const d = Math.min(Math.hypot(du, dh), TW_L1 + TW_L2 - 1e-6);
+  const a = (TW_L1 * TW_L1 - TW_L2 * TW_L2 + d * d) / (2 * d);
+  const k = Math.sqrt(Math.max(0, TW_L1 * TW_L1 - a * a));
+  return [pu + (a * du) / d - (k * dh) / d, ph + (a * dh) / d + (k * du) / d];
+}
+/** Gimbal head position (vessel frame) for a boom position 0 (recovered) … 1 (deployed). */
+export function tautWireHead(t: number): [number, number, number] {
+  const [u, h] = tautWireHeadUH(t);
+  return [TAUTWIRE_EDGE_X + u, DECK_Y + h, TAUTWIRE_Z + TW_HEAD_Z];
+}
+/** Wire hanging below the head with no payout: the weight sits in its basket when recovered. */
+const TW_BASKET_H = 0.15;
+export const tautWireHang = (t: number) => (1 - t) * (TW_RECOVERED_HEAD[1] - 0.12 - TW_BASKET_H - SMT_TW.weightHeight.value);
 const boomExtension = { current: 0 };
 
-/** SMT TW-1.0 lightweight taut wire: deck unit, winch drum, telescopic boom and gimbal head. */
+/** Place a unit-length (along Y) member between two points of the skid frame. */
+function setBeam(obj: THREE.Object3D | null, a: readonly number[], b: readonly number[]) {
+  if (!obj) return;
+  const dir = new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+  const len = dir.length();
+  obj.position.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2);
+  obj.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+  obj.scale.set(1, len, 1);
+}
+
+/** SMT Taut Wire 2.0 (Z Range Mk2): skid with weight basket, winch drum, control cabinet, A-frame and cranked arm with gimbal head. */
 export function TautWireUnit() {
   const handlers = useSelectable(TW_ID);
   const { mats, visual } = useEquipmentMaterials(TW_ID, {
-    frame: { color: '#e2b322', metalness: 0.45, roughness: 0.5 },
-    housing: { color: '#d9dde0', metalness: 0.35, roughness: 0.5 },
+    frame: { color: '#e9c626', metalness: 0.4, roughness: 0.5 },
+    cabinet: { color: '#e4e6e8', metalness: 0.25, roughness: 0.55 },
     drum: { color: '#3c434a', metalness: 0.7, roughness: 0.35 },
-    boom: { color: '#e2b322', metalness: 0.45, roughness: 0.45 },
+    motor: { color: '#7d868d', metalness: 0.6, roughness: 0.4 },
+    grating: { color: '#9aa1a6', metalness: 0.6, roughness: 0.6 },
     head: { color: '#5d656c', metalness: 0.75, roughness: 0.3 },
+    beacon: { color: '#f2a516', metalness: 0.2, roughness: 0.4 },
   });
   const radial = useQualityProfile().radialSegments;
   const FX = SMT_TW.footprintX.value;
   const FZ = SMT_TW.footprintZ.value;
+  const cabH = SMT_TW.consoleHeight.value - TW_BASKET_H;
   const g = useMemo(
     () => ({
-      skid: new THREE.BoxGeometry(FX, 0.12, FZ),
-      housing: new THREE.BoxGeometry(FX * 0.55, 1.2, FZ * 0.9),
-      post: new THREE.BoxGeometry(0.2, 2.0, 0.2),
-      drum: new THREE.CylinderGeometry(0.42, 0.42, FZ * 0.7, radial).rotateX(Math.PI / 2),
-      flange: new THREE.CylinderGeometry(0.55, 0.55, 0.04, radial).rotateX(Math.PI / 2),
-      boomOuter: new THREE.BoxGeometry(2.2, 0.22, 0.22),
-      boomInner: new THREE.BoxGeometry(1, 0.16, 0.16),
-      gimbal: new THREE.TorusGeometry(0.18, 0.035, 8, radial),
-      sheave: new THREE.CylinderGeometry(0.14, 0.14, 0.06, radial).rotateX(Math.PI / 2),
+      rail: new THREE.BoxGeometry(FX, TW_BASKET_H, 0.12),
+      cross: new THREE.BoxGeometry(0.12, TW_BASKET_H, FZ - 0.24),
+      grating: new THREE.BoxGeometry(FX - 0.2, 0.03, FZ - 0.24),
+      basket: new THREE.CylinderGeometry(0.4, 0.4, 0.3, radial, 1, true),
+      basketRim: new THREE.TorusGeometry(0.4, 0.03, 6, radial).rotateX(Math.PI / 2),
+      cabinet: new THREE.BoxGeometry(0.91, cabH, 0.49),
+      drum: new THREE.CylinderGeometry(0.28, 0.28, 0.8, radial).rotateX(Math.PI / 2),
+      drumFlange: new THREE.CylinderGeometry(0.36, 0.36, 0.04, radial).rotateX(Math.PI / 2),
+      motor: new THREE.CylinderGeometry(0.2, 0.2, 0.4, radial).rotateX(Math.PI / 2),
+      drumStand: new THREE.BoxGeometry(0.5, 0.45, 0.08),
+      hinge: new THREE.CylinderGeometry(0.07, 0.07, 1.4, 12).rotateX(Math.PI / 2),
+      leg: new THREE.BoxGeometry(0.11, 1, 0.11),
+      arm: new THREE.BoxGeometry(0.16, 1, 0.16),
+      gimbalDisc: new THREE.CylinderGeometry(0.32, 0.32, 0.04, radial),
+      gimbal: new THREE.TorusGeometry(0.16, 0.03, 8, radial),
+      sheave: new THREE.CylinderGeometry(0.12, 0.12, 0.05, radial).rotateX(Math.PI / 2),
+      beacon: new THREE.CylinderGeometry(0.04, 0.05, 0.08, 12),
     }),
-    [FX, FZ, radial],
+    [FX, FZ, cabH, radial],
   );
   useDisposeAll(g);
-  const boom = useRef<THREE.Group>(null);
-  const inner = useRef<THREE.Mesh>(null);
+  const legA = useRef<THREE.Group>(null);
+  const legB = useRef<THREE.Group>(null);
+  const brace = useRef<THREE.Group>(null);
+  const arm = useRef<THREE.Group>(null);
   const head = useRef<THREE.Group>(null);
   const reduced = useAppStore((s) => s.reducedMotion);
+  const pose = (t: number) => {
+    const h = tautWireHeadUH(t);
+    const e = tautWireElbowUH(h);
+    const [pu, ph] = TW_PIVOT_UH;
+    setBeam(legA.current, [pu, ph, TW_HEAD_Z + 0.6], [e[0], e[1], TW_HEAD_Z + 0.12]);
+    setBeam(legB.current, [pu, ph, TW_HEAD_Z - 0.6], [e[0], e[1], TW_HEAD_Z - 0.12]);
+    const m = 0.45;
+    setBeam(brace.current, [pu + (e[0] - pu) * m, ph + (e[1] - ph) * m, TW_HEAD_Z + 0.6 - 0.48 * m], [pu + (e[0] - pu) * m, ph + (e[1] - ph) * m, TW_HEAD_Z - 0.6 + 0.48 * m]);
+    setBeam(arm.current, [e[0], e[1], TW_HEAD_Z], [h[0], h[1] + 0.06, TW_HEAD_Z]);
+    head.current?.position.set(h[0], h[1], TW_HEAD_Z);
+  };
   useFrame((_, dt) => {
     const out = posRefs.getState().tautwire.phase !== 'stowed' ? 1 : 0;
-    boomExtension.current = reduced ? out : ease(boomExtension.current, out, dt, 2);
-    const tip = tautWireHead(boomExtension.current);
-    const dx = tip[0] - TW_PIVOT[0];
-    const dy = tip[1] - TW_PIVOT[1];
-    const len = Math.hypot(dx, dy);
-    if (boom.current) boom.current.rotation.z = Math.atan2(dy, dx);
-    // Inner section slides out of the outer one so its end reaches the head.
-    if (inner.current) {
-      inner.current.scale.x = Math.max(0.1, len - 1.9);
-      inner.current.position.x = (1.9 + len) / 2;
-    }
-    if (head.current) head.current.position.set(tip[0] - TAUTWIRE_POS[0], tip[1] - 3, 0);
+    boomExtension.current = reduced ? out : ease(boomExtension.current, out, dt, 1.5);
+    pose(boomExtension.current);
   });
   const o = visual.outline;
+  const base = TW_BASKET_H;
   return (
-    <group name={`equipment:${TW_ID}`} position={TAUTWIRE_POS} {...handlers}>
-      <EqMesh geometry={g.skid} material={mats.frame} outline={o} position={[0, 0.06, 0]} name="skid" />
-      <EqMesh geometry={g.housing} material={mats.housing} outline={o} position={[-FX * 0.2, 0.72, 0]} name="power-control-housing" />
-      <EqMesh geometry={g.drum} material={mats.drum} outline={o} position={[FX * 0.22, 0.75, 0]} name="winch-drum" />
-      <EqMesh geometry={g.flange} material={mats.head} outline={o} position={[FX * 0.22, 0.75, (FZ * 0.7) / 2]} />
-      <EqMesh geometry={g.flange} material={mats.head} outline={o} position={[FX * 0.22, 0.75, -(FZ * 0.7) / 2]} />
-      <EqMesh geometry={g.post} material={mats.frame} outline={o} position={[TW_PIVOT[0] - TAUTWIRE_POS[0], 1.1, 0]} name="boom-post" />
-      <group ref={boom} position={[TW_PIVOT[0] - TAUTWIRE_POS[0], TW_PIVOT[1] - 3, 0]}>
-        <EqMesh geometry={g.boomOuter} material={mats.boom} outline={o} position={[1.1, 0, 0]} name="boom" />
-        <mesh ref={inner} geometry={g.boomInner} material={mats.boom} position={[0.3, 0, 0]} />
+    <group name={`equipment:${TW_ID}`} position={[TAUTWIRE_EDGE_X, DECK_Y, TAUTWIRE_Z]} {...handlers}>
+      {[-1, 1].map((k) => (
+        <EqMesh key={`r${k}`} geometry={g.rail} material={mats.frame} outline={o} position={[-FX / 2, base / 2, k * (FZ / 2 - 0.06)]} name={k > 0 ? 'skid' : undefined} />
+      ))}
+      {[0.06, FX / 2, FX - 0.06].map((x) => (
+        <EqMesh key={`c${x}`} geometry={g.cross} material={mats.frame} outline={o} position={[-x, base / 2, 0]} />
+      ))}
+      <mesh geometry={g.grating} material={mats.grating} position={[-FX / 2, base - 0.015, 0]} />
+      <group position={[-0.35, base + 0.15, TW_HEAD_Z]} name="weight-basket">
+        <mesh geometry={g.basket} material={mats.frame} />
+        <EqMesh geometry={g.basketRim} material={mats.frame} outline={o} position={[0, 0.15, 0]} />
+      </group>
+      <EqMesh geometry={g.cabinet} material={mats.cabinet} outline={o} position={[-0.6, base + cabH / 2, -FZ / 2 + 0.245]} name="control-cabinet" />
+      <group position={[-1.4, 0, 0.05]} name="winch">
+        {[-0.45, 0.45].map((z) => (
+          <EqMesh key={z} geometry={g.drumStand} material={mats.frame} outline={o} position={[0, base + 0.22, z]} />
+        ))}
+        <EqMesh geometry={g.drum} material={mats.drum} outline={o} position={[0, 0.5, 0]} name="winch-drum" />
+        {[-0.4, 0.4].map((z) => (
+          <EqMesh key={z} geometry={g.drumFlange} material={mats.motor} outline={o} position={[0, 0.5, z]} />
+        ))}
+        <EqMesh geometry={g.motor} material={mats.motor} outline={o} position={[0, 0.5, 0.65]} name="winch-motor" />
+      </group>
+      <EqMesh geometry={g.hinge} material={mats.head} outline={o} position={[TW_PIVOT_UH[0], TW_PIVOT_UH[1], TW_HEAD_Z]} name="a-frame-pivot" />
+      <group ref={legA}>
+        <EqMesh geometry={g.leg} material={mats.frame} outline={o} name="a-frame" />
+      </group>
+      <group ref={legB}>
+        <EqMesh geometry={g.leg} material={mats.frame} outline={o} />
+      </group>
+      <group ref={brace}>
+        <mesh geometry={g.leg} material={mats.frame} />
+      </group>
+      <group ref={arm}>
+        <EqMesh geometry={g.arm} material={mats.frame} outline={o} name="cranked-arm" />
       </group>
       <group ref={head} name="gimbal-head">
+        <EqMesh geometry={g.gimbalDisc} material={mats.head} outline={o} position={[0, 0.06, 0]} />
         <EqMesh geometry={g.gimbal} material={mats.head} outline={o} rotation={[Math.PI / 2, 0, 0]} />
-        <EqMesh geometry={g.sheave} material={mats.drum} outline={o} position={[0, -0.12, 0]} />
+        <mesh geometry={g.sheave} material={mats.drum} position={[0, -0.1, 0]} />
+        <mesh geometry={g.beacon} material={mats.beacon} position={[0.12, 0.12, 0]} />
       </group>
     </group>
   );
 }
 
-/** Sonardyne Type 8097 over-the-side pole (3 sections, strakes) carrying SPRINT-Nav DP; hydraulic lock on the hull. */
+/** Sonardyne Type 8097 modular over-the-side pole carrying SPRINT-Nav DP, laid out to the datasheet drawing. */
 export function SprintNavPole() {
   const handlers = useSelectable(SN_ID);
   const { mats, visual } = useEquipmentMaterials(SN_ID, {
-    pole: { color: '#9aa1a6', metalness: 0.6, roughness: 0.45 },
-    strake: { color: '#80878c', metalness: 0.6, roughness: 0.5 },
-    mount: { color: '#e2b322', metalness: 0.45, roughness: 0.5 },
+    pole: { color: '#2a55b0', metalness: 0.45, roughness: 0.45 },
+    strake: { color: '#234a99', metalness: 0.45, roughness: 0.5 },
+    mount: { color: '#2a55b0', metalness: 0.45, roughness: 0.5 },
+    adapter: { color: '#c62828', metalness: 0.4, roughness: 0.45 },
     ti: { color: '#b9bec2', metalness: 0.85, roughness: 0.25 },
     dvl: { color: '#202428', metalness: 0.4, roughness: 0.5 },
   });
   const radial = useQualityProfile().radialSegments;
   const L = POLE_8097.length.value;
   const D = POLE_8097.diameter.value;
-  const sec = L / POLE_8097.sections.value;
+  const ends = POLE_8097.sectionEnds.value;
+  const starts = [0, ...ends.slice(0, -1)];
+  const pivotY = POLE_PIVOT[1];
+  const lockY = pivotY - POLE_8097.lockBelowPivot.value;
+  const railTop = DECK_Y + BULWARK_H;
   const g = useMemo(
     () => ({
-      section: new THREE.CylinderGeometry(D / 2, D / 2, sec - 0.06, radial).rotateX(Math.PI / 2),
-      flange: new THREE.CylinderGeometry(D / 2 + 0.07, D / 2 + 0.07, 0.05, radial).rotateX(Math.PI / 2),
-      strake: new THREE.BoxGeometry(0.05, 0.1, 0.5),
-      hinge: new THREE.CylinderGeometry(0.22, 0.22, 0.7, radial).rotateZ(Math.PI / 2),
-      bracket: new THREE.BoxGeometry(0.9, 0.9, 0.5),
-      lockPlate: new THREE.BoxGeometry(0.85, 0.5, 0.7),
-      jaw: new THREE.BoxGeometry(0.12, 0.45, 0.25),
+      section: new THREE.CylinderGeometry(D / 2, D / 2, 1, radial).rotateX(Math.PI / 2),
+      flange: new THREE.CylinderGeometry(D / 2 + 0.06, D / 2 + 0.06, 0.05, radial).rotateX(Math.PI / 2),
+      strake: new THREE.BoxGeometry(0.04, 0.09, 0.42),
+      lug: new THREE.BoxGeometry(0.04, 0.12, 0.16),
+      hub: new THREE.CylinderGeometry(0.17, 0.17, 0.5, radial).rotateZ(Math.PI / 2),
+      post: new THREE.BoxGeometry(0.4, pivotY - DECK_Y + 0.35, 0.5),
+      beam: new THREE.BoxGeometry(0.75, 0.3, 0.5),
+      stand: new THREE.BoxGeometry(0.16, POLE_PIVOT[1] - D / 2 - railTop, 0.3),
+      lockPlate: new THREE.BoxGeometry(0.12, 0.6, 0.8),
+      lockArm: new THREE.BoxGeometry(0.4, 0.14, 0.14),
+      jaw: new THREE.BoxGeometry(0.08, 0.4, 0.26),
       body: new THREE.CylinderGeometry(SPRINTNAV.diameter.value / 2, SPRINTNAV.diameter.value / 2, SPRINTNAV.height.value - 0.06, radial).rotateX(Math.PI / 2),
       dvlHead: new THREE.CylinderGeometry(SPRINTNAV.diameter.value / 2, SPRINTNAV.diameter.value / 2 - 0.02, 0.06, radial).rotateX(Math.PI / 2),
       transducer: new THREE.CylinderGeometry(0.03, 0.03, 0.02, 12).rotateX(Math.PI / 2),
-      adaptor: new THREE.CylinderGeometry(D / 2 + 0.02, SPRINTNAV.diameter.value / 2, 0.12, radial).rotateX(Math.PI / 2),
+      adaptor: new THREE.CylinderGeometry(D / 2 + 0.07, D / 2 + 0.07, 0.14, radial).rotateX(Math.PI / 2),
     }),
-    [D, sec, radial],
+    [D, radial, pivotY, railTop],
   );
   useDisposeAll(g);
   const swing = useRef<THREE.Group>(null);
   const jawL = useRef<THREE.Mesh>(null);
-  const jawR = useRef<THREE.Mesh>(null);
   const beams = useRef<THREE.Group>(null);
   const reduced = useAppStore((s) => s.reducedMotion);
   const angle = useRef(0);
@@ -307,9 +409,8 @@ export function SprintNavPole() {
     angle.current = reduced ? s.pole.angleDeg : ease(angle.current, s.pole.angleDeg, dt, 8);
     if (swing.current) swing.current.rotation.x = -(angle.current * Math.PI) / 180;
     const closed = s.pole.phase === 'deployed' || (s.pole.phase === 'locking' && s.pole.lockTimer > 0.5);
-    const gap = closed ? 0.17 : 0.4;
+    const gap = closed ? D / 2 + 0.04 : D / 2 + 0.22;
     if (jawL.current) jawL.current.position.x = ease(jawL.current.position.x, -gap, dt, 6);
-    if (jawR.current) jawR.current.position.x = ease(jawR.current.position.x, gap, dt, 6);
     if (beams.current) {
       beams.current.visible = posRefReadiness(s, posRefs.getPose()).SPRINTNAV;
       const p = sprintNavPos(90);
@@ -318,39 +419,49 @@ export function SprintNavPole() {
     }
   });
   const o = visual.outline;
-  // Hydraulic lock welded to the hull side, where the deployed pole passes above the waterline.
-  const lockY = 1.2;
+  const hullX = -9;
   return (
     <group name={`equipment:${SN_ID}`} {...handlers}>
+      {/* Deck pivot bracket: post on the deck inside the bulwark, beam out over the side to the hub (datasheet photo). */}
+      <EqMesh geometry={g.post} material={mats.mount} outline={o} position={[-8.55, DECK_Y + (pivotY - DECK_Y + 0.35) / 2, POLE_PIVOT[2]]} name="pivot-mount" />
+      <EqMesh geometry={g.beam} material={mats.mount} outline={o} position={[(-8.55 + POLE_PIVOT[0]) / 2 - 0.05, pivotY + 0.2, POLE_PIVOT[2]]} />
+      {POLE_8097.stowSupports.value.map((d) => (
+        <EqMesh key={d} geometry={g.stand} material={mats.mount} outline={o} position={[POLE_PIVOT[0] + 0.1, (railTop + POLE_PIVOT[1] - D / 2) / 2, POLE_PIVOT[2] - d]} />
+      ))}
       <group position={POLE_PIVOT}>
-        <EqMesh geometry={g.bracket} material={mats.mount} outline={o} position={[0.55, 0, 0]} name="pivot-mount" />
-        <EqMesh geometry={g.hinge} material={mats.pole} outline={o} name="pivot" />
+        <EqMesh geometry={g.hub} material={mats.mount} outline={o} name="pivot" />
         <group ref={swing}>
-          {Array.from({ length: POLE_8097.sections.value }, (_, i) => (
-            <group key={i} position={[0, 0, -(i + 0.5) * sec]}>
-              <EqMesh geometry={g.section} material={mats.pole} outline={o} name={`pole-section-${i + 1}`} />
-              <EqMesh geometry={g.flange} material={mats.pole} outline={o} position={[0, 0, sec / 2 - 0.03]} />
-              {i > 0 &&
-                Array.from({ length: 10 }, (_, k) => {
-                  // Helical vortex-suppression strakes, three starts.
-                  const z = -sec / 2 + 0.25 + (k / 10) * (sec - 0.5);
-                  return [0, 1, 2].map((st) => {
-                    const a = (st * 2 * Math.PI) / 3 + (k / 10) * Math.PI * 2;
-                    return (
-                      <mesh
-                        key={`${k}-${st}`}
-                        geometry={g.strake}
-                        material={mats.strake}
-                        position={[Math.cos(a) * (D / 2 + 0.04), Math.sin(a) * (D / 2 + 0.04), z]}
-                        rotation={[0, 0, a]}
-                      />
-                    );
-                  });
-                })}
-            </group>
-          ))}
+          {starts.map((z0, i) => {
+            const len = ends[i] - z0;
+            return (
+              <group key={i} position={[0, 0, -(z0 + len / 2)]}>
+                <group scale={[1, 1, len - 0.06]}>
+                  <EqMesh geometry={g.section} material={mats.pole} outline={o} name={`pole-section-${i + 1}`} />
+                </group>
+                {i < ends.length - 1 && <EqMesh geometry={g.flange} material={mats.pole} outline={o} position={[0, 0, -len / 2]} />}
+                <mesh geometry={g.lug} material={mats.pole} position={[0, D / 2 + 0.05, len / 2 + z0 - POLE_8097.lugs.value[i]]} />
+                {i > 0 &&
+                  Array.from({ length: 7 }, (_, k) => {
+                    // Helical vortex-suppression strakes, three starts, on the lower sections (datasheet drawing and photo).
+                    const z = -len / 2 + 0.25 + (k / 7) * (len - 0.5);
+                    return [0, 1, 2].map((st) => {
+                      const a = (st * 2 * Math.PI) / 3 + (k / 7) * Math.PI * 2;
+                      return (
+                        <mesh
+                          key={`${k}-${st}`}
+                          geometry={g.strake}
+                          material={mats.strake}
+                          position={[Math.cos(a) * (D / 2 + 0.03), Math.sin(a) * (D / 2 + 0.03), z]}
+                          rotation={[0, 0, a]}
+                        />
+                      );
+                    });
+                  })}
+              </group>
+            );
+          })}
           <group position={[0, 0, -L]} name="sprint-nav-dp">
-            <EqMesh geometry={g.adaptor} material={mats.pole} outline={o} position={[0, 0, 0.06]} />
+            <EqMesh geometry={g.adaptor} material={mats.adapter} outline={o} position={[0, 0, 0.07]} name="transceiver-adapter" />
             <EqMesh geometry={g.body} material={mats.ti} outline={o} position={[0, 0, -(SPRINTNAV.height.value - 0.06) / 2]} name="sprint-nav-housing" />
             <EqMesh geometry={g.dvlHead} material={mats.dvl} outline={o} position={[0, 0, -SPRINTNAV.height.value + 0.03]} name="dvl-head" />
             {[0, 1, 2, 3].map((k) => (
@@ -359,16 +470,37 @@ export function SprintNavPole() {
           </group>
         </group>
       </group>
+      {/* Hydraulic lock bracket welded to the hull, 2415 mm below the pole axis and in line with the pole; the outboard jaw closes the pole against the hull saddle. */}
       <group position={[POLE_PIVOT[0], lockY, POLE_PIVOT[2]]} name="hydraulic-lock">
-        <EqMesh geometry={g.lockPlate} material={mats.mount} outline={o} position={[0.6, 0, 0]} />
-        <mesh ref={jawL} geometry={g.jaw} material={mats.mount} position={[-0.4, 0, 0]} />
-        <mesh ref={jawR} geometry={g.jaw} material={mats.mount} position={[0.4, 0, 0]} />
+        <EqMesh geometry={g.lockPlate} material={mats.mount} outline={o} position={[hullX - POLE_PIVOT[0] - 0.06, 0, 0]} />
+        {[-0.3, 0.3].map((z) => (
+          <EqMesh key={z} geometry={g.lockArm} material={mats.mount} outline={o} position={[(hullX - POLE_PIVOT[0]) / 2 - 0.1, 0, z]} />
+        ))}
+        <mesh ref={jawL} geometry={g.jaw} material={mats.mount} position={[-D / 2 - 0.22, 0, 0]} name="lock-jaw" />
       </group>
       <group ref={beams} visible={false}>
         <primitive object={beamLines} />
       </group>
     </group>
   );
+}
+
+/** Bell-shaped depressor weight centred on its mid-height (proportions from the SMT datasheet render). */
+function bellGeometry(radial: number) {
+  const R = SMT_TW.weightDiameter.value / 2;
+  const r = SMT_TW.weightTopDiameter.value / 2;
+  const H = SMT_TW.weightHeight.value;
+  const pts = [
+    [0, 0],
+    [R, 0],
+    [R, H * 0.1],
+    [R * 0.9, H * 0.45],
+    [r * 1.1, H * 0.82],
+    [r, H * 0.9],
+    [r, H],
+    [0, H],
+  ].map(([x, y]) => new THREE.Vector2(x, y - H / 2));
+  return new THREE.LatheGeometry(pts, radial);
 }
 
 /**
@@ -381,9 +513,9 @@ export function PositionReferenceWorld() {
   const res = useMemo(() => {
     const steel = new THREE.MeshStandardMaterial({ color: '#7d868d', metalness: 0.6, roughness: 0.5 });
     const deck = new THREE.MeshStandardMaterial({ color: '#4a5258', metalness: 0.4, roughness: 0.7 });
-    const responder = new THREE.MeshStandardMaterial({ color: '#c62828', metalness: 0.3, roughness: 0.4, emissive: '#5a0b0b', emissiveIntensity: 0.4 });
+    const responder = new THREE.MeshStandardMaterial({ color: '#f1f3f5', metalness: 0.2, roughness: 0.5 });
     const reflector = new THREE.MeshStandardMaterial({ color: '#f2f2f2', metalness: 0.9, roughness: 0.1 });
-    const weight = new THREE.MeshStandardMaterial({ color: '#2b2f33', metalness: 0.7, roughness: 0.4 });
+    const weight = new THREE.MeshStandardMaterial({ color: '#e8541c', metalness: 0.35, roughness: 0.5 });
     const wire = new THREE.LineBasicMaterial({ color: '#e8ecef' });
     const radar = new THREE.LineDashedMaterial({ color: '#f2c94c', dashSize: 1.2, gapSize: 0.8, toneMapped: false, transparent: true, opacity: 0.8 });
     const laser = new THREE.LineBasicMaterial({ color: '#ff3b3b', toneMapped: false, transparent: true, opacity: 0.85 });
@@ -393,9 +525,13 @@ export function PositionReferenceWorld() {
       brace: new THREE.CylinderGeometry(0.18, 0.18, PLATFORM.legSpread * Math.SQRT2, 8),
       deck: new THREE.BoxGeometry(PLATFORM.legSpread + 6, 1.2, PLATFORM.legSpread + 6),
       module: new THREE.BoxGeometry(PLATFORM.legSpread, 5, PLATFORM.legSpread * 0.6),
-      responder: new THREE.CylinderGeometry(0.18, 0.18, 0.7, 12),
-      reflector: new THREE.CylinderGeometry(0.25, 0.25, 1.2, 16),
-      weight: new THREE.CylinderGeometry(SMT_TW.weightDiameter.value / 2, SMT_TW.weightDiameter.value / 2, SMT_TW.weightHeight.value, radial),
+      // RadaScan responder: white box with a carry handle (brochure photo); size illustrative.
+      responder: new THREE.BoxGeometry(0.26, 0.42, 0.2),
+      handle: new THREE.TorusGeometry(0.07, 0.015, 6, 12, Math.PI),
+      // CyScan AS 1.9 m cylindrical target (leaflet); diameter illustrative.
+      reflector: new THREE.CylinderGeometry(0.15, 0.15, 1.9, 16),
+      // SMT 400 kg bell-shaped depressor weight, proportioned from the datasheet render.
+      weight: bellGeometry(radial),
     };
     const lineGeo = () => new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 1, 0)]);
     const twGeo = lineGeo();
@@ -434,15 +570,15 @@ export function PositionReferenceWorld() {
     const hw = SMT_TW.weightHeight.value;
     const w: [number, number, number] = s.tautwire.anchor
       ? [s.tautwire.anchor[1], SCENE_SEABED_Y + hw / 2, s.tautwire.anchor[0]]
-      : [head[0], head[1] - 0.35 - hw / 2 - s.tautwire.payout, head[2]];
+      : [head[0], head[1] - 0.12 - tautWireHang(boomExtension.current) - hw / 2 - s.tautwire.payout, head[2]];
     if (weight.current) weight.current.position.set(...w);
     setLine(res.lines.tw, [head[0], head[1] - 0.12, head[2]], [w[0], w[1] + hw / 2, w[2]]);
-    res.lines.tw.visible = s.tautwire.phase !== 'stowed';
+    res.lines.tw.visible = s.tautwire.phase !== 'stowed' || boomExtension.current > 0.02;
     const ready = posRefReadiness(s, posRefs.getPose());
     res.lines.radar.visible = ready.RADASCAN;
     if (ready.RADASCAN) setLine(res.lines.radar, toWorld([RADASCAN_POS[0], RADASCAN_POS[1] + RADASCAN.pedestalHeight.value + RADASCAN.height.value / 2, RADASCAN_POS[2]], eta), RESPONDER_WORLD);
     res.lines.laser.visible = ready.CYSCAN;
-    if (ready.CYSCAN) setLine(res.lines.laser, toWorld([CYSCAN_POS[0], CYSCAN_POS[1] + 0.4 + CYSCAN.headHeight.value * 0.62, CYSCAN_POS[2]], eta), REFLECTOR_WORLD);
+    if (ready.CYSCAN) setLine(res.lines.laser, toWorld(CYSCAN_WINDOW, eta), REFLECTOR_WORLD);
   });
   const S = PLATFORM.legSpread / 2;
   const legs: [number, number][] = [
@@ -471,7 +607,10 @@ export function PositionReferenceWorld() {
         <mesh geometry={res.geo.deck} material={res.mats.deck} position={[0, PLATFORM.deckY, 0]} />
         <mesh geometry={res.geo.module} material={res.mats.steel} position={[0, PLATFORM.deckY + 3.1, -S * 0.3]} />
       </group>
-      <mesh geometry={res.geo.responder} material={res.mats.responder} position={RESPONDER_WORLD} name="radascan-responder" />
+      <group position={RESPONDER_WORLD} name="radascan-responder">
+        <mesh geometry={res.geo.responder} material={res.mats.responder} />
+        <mesh geometry={res.geo.handle} material={res.mats.steel} position={[0, 0.21, 0]} />
+      </group>
       <mesh geometry={res.geo.reflector} material={res.mats.reflector} position={REFLECTOR_WORLD} name="cyscan-reflector" />
       <mesh ref={weight} geometry={res.geo.weight} material={res.mats.weight} name="taut-wire-depressor-weight" />
       <primitive object={res.lines.tw} />
