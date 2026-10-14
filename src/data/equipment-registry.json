@@ -30,17 +30,17 @@
     },
     {
       "id": "hpr-001",
-      "name": "Hydroacoustic PRS",
+      "name": "HPR \u00b7 HPT 5000 USBL",
       "category": "position-reference",
       "location": "underwater-hull",
-      "model": "/models/hpr.glb",
+      "model": "/models/hpt5000.glb",
       "simulation": "acoustic-ranging",
       "actions": [
         "inspect",
         "show-signals",
         "reset"
       ],
-      "manufacturer": null
+      "manufacturer": "Sonardyne"
     },
     {
       "id": "bow-thruster-001",
@@ -59,10 +59,10 @@
     },
     {
       "id": "deployment-001",
-      "name": "Retractable Sensor Deployment",
+      "name": "Type 7950 Deployment Machine",
       "category": "mechanical",
-      "location": "hull",
-      "model": "/models/deployment.glb",
+      "location": "hull-trunk",
+      "model": "/models/type7950.glb",
       "simulation": "deployment-state-machine",
       "actions": [
         "inspect",
@@ -71,7 +71,7 @@
         "pause",
         "reset"
       ],
-      "manufacturer": null
+      "manufacturer": "Sonardyne"
     }
   ]
 }

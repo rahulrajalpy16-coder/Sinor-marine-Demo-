@@ -50,7 +50,7 @@ export function CameraRig() {
     const c = controls.current;
     if (!c) return;
     const pl = selectedId ? getEquipment(selectedId)?.placement : undefined;
-    const lim = orbitLimitsFor(cameraMode, !!pl?.underwater, !!pl?.interior);
+    const lim = orbitLimitsFor(cameraMode, !!pl?.underwater, !!pl?.interior, pl?.interiorMaxDistance);
     c.minDistance = lim.minDistance;
     c.maxDistance = lim.maxDistance;
     c.minPolarAngle = lim.minPolarAngle;
@@ -78,7 +78,7 @@ export function CameraRig() {
           useAppStore.getState().setCameraMoving(false);
           const st = useAppStore.getState();
           const pl = st.selectedId ? getEquipment(st.selectedId)?.placement : undefined;
-          Object.assign(c, orbitLimitsFor(st.cameraMode, !!pl?.underwater, !!pl?.interior));
+          Object.assign(c, orbitLimitsFor(st.cameraMode, !!pl?.underwater, !!pl?.interior, pl?.interiorMaxDistance));
           onDone?.();
         },
       });
@@ -180,7 +180,7 @@ export function CameraRig() {
         if (st.introActive) st.endIntro();
         if (st.cameraMoving) tl.current?.progress(1);
         const pl = st.selectedId ? getEquipment(st.selectedId)?.placement : undefined;
-        const lim = orbitLimitsFor(st.cameraMode, !!pl?.underwater, !!pl?.interior);
+        const lim = orbitLimitsFor(st.cameraMode, !!pl?.underwater, !!pl?.interior, pl?.interiorMaxDistance);
         const next = orbitStep(
           { position: camera.position.toArray() as CameraPose['position'], target: c.target.toArray() as CameraPose['target'] },
           a.kind === 'orbit' ? { azimuth: a.azimuth, polar: a.polar } : { zoom: a.factor },

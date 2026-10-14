@@ -15,7 +15,8 @@ declare global {
         assetStatus: Record<string, string>;
       };
       thruster: () => { status: string; rpm: number; thrustKN: number; angle: number; command: number; pitch: number; station: string };
-      dp: () => { status: string; mode: string; dpLost: boolean; eta: number[]; time: number; alarms: string[]; thrusters: { id: string; available: boolean; forceN: number }[] };
+      dp: () => { status: string; mode: string; dpLost: boolean; eta: number[]; time: number; alarms: string[]; thrusters: { id: string; available: boolean; forceN: number }[]; refs: { id: string; ready: boolean }[] };
+      hpr: () => { travel: number; valve: string; motion: string };
       camera: () => { position: number[] };
     };
   }
@@ -71,7 +72,7 @@ test('orbit drag and wheel zoom move the camera', async ({ page }) => {
 
 for (const [id, title] of [
   ['bow-thruster-001', 'Bow Tunnel Thruster'],
-  ['hpr-001', 'Hydroacoustic PRS'],
+  ['deployment-001', 'Type 7950 Deployment Machine'],
   ['dp-console-001', 'DP System'],
   ['ibs-001', 'Integrated Bridge System'],
 ] as const) {
@@ -221,6 +222,49 @@ test('DP system: station keeping, BT1 handover, DP1 controller failure loses pos
   await expect(page.getByTestId('dp-status')).toHaveText('stopped');
 });
 
+test('HPR: Type 7950 interlocks, deployment of the HPT 5000, and the deployed transceiver as a DP reference', async ({ page }) => {
+  await boot(page, '?intro=0&quality=low');
+  await page.addStyleTag({ content: '[data-testid^="hotspot-"]{display:none!important}' });
+  await page.getByTestId('tree-deployment-001').click();
+  await waitFocused(page, 'deployment-001');
+  await expect(page.getByTestId('hpr-status')).toHaveText('PARKED');
+  await expect.poll(async () => (await page.evaluate(() => window.__SINOR__!.dp())).refs.find((r) => r.id === 'HPR')!.ready).toBe(false);
+  // Interlock: no deployment through a closed gate valve.
+  await page.getByTestId('hpr-deploy').click();
+  await expect(page.getByTestId('hpr-error')).toContainText('gate valve');
+  await page.getByTestId('hpr-speed').selectOption('20');
+  await page.getByTestId('hpr-valve-open').click();
+  await expect(page.getByTestId('hpr-status')).toHaveText('READY TO DEPLOY');
+  await page.getByTestId('hpr-door').click();
+  await expect(page.getByTestId('hpr-error')).toContainText('Close the gate valve');
+  await page.getByTestId('hpr-deploy').click();
+  await expect(page.getByTestId('hpr-status')).toHaveText('DEPLOYED');
+  await expect(page.getByTestId('hpr-depth')).toHaveText('2.95 m');
+  await page.getByTestId('hpr-valve-close').click();
+  await expect(page.getByTestId('hpr-error')).toContainText('Retract');
+  await page.getByTestId('hpr-signals').click();
+  await expect(page.getByTestId('hpr-range')).toHaveText(/m$/);
+  // Exploded view of the machine keeps the scene alive.
+  await page.getByTestId('action-explode').click();
+  await expect(page.getByTestId('mode-exploded')).toHaveAttribute('aria-pressed', 'true');
+  await page.getByTestId('action-explode').click();
+  // The deployed transceiver is now under the hull and can be picked in the 3D view.
+  await page.getByTestId('reset-overview').click();
+  await expect(page.getByTestId('camera-mode')).toHaveText('Overview');
+  await page.getByTestId('mode-xray').click();
+  const pt = (await page.evaluate(() => window.__SINOR__!.project('hpr-001')))!;
+  await page.mouse.click(pt.x, pt.y);
+  await waitFocused(page, 'hpr-001');
+  await expect(page.getByTestId('inspector-title')).toHaveText('HPR · HPT 5000 USBL');
+  // DP sees the HPR as ready only while deployed.
+  await expect.poll(async () => (await page.evaluate(() => window.__SINOR__!.dp())).refs.find((r) => r.id === 'HPR')!.ready).toBe(true);
+  await page.getByTestId('hpr-retract').click();
+  await expect(page.getByTestId('hpr-status')).toHaveText('READY TO DEPLOY');
+  await page.getByTestId('hpr-reset').click();
+  await expect(page.getByTestId('hpr-status')).toHaveText('PARKED');
+  expect(errors.filter((e) => !/404|Failed to load resource/.test(e))).toEqual([]);
+});
+
 test('intro plays, can be skipped, and reduced motion skips it', async ({ page, browser }) => {
   await page.goto('/');
   await page.waitForFunction(() => !!window.__SINOR__, null, { timeout: 45_000 });
@@ -244,7 +288,7 @@ test('keyboard-accessible equipment list', async ({ page }) => {
   await item.focus();
   await page.keyboard.press('Enter');
   await waitFocused(page, 'bow-thruster-001');
-  await expect(page.getByTestId('tree-deployment-001')).toBeDisabled();
+  await expect(page.getByTestId('tree-deployment-001')).toBeEnabled();
 });
 
 test.describe('mobile', () => {

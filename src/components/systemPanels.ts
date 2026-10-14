@@ -11,5 +11,6 @@ import { DPPanel } from './DPPanel';
 export const SYSTEM_PANELS: Record<string, ComponentType> = {
   'bow-thruster-001': ThrusterPanel,
   'hpr-001': HPRPanel,
+  'deployment-001': HPRPanel,
   'dp-console-001': DPPanel,
 };

@@ -44,7 +44,7 @@ describe('content schemas', () => {
 
   it('marks the modelled systems as implemented', () => {
     expect(equipment.filter((e) => e.placement.implemented).map((e) => e.id).sort()).toEqual(
-      ['bow-thruster-001', 'dp-console-001', 'hpr-001', 'ibs-001'],
+      ['bow-thruster-001', 'deployment-001', 'dp-console-001', 'hpr-001', 'ibs-001'],
     );
   });
 });

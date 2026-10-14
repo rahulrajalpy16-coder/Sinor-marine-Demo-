@@ -52,10 +52,10 @@ export interface OrbitLimits {
   maxPolarAngle: number;
 }
 
-export function orbitLimitsFor(mode: CameraMode, underwaterFocus: boolean, interiorFocus = false): OrbitLimits {
+export function orbitLimitsFor(mode: CameraMode, underwaterFocus: boolean, interiorFocus = false, interiorMax = 7): OrbitLimits {
   if ((mode === 'inspection' || mode === 'simulation') && interiorFocus) {
-    // Inside the bridge: stay close so the camera does not pass through the bulkheads.
-    return { minDistance: 0.8, maxDistance: 7, minPolarAngle: 0.2, maxPolarAngle: Math.PI * 0.62 };
+    // Inside the ship: stay close so the camera does not pass through the bulkheads.
+    return { minDistance: 0.8, maxDistance: interiorMax, minPolarAngle: 0.2, maxPolarAngle: Math.PI * 0.62 };
   }
   if ((mode === 'inspection' || mode === 'simulation') && underwaterFocus) {
     return { minDistance: 6, maxDistance: 90, minPolarAngle: 0.1, maxPolarAngle: Math.PI * 0.8 };

@@ -20,10 +20,9 @@ describe('equipment selection', () => {
     expect(s.getState().phase).toBe('focused');
   });
 
-  it('rejects unknown and not-yet-implemented equipment', () => {
+  it('rejects unknown equipment', () => {
     const s = createAppStore();
     expect(s.getState().select('nope')).toBe(false);
-    expect(s.getState().select('deployment-001')).toBe(false);
     expect(s.getState().selectedId).toBeNull();
   });
 

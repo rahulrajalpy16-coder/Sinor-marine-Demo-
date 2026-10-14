@@ -5,6 +5,7 @@ import { useAppStore } from '../store/useAppStore';
 import { getEquipment } from '../equipment/registry';
 import { bowThruster } from '../simulations/controller';
 import { dpSystem } from '../simulations/dpController';
+import { hprDeployment } from '../simulations/deploymentController';
 import { toScene } from './vesselTransform';
 
 declare global {
@@ -15,6 +16,7 @@ declare global {
       state: () => ReturnType<typeof useAppStore.getState>;
       thruster: () => ReturnType<typeof bowThruster.getState>;
       dp: () => ReturnType<typeof dpSystem.getState>;
+      hpr: () => ReturnType<typeof hprDeployment.getState>;
       camera: () => { position: number[] };
     };
   }
@@ -52,6 +54,7 @@ export function TestBridge() {
       state: () => useAppStore.getState(),
       thruster: () => bowThruster.getState(),
       dp: () => dpSystem.getState(),
+      hpr: () => hprDeployment.getState(),
       camera: () => ({ position: camera.position.toArray() }),
     };
     return () => {
