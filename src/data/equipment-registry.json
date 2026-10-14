@@ -72,6 +72,78 @@
         "reset"
       ],
       "manufacturer": "Sonardyne"
+    },
+    {
+      "id": "radascan-001",
+      "name": "RadaScan \u00b7 Microwave Radar",
+      "category": "position-reference",
+      "location": "bridge-top",
+      "model": "/models/radascan.glb",
+      "simulation": "radar-ranging",
+      "actions": [
+        "inspect",
+        "simulate",
+        "reset"
+      ],
+      "manufacturer": "Guidance Marine"
+    },
+    {
+      "id": "cyscan-001",
+      "name": "CyScan \u00b7 Laser",
+      "category": "position-reference",
+      "location": "bridge-top",
+      "model": "/models/cyscan.glb",
+      "simulation": "laser-ranging",
+      "actions": [
+        "inspect",
+        "simulate",
+        "reset"
+      ],
+      "manufacturer": "Guidance Marine"
+    },
+    {
+      "id": "dgps-001",
+      "name": "DGPS \u00b7 Fugro SeaSTAR",
+      "category": "position-reference",
+      "location": "mast",
+      "model": "/models/seastar-antennas.glb",
+      "simulation": "gnss",
+      "actions": [
+        "inspect"
+      ],
+      "manufacturer": "Fugro"
+    },
+    {
+      "id": "tautwire-001",
+      "name": "Taut Wire \u00b7 SMT TW-1.0",
+      "category": "position-reference",
+      "location": "main-deck",
+      "model": "/models/smt-tw1.glb",
+      "simulation": "taut-wire",
+      "actions": [
+        "inspect",
+        "deploy",
+        "retract",
+        "stop",
+        "reset"
+      ],
+      "manufacturer": "SMT"
+    },
+    {
+      "id": "sprintnav-001",
+      "name": "SPRINT-Nav DP \u00b7 Over-the-side pole",
+      "category": "position-reference",
+      "location": "hull-side",
+      "model": "/models/sprintnav-8097.glb",
+      "simulation": "ins-dvl",
+      "actions": [
+        "inspect",
+        "deploy",
+        "retract",
+        "stop",
+        "reset"
+      ],
+      "manufacturer": "Sonardyne"
     }
   ]
 }

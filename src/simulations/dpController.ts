@@ -1,10 +1,17 @@
 import { FixedStepper } from './fixedStep';
 import type { SimulationController } from './controller';
-import { applyDPCommand, initialDPState, stepDP, type DPCommand, type DPState } from './dp';
+import { applyDPCommand, initialDPState, stepDP, type DPCommand, type DPState, type RefId } from './dp';
 import { bowThruster } from './controller';
 import { DEFAULT_THRUSTER_PARAMS } from './thruster';
 import { hprDeployment } from './deploymentController';
 import { hprReady } from './deployment';
+import { posRefs } from './posrefsController';
+import { posRefReadiness } from './posrefs';
+
+/** Which position references can measure now: HPR from the Type 7950, the rest from their own states. */
+function readiness(): Partial<Record<RefId, boolean>> {
+  return { HPR: hprReady(hprDeployment.getState()), ...posRefReadiness(posRefs.getState(), posRefs.getPose()) };
+}
 
 /** Simulated seconds per fixed step. The model is slow (vessel time constants are minutes). */
 const DP_STEP = 0.05;
@@ -12,7 +19,8 @@ const DP_STEP = 0.05;
 /**
  * Holds DP state outside React. Each frame advances simulated time by frame × timeScale and couples
  * the bow thruster (DP reads BT1's delivered thrust and, when BT1 is in DP command, writes its pitch)
- * and the HPR (its reference only measures while the Type 7950 has the transceiver deployed).
+ * and the position references (the HPR only measures while the Type 7950 has the transceiver deployed;
+ * RadaScan, CyScan, taut wire and SPRINT-Nav only once running, see posrefs.ts).
  */
 export class DPController implements SimulationController<DPState, DPCommand> {
   readonly id = 'dp-3dof';
@@ -46,11 +54,10 @@ export class DPController implements SimulationController<DPState, DPCommand> {
 
   tick(frameSeconds: number) {
     if (this.state.status !== 'running') {
-      // Keep the HPR reference's readiness current for the panels even while DP is stopped.
-      const ready = hprReady(hprDeployment.getState());
-      const hpr = this.state.refs.find((r) => r.id === 'HPR');
-      if (hpr && hpr.ready !== ready) {
-        this.state = { ...this.state, refs: this.state.refs.map((r) => (r.id === 'HPR' ? { ...r, ready } : r)) };
+      // Keep the references' readiness current for the panels even while DP is stopped.
+      const ready = readiness();
+      if (this.state.refs.some((r) => ready[r.id] !== undefined && ready[r.id] !== r.ready)) {
+        this.state = { ...this.state, refs: this.state.refs.map((r) => (ready[r.id] !== undefined ? { ...r, ready: ready[r.id]! } : r)) };
         this.emit();
       }
       return;
@@ -62,7 +69,7 @@ export class DPController implements SimulationController<DPState, DPCommand> {
       const available = bt.station === 'DP' && bt.status === 'running';
       const out = stepDP(this.state, DP_STEP, {
         bt1: { available, forceN: bt.thrustKN * 1000 },
-        hpr: { ready: hprReady(hprDeployment.getState()) },
+        ready: readiness(),
       });
       this.state = out.state;
       if (bt.station === 'DP') {

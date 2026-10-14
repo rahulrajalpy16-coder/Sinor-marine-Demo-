@@ -15,8 +15,9 @@ declare global {
         assetStatus: Record<string, string>;
       };
       thruster: () => { status: string; rpm: number; thrustKN: number; angle: number; command: number; pitch: number; station: string };
-      dp: () => { status: string; mode: string; dpLost: boolean; eta: number[]; time: number; alarms: string[]; thrusters: { id: string; available: boolean; forceN: number }[]; refs: { id: string; ready: boolean }[] };
+      dp: () => { status: string; mode: string; dpLost: boolean; eta: number[]; time: number; alarms: string[]; thrusters: { id: string; available: boolean; forceN: number }[]; refs: { id: string; ready: boolean; enabled: boolean; rejected: boolean }[] };
       hpr: () => { travel: number; valve: string; motion: string };
+      posrefs: () => { tautwire: { phase: string; anchor: number[] | null }; pole: { phase: string; angleDeg: number }; cyscan: { phase: string } };
       camera: () => { position: number[] };
     };
   }
@@ -75,6 +76,8 @@ for (const [id, title] of [
   ['deployment-001', 'Type 7950 Deployment Machine'],
   ['dp-console-001', 'DP System'],
   ['ibs-001', 'Integrated Bridge System'],
+  ['radascan-001', 'RadaScan · Microwave Radar'],
+  ['cyscan-001', 'CyScan · Laser'],
 ] as const) {
   test(`clicking the ${title} mesh in the 3D scene opens its panel and focuses the camera`, async ({ page }) => {
     await boot(page, '?intro=0&quality=low');
@@ -262,6 +265,67 @@ test('HPR: Type 7950 interlocks, deployment of the HPT 5000, and the deployed tr
   await expect(page.getByTestId('hpr-status')).toHaveText('READY TO DEPLOY');
   await page.getByTestId('hpr-reset').click();
   await expect(page.getByTestId('hpr-status')).toHaveText('PARKED');
+  expect(errors.filter((e) => !/404|Failed to load resource/.test(e))).toEqual([]);
+});
+
+test('position references: RadaScan, CyScan, DGPS, taut wire and SPRINT-Nav feed DP once running', async ({ page }) => {
+  await boot(page, '?intro=0&quality=low');
+  await page.addStyleTag({ content: '[data-testid^="hotspot-"]{display:none!important}' });
+  const ref = async (id: string) => (await page.evaluate(() => window.__SINOR__!.dp())).refs.find((r) => r.id === id)!;
+
+  // RadaScan and CyScan lock on to the platform's responder and reflector.
+  await page.getByTestId('tree-radascan-001').click();
+  await waitFocused(page, 'radascan-001');
+  await page.getByTestId('radascan-start').click();
+  await expect(page.getByTestId('radascan-hmi-status')).toHaveText('TRACKING', { timeout: 30_000 });
+  await expect(page.getByTestId('radascan-range')).toHaveText(/^\d+\.\d m$/);
+  await page.getByTestId('radascan-dp-select').click();
+  await page.getByTestId('tree-cyscan-001').click();
+  await waitFocused(page, 'cyscan-001');
+  await page.getByTestId('cyscan-start').click();
+  await expect(page.getByTestId('cyscan-hmi-status')).toHaveText('TRACKING', { timeout: 30_000 });
+  await page.getByTestId('cyscan-dp-select').click();
+  // Fog blinds the laser, not the radar.
+  await page.getByTestId('cyscan-fog').click();
+  await expect(page.getByTestId('cyscan-hmi-status')).toHaveText('NO TARGET');
+  await expect.poll(async () => (await ref('CYSCAN')).ready).toBe(false);
+  expect((await ref('RADASCAN')).ready).toBe(true);
+  await page.getByTestId('cyscan-fog').click();
+
+  // DGPS: both receivers online in DP2.
+  await page.getByTestId('tree-dgps-001').click();
+  await waitFocused(page, 'dgps-001');
+  await expect(page.getByTestId('dgps-hmi-status')).toHaveText('2 / 2 ONLINE');
+
+  // Taut wire: weight lowered to the seabed.
+  await page.getByTestId('tree-tautwire-001').click();
+  await waitFocused(page, 'tautwire-001');
+  await page.getByTestId('tw-speed').selectOption('20');
+  await page.getByTestId('tw-deploy').click();
+  await expect(page.getByTestId('tautwire-hmi-status')).toHaveText('ON BOTTOM · TENSIONED', { timeout: 60_000 });
+  await expect(page.getByTestId('tw-angle')).toHaveText(/°$/);
+  await page.getByTestId('tautwire-dp-select').click();
+
+  // SPRINT-Nav: deploy the pole, power and align, then select into DP.
+  await page.getByTestId('tree-sprintnav-001').click();
+  await waitFocused(page, 'sprintnav-001');
+  await page.getByTestId('sn-speed').selectOption('20');
+  await page.getByTestId('sprintnav-power').click();
+  await page.getByTestId('pole-deploy').click();
+  await expect(page.getByTestId('sprintnav-hmi-status')).toHaveText('REFERENCE OK', { timeout: 60_000 });
+  await expect(page.getByTestId('pole-angle')).toHaveText(/90° · LOCKED/);
+  await page.getByTestId('sprintnav-dp-select').click();
+
+  // DP: all selected references ready; a drifting taut wire is voted out.
+  await page.getByTestId('tree-dp-console-001').click();
+  await waitFocused(page, 'dp-console-001');
+  for (const id of ['GNSS1', 'GNSS2', 'RADASCAN', 'CYSCAN', 'TAUTWIRE', 'SPRINTNAV']) await expect.poll(async () => (await ref(id)).ready && (await ref(id)).enabled).toBe(true);
+  await page.getByTestId('dp-start').click();
+  await page.getByTestId('dp-tab-redundancy').click();
+  await expect(page.getByTestId('dp-ref-TAUTWIRE')).toContainText('OK');
+  await page.getByTestId('dp-drift-TAUTWIRE').click();
+  await expect.poll(async () => (await ref('TAUTWIRE')).rejected, { timeout: 60_000 }).toBe(true);
+  await expect(page.getByTestId('dp-ref-TAUTWIRE')).toContainText('REJECTED');
   expect(errors.filter((e) => !/404|Failed to load resource/.test(e))).toEqual([]);
 });
 

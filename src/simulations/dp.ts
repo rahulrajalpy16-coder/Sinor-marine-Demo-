@@ -15,13 +15,27 @@
  */
 
 import { HPT5000_REPEATABILITY } from '../equipment/hprData';
+import { CYSCAN, RADASCAN, SEASTAR, SMT_TW, SPRINTNAV } from '../equipment/posrefData';
 import { HPR_NOMINAL_SLANT_M } from './acoustic';
 
 export type DPClass = 1 | 2 | 3;
 export type DPMode = 'STANDBY' | 'JOYSTICK' | 'AUTO_HEADING' | 'AUTO_POSITION';
 export type DPStatus = 'stopped' | 'running' | 'paused';
 export type ThrusterId = 'BT1' | 'BT2' | 'AZ1' | 'AZ2';
-export type RefId = 'GNSS1' | 'GNSS2' | 'HPR';
+export type RefId = 'GNSS1' | 'GNSS2' | 'HPR' | 'RADASCAN' | 'CYSCAN' | 'TAUTWIRE' | 'SPRINTNAV';
+/** Core references follow the DP class architecture; the others are fitted on every class and
+ *  are selected into DP by the operator once the sensor is running (deployed, tracking, aligned). */
+export const CORE_REFS: RefId[] = ['GNSS1', 'GNSS2', 'HPR'];
+export const OPERATOR_REFS: RefId[] = ['RADASCAN', 'CYSCAN', 'TAUTWIRE', 'SPRINTNAV'];
+export const REF_LABEL: Record<RefId, string> = {
+  GNSS1: 'DGPS 1',
+  GNSS2: 'DGPS 2',
+  HPR: 'HPR',
+  RADASCAN: 'RadaScan',
+  CYSCAN: 'CyScan',
+  TAUTWIRE: 'Taut wire',
+  SPRINTNAV: 'SPRINT-Nav',
+};
 export type RefFault = 'lost' | 'drift';
 export type ControllerId = 'A' | 'B' | 'C';
 export type NetworkId = 'A' | 'B';
@@ -39,7 +53,8 @@ export type DPAlarm =
   | 'POSITION_WARNING'
   | 'HEADING_WARNING'
   | 'BACKUP_IN_COMMAND'
-  | 'HPR_NOT_DEPLOYED';
+  | 'HPR_NOT_DEPLOYED'
+  | 'REF_NOT_READY';
 
 export const DP_ALARM_TEXT: Record<DPAlarm, string> = {
   DP_LOST: 'DP lost: thrusters zeroed, vessel drifting',
@@ -56,6 +71,7 @@ export const DP_ALARM_TEXT: Record<DPAlarm, string> = {
   HEADING_WARNING: 'Heading error above warning limit',
   BACKUP_IN_COMMAND: 'Backup DP (A60 room) in command',
   HPR_NOT_DEPLOYED: 'HPR transceiver not deployed: reference unavailable',
+  REF_NOT_READY: 'Selected position reference not ready (not deployed, tracking or aligned)',
 };
 
 export interface ThrusterGeom {
@@ -211,16 +227,19 @@ export function initialDPState(dpClass: DPClass = 2): DPState {
       angle: t.azimuth ? 0 : Math.PI / 2,
       cmdAngle: t.azimuth ? 0 : Math.PI / 2,
     })),
-    refs: (['GNSS1', 'GNSS2', 'HPR'] as RefId[]).map((id) => ({
-      id,
-      installed: lay.refs.includes(id),
-      enabled: lay.refs.includes(id),
-      fault: null,
-      drift: [0, 0],
-      rejected: false,
-      ready: true,
-      meas: [0, 0],
-    })),
+    refs: [...CORE_REFS, ...OPERATOR_REFS].map((id) => {
+      const op = OPERATOR_REFS.includes(id);
+      return {
+        id,
+        installed: op || lay.refs.includes(id),
+        enabled: !op && lay.refs.includes(id),
+        fault: null,
+        drift: [0, 0] as [number, number],
+        rejected: false,
+        ready: !op,
+        meas: [0, 0] as [number, number],
+      };
+    }),
     controllers: (['A', 'B', 'C'] as ControllerId[]).map((id, i) => ({ id, installed: i < lay.controllers, failed: false })),
     networks: (['A', 'B'] as NetworkId[]).map((id, i) => ({ id, installed: i < lay.networks, failed: false })),
     bridgeCompartmentLost: false,
@@ -402,8 +421,19 @@ function rand(s: { seed: number }) {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296 - 0.5;
 }
 
-// HPR: HPT 5000 repeatability, 0.1 % of slant range (1 Drms, UM-8142 §12.1.3), at the scene's nominal slant range.
-const REF_NOISE: Record<RefId, number> = { GNSS1: 0.4, GNSS2: 0.4, HPR: HPT5000_REPEATABILITY * HPR_NOMINAL_SLANT_M };
+// Measurement noise (1σ, m). DGPS: Fugro Seastar G4, 10 cm. HPR: HPT 5000 repeatability, 0.1 % of slant
+// range (1 Drms, UM-8142 §12.1.3), at the scene's nominal slant range. The rest are illustrative (posrefData.ts).
+export const REF_NOISE: Record<RefId, number> = {
+  GNSS1: SEASTAR.accuracy.value,
+  GNSS2: SEASTAR.accuracy.value,
+  HPR: HPT5000_REPEATABILITY * HPR_NOMINAL_SLANT_M,
+  RADASCAN: RADASCAN.accuracy.value,
+  CYSCAN: CYSCAN.accuracy.value,
+  TAUTWIRE: SMT_TW.accuracy.value,
+  SPRINTNAV: SPRINTNAV.noise.value,
+};
+// SPRINT-Nav DP is DVL-aided inertial: its error grows slowly. Datasheet: < 3.2 m over 12 h (1DRMS).
+const SPRINTNAV_DRIFT_RATE = SPRINTNAV.stationKeeping.value / (12 * 3600);
 const DRIFT_RATE = 0.08; // m/s for a drifting reference
 const REJECT_M = 3;
 
@@ -411,13 +441,16 @@ const REJECT_M = 3;
 export function processReferences(
   s: DPState,
   dt: number,
-  hprReady = true,
+  readiness: Partial<Record<RefId, boolean>> | boolean = {},
 ): { refs: RefState[]; fix: [number, number] | null; deviation: boolean } {
+  const ready: Partial<Record<RefId, boolean>> = typeof readiness === 'boolean' ? { HPR: readiness } : readiness;
   const noiseState = { seed: s.seed };
   const refs = s.refs.map((r) => {
-    if (r.id === 'HPR' && r.ready !== hprReady) r = { ...r, ready: hprReady };
+    const rd = ready[r.id];
+    if (rd !== undefined && r.ready !== rd) r = { ...r, ready: rd };
     if (!r.installed) return r;
-    const drift: [number, number] = r.fault === 'drift' ? [r.drift[0] + DRIFT_RATE * dt * 0.8, r.drift[1] + DRIFT_RATE * dt * 0.6] : r.drift;
+    let drift: [number, number] = r.fault === 'drift' ? [r.drift[0] + DRIFT_RATE * dt * 0.8, r.drift[1] + DRIFT_RATE * dt * 0.6] : r.drift;
+    if (r.id === 'SPRINTNAV' && r.ready) drift = [drift[0] + SPRINTNAV_DRIFT_RATE * dt * 0.6, drift[1] - SPRINTNAV_DRIFT_RATE * dt * 0.8];
     const n = REF_NOISE[r.id];
     const meas: [number, number] = [s.eta[0] + drift[0] + n * rand(noiseState), s.eta[1] + drift[1] + n * rand(noiseState)];
     return { ...r, drift, meas };
@@ -452,6 +485,8 @@ export interface DPStepInput {
   bt1: { available: boolean; forceN: number };
   /** HPR transceiver deployed and able to measure (Type 7950 state). Defaults to ready. */
   hpr?: { ready: boolean };
+  /** Readiness of the other references (RadaScan, CyScan, taut wire, SPRINT-Nav). Unlisted keep their state. */
+  ready?: Partial<Record<RefId, boolean>>;
 }
 
 export interface DPStepOutput {
@@ -483,7 +518,7 @@ export function stepDP(prev: DPState, dt: number, input: DPStepInput, p: DPParam
   const joystickLost = s.mode === 'JOYSTICK' && !integrity.ok;
 
   // Position references and estimate.
-  const refsOut = processReferences(s, dt, input.hpr?.ready ?? true);
+  const refsOut = processReferences(s, dt, { HPR: input.hpr?.ready ?? true, ...input.ready });
   s.refs = refsOut.refs;
   if (refsOut.fix) {
     const k = Math.min(1, dt / 4);
@@ -597,6 +632,7 @@ export function stepDP(prev: DPState, dt: number, input: DPStepInput, p: DPParam
   setAlarm(s.alarms, 'REF_REJECTED', s.refs.some((r) => r.rejected));
   setAlarm(s.alarms, 'REF_DEVIATION', refsOut.deviation);
   setAlarm(s.alarms, 'HPR_NOT_DEPLOYED', s.mode !== 'STANDBY' && s.refs.some((r) => r.id === 'HPR' && r.installed && r.enabled && !r.ready));
+  setAlarm(s.alarms, 'REF_NOT_READY', s.mode !== 'STANDBY' && s.refs.some((r) => r.id !== 'HPR' && r.installed && r.enabled && !r.ready));
   setAlarm(s.alarms, 'DEAD_RECKONING', s.mode === 'AUTO_POSITION' && !refsOut.fix);
   setAlarm(s.alarms, 'THRUSTER_FAIL', s.thrusters.some((t) => t.failed));
   setAlarm(s.alarms, 'BT1_NOT_AVAILABLE', s.mode !== 'STANDBY' && !input.bt1.available && !s.thrusters[0].failed);
