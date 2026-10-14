@@ -1,0 +1,33 @@
+{
+  "project": "Sinor Marine Digital Universe",
+  "direction": "hybrid-realistic-holographic",
+  "reference": "reference/gemini_generated_video_5EE032DE.MP4",
+  "colors": {
+    "background": "#020813",
+    "ocean": "#061725",
+    "cyan": "#00D9FF",
+    "cyanLight": "#67F0FF",
+    "text": "#F4F8FC"
+  },
+  "defaultMode": "hybrid",
+  "modes": [
+    "hybrid",
+    "realistic",
+    "blueprint",
+    "xray",
+    "isolation",
+    "exploded"
+  ],
+  "features": {
+    "ocean": true,
+    "grid": true,
+    "wireframeOverlay": true,
+    "bloom": true,
+    "annotations": true
+  },
+  "qualityPresets": [
+    "low",
+    "medium",
+    "high"
+  ]
+}

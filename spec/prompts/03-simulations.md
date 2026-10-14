@@ -1,0 +1,1 @@
+Implement isolated pure TypeScript DP 3DOF educational simulation and HPR ranging visualization, connected to working scene controls. Add start/pause/reset and parameter validation. Distinguish illustrative data from certified engineering. Test numerics and browser UI.

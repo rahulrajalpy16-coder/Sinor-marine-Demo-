@@ -1,0 +1,1 @@
+Optimize geometry, materials, frame time, mobile interactions, accessibility, error states, animation cleanup and loading. Improve reference-video fidelity without replacing working 3D with static visuals. Run tests and build, document remaining limitations.

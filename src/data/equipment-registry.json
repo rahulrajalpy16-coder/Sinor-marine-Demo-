@@ -1,0 +1,65 @@
+{
+  "version": "1.0",
+  "note": "Illustrative, not OEM-verified; model paths are planned assets with procedural fallback.",
+  "equipment": [
+    {
+      "id": "dp-console-001",
+      "name": "DP Console",
+      "category": "dynamic-positioning",
+      "location": "bridge",
+      "model": "/models/dp-console.glb",
+      "simulation": "dp-3dof",
+      "actions": [
+        "inspect",
+        "simulate",
+        "reset"
+      ],
+      "manufacturer": null
+    },
+    {
+      "id": "hpr-001",
+      "name": "Hydroacoustic PRS",
+      "category": "position-reference",
+      "location": "underwater-hull",
+      "model": "/models/hpr.glb",
+      "simulation": "acoustic-ranging",
+      "actions": [
+        "inspect",
+        "show-signals",
+        "reset"
+      ],
+      "manufacturer": null
+    },
+    {
+      "id": "bow-thruster-001",
+      "name": "Bow Tunnel Thruster",
+      "category": "propulsion",
+      "location": "bow",
+      "model": "/models/bow-thruster.glb",
+      "simulation": "tunnel-thruster",
+      "actions": [
+        "inspect",
+        "set-thrust",
+        "stop",
+        "reset"
+      ],
+      "manufacturer": null
+    },
+    {
+      "id": "deployment-001",
+      "name": "Retractable Sensor Deployment",
+      "category": "mechanical",
+      "location": "hull",
+      "model": "/models/deployment.glb",
+      "simulation": "deployment-state-machine",
+      "actions": [
+        "inspect",
+        "deploy",
+        "retract",
+        "pause",
+        "reset"
+      ],
+      "manufacturer": null
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+Continue from tested MVP. Implement navigable bridge interior and DP console with camera transitions, safe boundaries, clear exit, synchronized equipment tree. Preserve all working features. Test and build.

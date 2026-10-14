@@ -1,0 +1,215 @@
+import { expect, test, type Page } from '@playwright/test';
+
+declare global {
+  interface Window {
+    __SINOR__?: {
+      project: (id: string) => { x: number; y: number } | null;
+      sample: () => { lit: number; cyan: number; total: number };
+      state: () => {
+        selectedId: string | null;
+        phase: string;
+        cameraMode: string;
+        visualMode: string;
+        cameraMoving: boolean;
+        introActive: boolean;
+        assetStatus: Record<string, string>;
+      };
+      thruster: () => { status: string; rpm: number; thrustKN: number; angle: number; command: number };
+      camera: () => { position: number[] };
+    };
+  }
+}
+
+const errors: string[] = [];
+
+async function boot(page: Page, query = '?intro=0') {
+  errors.length = 0;
+  page.on('pageerror', (e) => errors.push(e.message));
+  page.on('console', (m) => {
+    if (m.type() === 'error') errors.push(m.text());
+  });
+  await page.goto('/' + query);
+  await page.waitForFunction(() => !!window.__SINOR__, null, { timeout: 45_000 });
+  // Wait for real frames to be on the canvas.
+  await expect.poll(() => page.evaluate(() => window.__SINOR__!.sample().lit), { timeout: 30_000 }).toBeGreaterThan(200);
+}
+
+const state = (page: Page) => page.evaluate(() => window.__SINOR__!.state());
+const waitFocused = (page: Page, id: string) =>
+  expect.poll(async () => {
+    const s = await state(page);
+    return `${s.selectedId}:${s.phase}`;
+  }, { timeout: 20_000 }).toBe(`${id}:focused`);
+
+test('ship renders, uses procedural fallback for missing GLBs, and has no runtime errors', async ({ page }) => {
+  await boot(page);
+  const sample = await page.evaluate(() => window.__SINOR__!.sample());
+  expect(sample.cyan).toBeGreaterThan(50); // hybrid cyan linework is on screen
+  await expect.poll(async () => (await state(page)).assetStatus['bow-thruster-001']).toBe('procedural');
+  expect((await state(page)).assetStatus['dp-console-001']).toBe('procedural');
+  expect(errors.filter((e) => !/404|Failed to load resource/.test(e))).toEqual([]);
+});
+
+test('orbit drag and wheel zoom move the camera', async ({ page }) => {
+  await boot(page);
+  const canvas = page.locator('canvas').first();
+  const box = (await canvas.boundingBox())!;
+  const before = (await page.evaluate(() => window.__SINOR__!.camera())).position;
+  await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.8);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.75, { steps: 8 });
+  await page.mouse.up();
+  await expect(page.getByTestId('camera-mode')).toHaveText('Free orbit');
+  const afterOrbit = (await page.evaluate(() => window.__SINOR__!.camera())).position;
+  expect(Math.hypot(...afterOrbit.map((v, i) => v - before[i]))).toBeGreaterThan(5);
+  const dist = (p: number[]) => Math.hypot(p[0], p[1], p[2]);
+  await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5);
+  await page.mouse.wheel(0, -1200);
+  await expect.poll(async () => dist((await page.evaluate(() => window.__SINOR__!.camera())).position)).toBeLessThan(dist(afterOrbit) - 3);
+});
+
+for (const [id, title] of [
+  ['bow-thruster-001', 'Bow Tunnel Thruster'],
+  ['hpr-001', 'Hydroacoustic PRS'],
+  ['dp-console-001', 'DP Console'],
+] as const) {
+  test(`clicking the ${title} mesh in the 3D scene opens its panel and focuses the camera`, async ({ page }) => {
+    await boot(page, '?intro=0&quality=low');
+    // Hide callout labels so the click lands on the canvas and goes through raycasting.
+    await page.addStyleTag({ content: '[data-testid^="hotspot-"]{display:none!important}' });
+    await page.evaluate(() => window.__SINOR__!.state()); // ensure ready
+    const xray = page.getByTestId('mode-xray');
+    await xray.click(); // reveal interior/underwater meshes, as a user would
+    const pt = (await page.evaluate((i) => window.__SINOR__!.project(i), id))!;
+    await page.mouse.click(pt.x, pt.y);
+    await waitFocused(page, id);
+    await expect(page.getByTestId('inspector-title')).toHaveText(title);
+    expect((await state(page)).cameraMode).toBe('inspection');
+  });
+}
+
+test('system explorer focuses the matching equipment; return and overview always work', async ({ page }) => {
+  await boot(page);
+  const startCam = (await page.evaluate(() => window.__SINOR__!.camera())).position;
+  await page.getByTestId('tree-hpr-001').click();
+  await waitFocused(page, 'hpr-001');
+  await expect(page.getByTestId('tree-hpr-001')).toHaveAttribute('aria-pressed', 'true');
+  // Centre of view is now the HPR transducer.
+  const pt = (await page.evaluate(() => window.__SINOR__!.project('hpr-001')))!;
+  const vp = page.viewportSize()!;
+  expect(Math.abs(pt.x - vp.width / 2)).toBeLessThan(40);
+  expect(Math.abs(pt.y - vp.height / 2)).toBeLessThan(40);
+  // Hop to another system, then Return restores the original overview pose.
+  await page.getByTestId('tree-dp-console-001').click();
+  await waitFocused(page, 'dp-console-001');
+  await page.getByTestId('action-return').click();
+  await expect(page.getByTestId('inspector')).toHaveCount(0);
+  await expect.poll(async () => {
+    const p = (await page.evaluate(() => window.__SINOR__!.camera())).position;
+    return Math.hypot(...p.map((v, i) => v - startCam[i]));
+  }).toBeLessThan(0.5);
+  // Overview reset from inspection and from free orbit.
+  await page.getByTestId('tree-bow-thruster-001').click();
+  await waitFocused(page, 'bow-thruster-001');
+  await page.getByTestId('reset-overview').click();
+  await expect(page.getByTestId('camera-mode')).toHaveText('Overview');
+  expect((await state(page)).selectedId).toBeNull();
+  // Escape key works as Return.
+  await page.getByTestId('tree-hpr-001').click();
+  await waitFocused(page, 'hpr-001');
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('inspector')).toHaveCount(0);
+});
+
+test('switching hybrid/realistic/blueprint/X-ray/isolate keeps the scene drawn, the selection and the camera', async ({ page }) => {
+  await boot(page);
+  await page.getByTestId('tree-bow-thruster-001').click();
+  await waitFocused(page, 'bow-thruster-001');
+  const cam = (await page.evaluate(() => window.__SINOR__!.camera())).position;
+  for (const m of ['realistic', 'blueprint', 'xray', 'isolation', 'exploded', 'hybrid']) {
+    await page.getByTestId(`mode-${m}`).click();
+    await expect(page.getByTestId(`mode-${m}`)).toHaveAttribute('aria-pressed', 'true');
+    await page.waitForTimeout(400);
+    const s = await state(page);
+    expect(s.visualMode).toBe(m);
+    expect(s.selectedId).toBe('bow-thruster-001');
+    const sample = await page.evaluate(() => window.__SINOR__!.sample());
+    expect(sample.lit, `scene not blank in ${m}`).toBeGreaterThan(200);
+    const now = (await page.evaluate(() => window.__SINOR__!.camera())).position;
+    expect(Math.hypot(...now.map((v, i) => v - cam[i]))).toBeLessThan(0.01);
+  }
+  // Exploded is unavailable for a non-explodable system.
+  await page.getByTestId('tree-dp-console-001').click();
+  await expect(page.getByTestId('mode-exploded')).toBeDisabled();
+});
+
+test('thruster demonstration animates and reset stops it', async ({ page }) => {
+  await boot(page);
+  await page.getByTestId('hotspot-bow-thruster-001').click();
+  await waitFocused(page, 'bow-thruster-001');
+  await page.getByTestId('thrust-input').fill('abc');
+  await page.getByTestId('thrust-input').press('Enter');
+  await expect(page.getByRole('alert').filter({ hasText: 'between -100 and 100' })).toBeVisible();
+  await page.getByTestId('thrust-input').fill('-150');
+  await page.getByTestId('thrust-input').press('Enter');
+  expect((await page.evaluate(() => window.__SINOR__!.thruster())).command).toBe(-1); // clamped
+  await page.getByTestId('thruster-start').click();
+  await expect(page.getByTestId('thruster-status')).toHaveText('running');
+  const a0 = (await page.evaluate(() => window.__SINOR__!.thruster())).angle;
+  await expect.poll(async () => (await page.evaluate(() => window.__SINOR__!.thruster())).rpm).toBeLessThan(-100);
+  const t = await page.evaluate(() => window.__SINOR__!.thruster());
+  expect(t.thrustKN).toBeLessThan(0); // port
+  expect(t.angle).not.toBe(a0);
+  await expect(page.getByTestId('readout-thrust')).not.toHaveText('0.0 kN');
+  expect((await state(page)).phase).toBe('simulating');
+  await page.getByTestId('thruster-pause').click();
+  await expect(page.getByTestId('thruster-status')).toHaveText('paused');
+  await page.getByTestId('thruster-reset').click();
+  await expect(page.getByTestId('thruster-status')).toHaveText('stopped');
+  const r = await page.evaluate(() => window.__SINOR__!.thruster());
+  expect(r.rpm).toBe(0);
+  expect(r.thrustKN).toBe(0);
+  await page.waitForTimeout(500);
+  expect((await page.evaluate(() => window.__SINOR__!.thruster())).angle).toBe(0);
+});
+
+test('intro plays, can be skipped, and reduced motion skips it', async ({ page, browser }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => !!window.__SINOR__, null, { timeout: 45_000 });
+  await expect(page.getByTestId('skip-intro')).toBeVisible();
+  await page.getByTestId('skip-intro').click();
+  await expect(page.getByTestId('skip-intro')).toHaveCount(0);
+  expect((await state(page)).introActive).toBe(false);
+
+  const ctx = await browser.newContext({ reducedMotion: 'reduce' });
+  const p2 = await ctx.newPage();
+  await p2.goto('/');
+  await p2.waitForFunction(() => !!window.__SINOR__, null, { timeout: 45_000 });
+  await expect(p2.getByTestId('skip-intro')).toHaveCount(0);
+  expect(await p2.evaluate(() => window.__SINOR__!.state().introActive)).toBe(false);
+  await ctx.close();
+});
+
+test('keyboard-accessible equipment list', async ({ page }) => {
+  await boot(page);
+  const item = page.getByTestId('tree-bow-thruster-001');
+  await item.focus();
+  await page.keyboard.press('Enter');
+  await waitFocused(page, 'bow-thruster-001');
+  await expect(page.getByTestId('tree-deployment-001')).toBeDisabled();
+});
+
+test.describe('mobile', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  test('narrow screen: systems drawer, tap select, explicit return', async ({ page }) => {
+    await boot(page);
+    await page.getByTestId('tree-toggle').tap();
+    await page.getByTestId('tree-hpr-001').last().tap();
+    await waitFocused(page, 'hpr-001');
+    await expect(page.getByTestId('inspector')).toBeVisible();
+    await page.getByTestId('action-return').tap();
+    await expect(page.getByTestId('inspector')).toHaveCount(0);
+    const canvas = await page.locator('canvas').first().boundingBox();
+    expect(canvas!.width).toBeLessThanOrEqual(390);
+  });
+});
