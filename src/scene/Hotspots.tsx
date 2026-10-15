@@ -10,18 +10,21 @@ import { useQualityProfile } from '../rendering/quality';
 /**
  * Equipment location indicators with progressive labels.
  *
- * - Overview (camera far away): a small ring at each installation point, no names.
+ * - Overview (camera far away): a small orange ring with a red core and glow at each installation
+ *   point, no names, so it stands out against the blue hologram.
  * - Intermediate: short names fade in for indicators that are close enough, on screen, not hidden
  *   behind structure and not colliding with a nearer label.
  * - Close-up: the short name stays; hovering or focusing an indicator shows its name at any distance.
  *
- * Indicators behind the hull or superstructure stay as faint rings (they are still clickable) and
+ * Indicators behind the hull or superstructure stay as dimmer rings (they are still clickable) and
  * never show a label. Everything is updated imperatively per frame, so React does not re-render.
  */
 
 /** Camera distance (m) where labels start to appear, and where they are fully shown. */
 export const LABEL_FAR = 85;
 export const LABEL_NEAR = 35;
+/** Ring opacity when solid structure hides the installation point; high enough to read over the hologram. */
+export const OCCLUDED_RING_OPACITY = 0.85;
 /** Screen distance (px) under which two rings are merged (the nearer one stays). */
 const RING_MERGE_PX = 14;
 
@@ -173,7 +176,7 @@ export function Hotspots() {
     for (const m of ms) {
       const r = refs.current.get(m.id)!;
       const l = layout.get(m.id)!;
-      const ringT = l.ring ? (m.occluded && !m.forced ? 0.32 : 0.95) : 0;
+      const ringT = l.ring ? (m.occluded && !m.forced ? OCCLUDED_RING_OPACITY : 1) : 0;
       const labelT = l.label ? (m.forced ? 1 : labelProximity(m.dist)) : 0;
       r.ringA += (ringT - r.ringA) * k;
       r.labelA += (labelT - r.labelA) * k;
@@ -231,15 +234,15 @@ export function Hotspots() {
                   onBlur={() => {
                     if (focusId.current === e.id) focusId.current = null;
                   }}
-                  className="group grid h-6 w-6 place-items-center rounded-full outline-none focus-visible:ring-1 focus-visible:ring-cyan-light"
+                  className="group grid h-6 w-6 place-items-center rounded-full outline-none focus-visible:ring-1 focus-visible:ring-orange-400"
                 >
                   <span
                     aria-hidden
-                    className={`grid h-2.5 w-2.5 place-items-center rounded-full border border-cyan-light/90 bg-abyss/40 shadow-[0_0_6px_rgba(0,217,255,0.55)] transition-transform duration-150 group-hover:scale-125 ${
+                    className={`grid h-3 w-3 place-items-center rounded-full border-2 border-[#FF8A1F] bg-abyss/50 shadow-[0_0_10px_3px_rgba(255,59,31,0.75)] transition-transform duration-150 group-hover:scale-125 ${
                       selectedId === e.id ? 'scale-125' : ''
                     }`}
                   >
-                    <span className="h-1 w-1 rounded-full bg-cyan-light" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#FF3B1F] shadow-[0_0_4px_rgba(255,59,31,0.9)]" />
                   </span>
                 </button>
                 <span
@@ -248,7 +251,7 @@ export function Hotspots() {
                   }}
                   data-testid={`hotspot-label-${e.id}`}
                   aria-hidden
-                  className="pointer-events-none absolute left-[22px] top-1/2 whitespace-nowrap rounded-sm bg-abyss/60 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-cyan-light/95 backdrop-blur-[2px]"
+                  className="pointer-events-none absolute left-[22px] top-1/2 whitespace-nowrap rounded-sm bg-abyss/60 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-[#FFB066] backdrop-blur-[2px]"
                   style={{ opacity: 0, transform: 'translate(-4px, -50%)' }}
                 >
                   {e.placement.short}
