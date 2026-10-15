@@ -12,14 +12,48 @@ tl = json.load(open(timeline_file))
 dur = json.load(open(f"{vo}/durations.json"))
 K = tl["K"]
 OUTRO_HOLD = 3.0  # extra seconds on the outro card after the footage ends
-end = tl["end"] + OUTRO_HOLD
 VO_DELAY = 0.35
+
+# Time-lapse the waiting after each voice-over (sims running, pole swinging): the part of a segment that runs
+# more than 1 s past its narration is played faster so it lasts max(3 s, a third of its length).
+order = [k for k in dur if k in tl]
+starts = [tl[k] for k in order] + [tl["end"]]
+pieces = []  # (src_start, src_end, speed)
+for i, k in enumerate(order):
+    a, b = starts[i], starts[i + 1]
+    calm = a + dur[k] + VO_DELAY + 1.0
+    tail = b - calm
+    if k != "outro" and tail > 3.0:
+        new = max(3.0, tail / 3)
+        pieces += [(a, calm, 1.0), (calm, b, tail / new)]
+    else:
+        pieces.append((a, b, 1.0))
+pieces[0] = (0.0, pieces[0][1], pieces[0][2])
+
+
+def remap(t):
+    out_t = 0.0
+    for a, b, sp in pieces:
+        if t <= b:
+            return out_t + (max(t, a) - a) / sp
+        out_t += (b - a) / sp
+    return out_t
+
+
+tl = {k: (remap(v) if k != "K" else v) for k, v in tl.items()}
+end = tl["end"] + OUTRO_HOLD
 
 music = out.rsplit("/", 1)[0] + "/music.wav"
 subprocess.run([sys.executable, music_py, f"{end + 1:.2f}", music], check=True)
 
-order = [k for k in dur if k in tl]
-inputs = ["-i", footage]
+# Base footage back at normal speed (an intermediate file keeps memory low), then one input per piece.
+base = out.rsplit("/", 1)[0] + "/base.mp4"
+subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", footage, "-vf", f"setpts=(PTS-STARTPTS)/{K},fps=30,scale=1920:1080:flags=lanczos,setsar=1",
+                "-an", "-c:v", "libx264", "-preset", "fast", "-crf", "14", "-pix_fmt", "yuv420p", base], check=True)
+inputs = []
+for a, b, sp in pieces:
+    inputs += ["-ss", f"{a:.3f}", "-t", f"{b - a:.3f}", "-i", base]
+P = len(pieces)
 for k in order:
     inputs += ["-i", f"{vo}/{k}.wav"]
 inputs += ["-i", music]
@@ -34,9 +68,11 @@ for name, *_ in overlays:
     inputs += ["-loop", "1", "-framerate", "30", "-i", f"{ov}/{name}.png"]
 
 n_vo = len(order)
-music_idx = 1 + n_vo
+music_idx = P + n_vo
 f = []
-f.append(f"[0:v]setpts=(PTS-STARTPTS)/{K},fps=30,scale=1920:1080:flags=lanczos,setsar=1,tpad=stop_mode=clone:stop_duration={OUTRO_HOLD + 1}[v0]")
+for i, (a, b, sp) in enumerate(pieces):
+    f.append(f"[{i}:v]setpts=(PTS-STARTPTS)/{sp:.4f}[p{i}]")
+f.append("".join(f"[p{i}]" for i in range(len(pieces))) + f"concat=n={len(pieces)}:v=1:a=0,fps=30,tpad=stop_mode=clone:stop_duration={OUTRO_HOLD + 1}[v0]")
 last = "v0"
 for i, (name, a, b, fi, fo) in enumerate(overlays):
     idx = music_idx + 1 + i
@@ -54,7 +90,7 @@ f.append(f"[{last}]trim=duration={end:.3f},format=yuv420p[vout]")
 # Voice: each segment delayed to its chapter start, mixed, levelled.
 for i, k in enumerate(order):
     ms = int((tl[k] + VO_DELAY) * 1000)
-    f.append(f"[{1 + i}:a]aresample=48000,aformat=channel_layouts=stereo,adelay={ms}|{ms}[a{i}]")
+    f.append(f"[{P + i}:a]aresample=48000,aformat=channel_layouts=stereo,adelay={ms}|{ms}[a{i}]")
 f.append("".join(f"[a{i}]" for i in range(n_vo)) + f"amix=inputs={n_vo}:normalize=0,apad,atrim=duration={end:.3f},volume=1.6[voice]")
 f.append("[voice]asplit=2[vk][vm]")
 f.append(f"[{music_idx}:a]aresample=48000,atrim=duration={end:.3f},volume=0.42[mus]")
