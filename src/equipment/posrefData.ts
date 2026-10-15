@@ -56,7 +56,7 @@ export const RADASCAN = {
   connectionPanel: ds('Connection panel and information display underneath on one side, facing away from the operating area', 'radascanGuide'),
   mounting: ds('Mount at a different level from the X-band radars; plinth or universal rail bracket 20-0120-1', 'radascanGuide'),
   responderMount: ds('Responders on outside corners, 2 m below to 5 m above the sensor, longest side vertical, on a swivel bracket', 'radascanGuide'),
-  pedestalHeight: asm(0.6, 'Plinth height on the bridge top; the guide gives the plate, not the plinth height'),
+  pedestalHeight: asm(1.1, 'Plinth height on the bridge deck, chosen to clear the deck rail and put the sensor level with the responders; the guide gives the plate, not the plinth height'),
   accuracy: asm(0.5, 'No accuracy figure in the brochure; position noise 0.5 m (1σ)'),
   acquireSeconds: asm(6, 'Time to lock on to the responder after start'),
 };
@@ -205,21 +205,31 @@ export const BULWARK_H = 1.1;
 /** Ship side at the aft working deck (half the moulded breadth). */
 export const SHIP_SIDE_X = PRINCIPAL.beam / 2;
 export const BRIDGE_TOP_Y = LEVEL.roof;
-/** RadaScan View and CyScan AS on the compass deck forward of the mast, port and starboard, clear of the
- *  mast radars (CyScan guide: at least 5 m from radar antennas) with a view astern past the mast. */
-export const RADASCAN_POS: [number, number, number] = [-4.4, BRIDGE_TOP_Y, 19.4];
-export const CYSCAN_POS: [number, number, number] = [4.4, BRIDGE_TOP_Y, 19.4];
-/** CyScan AS on a short pedestal (assumed 0.4 m) so the beam clears the bridge-top rail. */
-export const CYSCAN_PEDESTAL = 0.4;
+/**
+ * RadaScan View (port) and CyScan AS (starboard) on plinths at the aft corners of the bridge deck, facing the
+ * operating area astern. Installer's guides: unobstructed view towards the targets (the open working deck),
+ * level with the responders, a different level from the X-band radar and at least 5 m horizontally from the
+ * S/X-band radars and VHF antennas (here about 9 m, and 4.6 m below the S-band), clear of the exhaust outlets
+ * (5.6 m forward and 4 m higher), connection panel and access cover facing forward, away from the operating area.
+ */
+export const RADASCAN_POS: [number, number, number] = [-4.6, LEVEL.bridge, 6.4];
+export const CYSCAN_POS: [number, number, number] = [4.6, LEVEL.bridge, 6.4];
+/** CyScan AS plinth (assumed 1.1 m) so the beam clears the bridge-deck rail at responder height. */
+export const CYSCAN_PEDESTAL = 1.1;
 /** One GA830 antenna per 9410-AUT receiver, on the mast yardarm ends. */
 export const GNSS_ANTENNAS: [number, number, number][] = [
   [-3.0, MAST.yard + 0.1, MAST.z],
   [3.0, MAST.yard + 0.1, MAST.z],
 ];
 
-/** Taut wire skid on the starboard main deck: outboard edge 0.1 m inside the ship side,
- *  at a bulwark opening (assumed; the boom passes the deck edge low). */
-export const TAUTWIRE_Z = -14;
+/**
+ * Taut wire skid on the starboard main deck, outboard edge 0.1 m inside the ship side at a bulwark opening.
+ * SMT manual §3.1: as close as possible to the roll centre (here 6 m aft of midships, the nearest clear deck to
+ * the accommodation front), well clear of the thrusters (31 m from BT2, 28 m from the azimuths), on the side
+ * opposite other over-side equipment (the SPRINT-Nav pole is to port) and within reach of the deck crane for the
+ * 2100 kg lift (14.5 m from the main crane). The along-ship position is a judgement; the plan does not show it.
+ */
+export const TAUTWIRE_Z = -6;
 export const TAUTWIRE_EDGE_X = SHIP_SIDE_X - 0.1;
 export const TAUTWIRE_POS: [number, number, number] = [TAUTWIRE_EDGE_X - SMT_TW.footprintX.value / 2, DECK_Y, TAUTWIRE_Z];
 /** Gimbal head when deployed: 2510 mm outboard of the skid edge, 1059 mm above the skid base. */
