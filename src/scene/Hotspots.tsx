@@ -79,6 +79,7 @@ export function layoutMarkers(ms: ScreenMarker[]) {
 interface MarkerRefs {
   anchor: THREE.Object3D | null;
   root: HTMLDivElement | null;
+  button: HTMLButtonElement | null;
   label: HTMLSpanElement | null;
   ringA: number;
   labelA: number;
@@ -96,14 +97,14 @@ export function Hotspots() {
   const items = useMemo(() => equipment.filter((e) => e.placement.implemented), []);
   const refs = useRef(new Map<string, MarkerRefs>());
   const focusId = useRef<string | null>(null);
-  const tmp = useMemo(() => ({ v: new THREE.Vector3(), p: new THREE.Vector3(), dir: new THREE.Vector3(), ray: new THREE.Raycaster(), t: 0 }), []);
+  const tmp = useMemo(() => ({ v: new THREE.Vector3(), p: new THREE.Vector3(), dir: new THREE.Vector3(), ray: new THREE.Raycaster(), t: 0, next: 0 }), []);
   tmp.ray.params.Line = { threshold: 0.001 };
   tmp.ray.params.Points = { threshold: 0.001 };
 
   const reg = (id: string) => {
     let r = refs.current.get(id);
     if (!r) {
-      r = { anchor: null, root: null, label: null, ringA: 0, labelA: 0, occluded: false };
+      r = { anchor: null, root: null, button: null, label: null, ringA: 0, labelA: 0, occluded: false };
       refs.current.set(id, r);
     }
     return r;
@@ -137,18 +138,24 @@ export function Hotspots() {
   useFrame((_, dt) => {
     const st = useAppStore.getState();
     const hovered = st.hoveredId;
+    // Occlusion is checked for one indicator at a time, round-robin, so each is refreshed every
+    // occlusionEvery seconds without a burst of scene raycasts in a single frame.
     tmp.t += dt;
-    const doOcclusion = tmp.t >= occlusionEvery;
-    if (doOcclusion) tmp.t = 0;
+    let checkIdx = -1;
+    if (tmp.t >= occlusionEvery / Math.max(1, items.length)) {
+      tmp.t = 0;
+      checkIdx = tmp.next;
+      tmp.next = (tmp.next + 1) % Math.max(1, items.length);
+    }
     const ms: ScreenMarker[] = [];
-    for (const e of items) {
+    for (const [idx, e] of items.entries()) {
       const r = refs.current.get(e.id);
       if (!r?.anchor) continue;
       r.anchor.getWorldPosition(tmp.p);
       const dist = camera.position.distanceTo(tmp.p);
       tmp.v.copy(tmp.p).project(camera);
       const onScreen = e.id !== st.selectedId && tmp.v.z < 1 && Math.abs(tmp.v.x) < 1.05 && Math.abs(tmp.v.y) < 1.05;
-      if (doOcclusion && onScreen) r.occluded = isOccluded(e.id, tmp.p);
+      if (idx === checkIdx && onScreen) r.occluded = isOccluded(e.id, tmp.p);
       ms.push({
         id: e.id,
         x: (tmp.v.x * 0.5 + 0.5) * size.width,
@@ -173,9 +180,10 @@ export function Hotspots() {
       if (r.root) {
         r.root.style.opacity = r.ringA.toFixed(3);
         r.root.style.visibility = r.ringA < 0.02 ? 'hidden' : 'visible';
-        r.root.style.pointerEvents = l.ring ? 'auto' : 'none';
         r.root.dataset.occluded = m.occluded ? 'true' : 'false';
       }
+      // Only the ring button takes pointer events; the wrapper never blocks clicks on the scene.
+      if (r.button) r.button.style.pointerEvents = l.ring ? 'auto' : 'none';
       if (r.label) {
         r.label.style.opacity = r.labelA.toFixed(3);
         r.label.style.transform = `translate(${(1 - r.labelA) * -4}px, -50%)`;
@@ -202,11 +210,15 @@ export function Hotspots() {
                 ref={(el) => {
                   r.root = el;
                 }}
-                className="relative"
+                className="pointer-events-none relative"
                 style={{ opacity: 0, visibility: 'hidden' }}
               >
                 <button
+                  ref={(el) => {
+                    r.button = el;
+                  }}
                   type="button"
+                  style={{ pointerEvents: 'none' }}
                   data-testid={`hotspot-${e.id}`}
                   aria-label={`Select ${e.name}`}
                   title={e.placement.short}

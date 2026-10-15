@@ -222,7 +222,7 @@ export function RadaScanPanel() {
       <Alarms list={s.alarms.filter((a) => a === 'RADASCAN_NO_TARGET')} testid="radascan-alarms" />
       <Note>
         RadaScan View brochure: combined position reference and navigation radar for the 500 m zone, range and bearing to coded responders, works through rain,
-        fog, steam and dust, −25 to +55 °C. Not stated, so illustrative: sensor size (drawn from the photo), maximum range, lock-on time{' '}
+        fog, steam and dust, −25 to +55 °C. Sensor Ø500 × 410 mm (installer’s guide). Not stated, so illustrative: maximum range, lock-on time{' '}
         {RADASCAN.acquireSeconds.value} s, position noise {RADASCAN.accuracy.value} m, the platform and its radar echo.
       </Note>
     </Shell>
