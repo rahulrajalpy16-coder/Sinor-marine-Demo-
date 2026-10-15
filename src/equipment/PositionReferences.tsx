@@ -227,32 +227,51 @@ export function DGPSAntennas() {
   );
 }
 
-// SMT Taut Wire 2.0 boom, in the skid's own frame: u outboard from the skid's outboard edge, h above the skid base.
-// End poses follow the drawings: recovered head over the weight basket at the top of the unit (stored height 2085),
-// deployed head 2510 outboard and 1059 up (SMT-TW-MD-28). A-frame pivot and elbow are scaled off SMT-TW-MD-21;
-// the path between the poses is illustrative, kept under the 2395 mm max height while deploying.
-const TW_PIVOT_UH: [number, number] = [0, 0.23];
-const TW_DEPLOYED_ELBOW: [number, number] = [1.16, 1.41];
-const TW_RECOVERED_HEAD: [number, number] = [-0.35, SMT_TW.storedHeight.value - 0.18];
+// SMT Taut Wire 2.0, in the skid's own frame: u outboard from the skid's outboard edge, h above the skid base.
+// Laid out to the manual's cover render and drawings SMT-TW-MD-20/21 (recovered / deployed): yellow skid with
+// the weight basket at the outboard end, winch and drum at the inboard end, tall control cabinet down one side,
+// and a ladder-braced A-frame that leans inboard when recovered, carrying a cranked upper arm whose arched end
+// holds the gimbal head over the weight. Fixed by the documents: stored height 2085, max height while deploying
+// 2395 (the A-frame pin passes over the pivot), deployed head 2510 outboard and 1059 up. Pivot, joint and part
+// sizes are scaled off the drawings.
+const TW_PIVOT_UH: [number, number] = [-0.25, 0.35];
+/** A-frame length, pivot to arm pin: the pin's highest point while swinging is the 2395 mm max height. */
+const TW_L1 = SMT_TW.deployHeight.value - TW_PIVOT_UH[1];
+/** Weight basket centre (u) and the seat the weight rests on (h). Scaled. */
+const TW_BASKET_U = -0.45;
+const TW_BASKET_H = 0.3;
+const TW_RECOVERED_THETA = (-37 * Math.PI) / 180; // A-frame lean from vertical, negative inboard (scaled)
+const TW_RECOVERED_HEAD: [number, number] = [TW_BASKET_U, 1.72];
 const TW_DEPLOYED_HEAD: [number, number] = [SMT_TW.reach.value, SMT_TW.headHeight.value];
-const TW_L1 = Math.hypot(TW_DEPLOYED_ELBOW[0] - TW_PIVOT_UH[0], TW_DEPLOYED_ELBOW[1] - TW_PIVOT_UH[1]);
-const TW_L2 = Math.hypot(TW_DEPLOYED_HEAD[0] - TW_DEPLOYED_ELBOW[0], TW_DEPLOYED_HEAD[1] - TW_DEPLOYED_ELBOW[1]);
 const TW_HEAD_Z = SMT_TW.headLateral.value;
-/** Gimbal head (u, h) for a boom position 0 (recovered) … 1 (deployed). */
-export function tautWireHeadUH(t: number): [number, number] {
-  const [u0, h0] = TW_RECOVERED_HEAD;
-  const [u1, h1] = TW_DEPLOYED_HEAD;
-  return [u0 + (u1 - u0) * t, h0 + (h1 - h0) * t + 0.78 * Math.sin(Math.PI * t)];
-}
-/** Knuckle between the A-frame and the cranked arm, for a head position (two-link, elbow up). */
-export function tautWireElbowUH(head: readonly [number, number]): [number, number] {
+const twElbow = (theta: number): [number, number] => [TW_PIVOT_UH[0] + TW_L1 * Math.sin(theta), TW_PIVOT_UH[1] + TW_L1 * Math.cos(theta)];
+const TW_RECOVERED_ELBOW = twElbow(TW_RECOVERED_THETA);
+/** Arm length, pin to gimbal head (rigid cranked arm). */
+const TW_L2 = Math.hypot(TW_RECOVERED_HEAD[0] - TW_RECOVERED_ELBOW[0], TW_RECOVERED_HEAD[1] - TW_RECOVERED_ELBOW[1]);
+const TW_RECOVERED_PHI = Math.atan2(TW_RECOVERED_HEAD[1] - TW_RECOVERED_ELBOW[1], TW_RECOVERED_HEAD[0] - TW_RECOVERED_ELBOW[0]);
+/** Deployed joint angles from the documented head position (two-link, pin up). */
+const [TW_DEPLOYED_THETA, TW_DEPLOYED_PHI] = (() => {
   const [pu, ph] = TW_PIVOT_UH;
-  const du = head[0] - pu;
-  const dh = head[1] - ph;
+  const [hu, hh] = TW_DEPLOYED_HEAD;
+  const du = hu - pu;
+  const dh = hh - ph;
   const d = Math.min(Math.hypot(du, dh), TW_L1 + TW_L2 - 1e-6);
   const a = (TW_L1 * TW_L1 - TW_L2 * TW_L2 + d * d) / (2 * d);
   const k = Math.sqrt(Math.max(0, TW_L1 * TW_L1 - a * a));
-  return [pu + (a * du) / d - (k * dh) / d, ph + (a * dh) / d + (k * du) / d];
+  const eu = pu + (a * du) / d - (k * dh) / d;
+  const eh = ph + (a * dh) / d + (k * du) / d;
+  return [Math.atan2(eu - pu, eh - ph), Math.atan2(hh - eh, hu - eu)];
+})();
+/** Joint angles [A-frame lean, arm direction] for a boom position 0 (recovered) … 1 (deployed). */
+function tautWireJoints(t: number): [number, number] {
+  const s = t * t * (3 - 2 * t);
+  return [TW_RECOVERED_THETA + (TW_DEPLOYED_THETA - TW_RECOVERED_THETA) * s, TW_RECOVERED_PHI + (TW_DEPLOYED_PHI - TW_RECOVERED_PHI) * s];
+}
+/** Gimbal head (u, h) for a boom position 0 (recovered) … 1 (deployed). */
+export function tautWireHeadUH(t: number): [number, number] {
+  const [theta, phi] = tautWireJoints(t);
+  const e = twElbow(theta);
+  return [e[0] + TW_L2 * Math.cos(phi), e[1] + TW_L2 * Math.sin(phi)];
 }
 /** Gimbal head position (vessel frame) for a boom position 0 (recovered) … 1 (deployed). */
 export function tautWireHead(t: number): [number, number, number] {
@@ -260,7 +279,6 @@ export function tautWireHead(t: number): [number, number, number] {
   return [TAUTWIRE_EDGE_X + u, DECK_Y + h, TAUTWIRE_Z + TW_HEAD_Z];
 }
 /** Wire hanging below the head with no payout: the weight sits in its basket when recovered. */
-const TW_BASKET_H = 0.15;
 export const tautWireHang = (t: number) => (1 - t) * (TW_RECOVERED_HEAD[1] - 0.12 - TW_BASKET_H - SMT_TW.weightHeight.value);
 const boomExtension = { current: 0 };
 
@@ -273,112 +291,232 @@ function setBeam(obj: THREE.Object3D | null, a: readonly number[], b: readonly n
   obj.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
   obj.scale.set(1, len, 1);
 }
+/** Static transform for a unit-length (along Y) member between two points. */
+function beamProps(a: readonly number[], b: readonly number[]) {
+  const o = new THREE.Object3D();
+  setBeam(o, a, b);
+  return { position: o.position.clone(), quaternion: o.quaternion.clone(), scale: o.scale.clone() };
+}
 
-/** SMT Taut Wire 2.0 (Z Range Mk2): skid with weight basket, winch drum, control cabinet, A-frame and cranked arm with gimbal head. */
+// A-frame legs in the frame's own axes (pin at y = L1): wide at the pivots astride the basket, narrow at the pin.
+const TW_LEG_FOOT = 0.55;
+const TW_LEG_HEAD = 0.2;
+const legZ = (y: number) => TW_LEG_FOOT + ((TW_LEG_HEAD - TW_LEG_FOOT) * y) / TW_L1;
+const TW_RUNGS = [0.62, 1.12, 1.58];
+/** Luffing rams: skid anchors under the winch, rod ends on the legs. Scaled off the render. */
+const TW_RAM_ANCHOR_U = -1.05;
+const TW_RAM_LEG_Y = 0.7;
+// Cranked arm drawn in the recovered pose (relative to the pin), then turned into the arm's own axes.
+const twArmLocal = (du: number, dh: number): [number, number] => {
+  const c = Math.cos(-TW_RECOVERED_PHI);
+  const s = Math.sin(-TW_RECOVERED_PHI);
+  return [du * c - dh * s, du * s + dh * c];
+};
+
+/**
+ * SMT Taut Wire 2.0 (Z Range Mk2), modelled on the unit shown in the installation manual PJ 0044-13: yellow skid
+ * with grating, weight basket and orange bell-shaped depressor weight, winch with side plates and drive motor,
+ * white control cabinet, ladder-braced A-frame on luffing rams, cranked arm with the domed gimbal head and beacon.
+ */
 export function TautWireUnit() {
   const handlers = useSelectable(TW_ID);
   const { mats, visual } = useEquipmentMaterials(TW_ID, {
-    frame: { color: '#e9c626', metalness: 0.4, roughness: 0.5 },
-    cabinet: { color: '#e4e6e8', metalness: 0.25, roughness: 0.55 },
+    frame: { color: '#f0cf13', metalness: 0.35, roughness: 0.45 },
+    cabinet: { color: '#eceeee', metalness: 0.2, roughness: 0.5 },
     drum: { color: '#3c434a', metalness: 0.7, roughness: 0.35 },
-    motor: { color: '#7d868d', metalness: 0.6, roughness: 0.4 },
-    grating: { color: '#9aa1a6', metalness: 0.6, roughness: 0.6 },
-    head: { color: '#5d656c', metalness: 0.75, roughness: 0.3 },
+    motor: { color: '#8a9298', metalness: 0.6, roughness: 0.4 },
+    grating: { color: '#a3a8ab', metalness: 0.6, roughness: 0.6 },
+    head: { color: '#4b5258', metalness: 0.75, roughness: 0.3 },
+    rod: { color: '#d6dade', metalness: 0.9, roughness: 0.2 },
+    gland: { color: '#2b8fd6', metalness: 0.2, roughness: 0.5 },
     beacon: { color: '#f2a516', metalness: 0.2, roughness: 0.4 },
   });
   const radial = useQualityProfile().radialSegments;
   const FX = SMT_TW.footprintX.value;
   const FZ = SMT_TW.footprintZ.value;
-  const cabH = SMT_TW.consoleHeight.value - TW_BASKET_H;
-  const g = useMemo(
-    () => ({
-      rail: new THREE.BoxGeometry(FX, TW_BASKET_H, 0.12),
-      cross: new THREE.BoxGeometry(0.12, TW_BASKET_H, FZ - 0.24),
-      grating: new THREE.BoxGeometry(FX - 0.2, 0.03, FZ - 0.24),
-      basket: new THREE.CylinderGeometry(0.4, 0.4, 0.3, radial, 1, true),
-      basketRim: new THREE.TorusGeometry(0.4, 0.03, 6, radial).rotateX(Math.PI / 2),
-      cabinet: new THREE.BoxGeometry(0.91, cabH, 0.49),
-      drum: new THREE.CylinderGeometry(0.28, 0.28, 0.8, radial).rotateX(Math.PI / 2),
-      drumFlange: new THREE.CylinderGeometry(0.36, 0.36, 0.04, radial).rotateX(Math.PI / 2),
-      motor: new THREE.CylinderGeometry(0.2, 0.2, 0.4, radial).rotateX(Math.PI / 2),
-      drumStand: new THREE.BoxGeometry(0.5, 0.45, 0.08),
-      hinge: new THREE.CylinderGeometry(0.07, 0.07, 1.4, 12).rotateX(Math.PI / 2),
-      leg: new THREE.BoxGeometry(0.11, 1, 0.11),
-      arm: new THREE.BoxGeometry(0.16, 1, 0.16),
-      gimbalDisc: new THREE.CylinderGeometry(0.32, 0.32, 0.04, radial),
-      gimbal: new THREE.TorusGeometry(0.16, 0.03, 8, radial),
-      sheave: new THREE.CylinderGeometry(0.12, 0.12, 0.05, radial).rotateX(Math.PI / 2),
-      beacon: new THREE.CylinderGeometry(0.04, 0.05, 0.08, 12),
-    }),
-    [FX, FZ, cabH, radial],
-  );
+  const cab = { u0: -1.5, u1: -0.55, z0: -FZ / 2 + 0.02, z1: -FZ / 2 + 0.5, h0: 0.15, h1: SMT_TW.consoleHeight.value };
+  const g = useMemo(() => {
+    // Arch from the end of the arm beam over and down to the far rim of the gimbal ring, in the arm's own axes.
+    const [ax, ay] = twArmLocal(0.72, 0);
+    const [cx, cy] = twArmLocal(TW_RECOVERED_HEAD[0] - TW_RECOVERED_ELBOW[0] + 0.32, 0.03);
+    const [ex, ey] = twArmLocal(TW_RECOVERED_HEAD[0] - TW_RECOVERED_ELBOW[0] + 0.275, TW_RECOVERED_HEAD[1] - TW_RECOVERED_ELBOW[1] + 0.02);
+    const arch = new THREE.QuadraticBezierCurve3(new THREE.Vector3(ax, ay, 0), new THREE.Vector3(cx, cy, 0), new THREE.Vector3(ex, ey, 0));
+    return {
+      rail: new THREE.BoxGeometry(FX, 0.15, 0.14),
+      cross: new THREE.BoxGeometry(0.14, 0.15, FZ - 0.28),
+      eye: new THREE.TorusGeometry(0.05, 0.015, 6, 12),
+      grating: new THREE.BoxGeometry(0.75, 0.03, FZ - 0.28),
+      basketRing: new THREE.TorusGeometry(0.4, 0.03, 6, radial).rotateX(Math.PI / 2),
+      basketPost: new THREE.BoxGeometry(0.06, TW_BASKET_H - 0.15, 0.06),
+      basketSeat: new THREE.CylinderGeometry(0.36, 0.36, 0.03, radial),
+      basketPlate: new THREE.BoxGeometry(0.03, 0.32, 0.6),
+      pivotPlate: new THREE.BoxGeometry(0.4, 0.42, 0.03),
+      cabinet: new THREE.BoxGeometry(cab.u1 - cab.u0, cab.h1 - cab.h0, cab.z1 - cab.z0),
+      cabinetPlinth: new THREE.BoxGeometry(cab.u1 - cab.u0 - 0.1, 0.35, 0.06),
+      plug: new THREE.CylinderGeometry(0.035, 0.035, 0.12, 10),
+      drum: new THREE.CylinderGeometry(0.26, 0.26, 0.62, radial).rotateX(Math.PI / 2),
+      winchPlate: new THREE.BoxGeometry(0.8, 0.72, 0.04),
+      hole: new THREE.CylinderGeometry(0.035, 0.035, 0.05, 10).rotateX(Math.PI / 2),
+      motor: new THREE.CylinderGeometry(0.17, 0.17, 0.42, radial).rotateZ(Math.PI / 2),
+      motorFins: new THREE.CylinderGeometry(0.19, 0.19, 0.06, radial).rotateZ(Math.PI / 2),
+      leg: new THREE.BoxGeometry(0.12, 1, 0.12),
+      rung: new THREE.BoxGeometry(0.08, 0.08, 1),
+      pin: new THREE.CylinderGeometry(0.05, 0.05, 1, 12).rotateX(Math.PI / 2),
+      pinCap: new THREE.CylinderGeometry(0.1, 0.1, 0.05, radial).rotateX(Math.PI / 2),
+      ramBody: new THREE.CylinderGeometry(0.05, 0.05, 1, 10),
+      ramRod: new THREE.CylinderGeometry(0.022, 0.022, 1, 8),
+      armBeam: new THREE.BoxGeometry(1, 0.17, 0.3),
+      arch: new THREE.TubeGeometry(arch, 12, 0.045, 8, false),
+      ring: new THREE.TorusGeometry(0.3, 0.035, 8, radial).rotateX(Math.PI / 2),
+      disc: new THREE.CylinderGeometry(0.3, 0.3, 0.03, radial),
+      rib: new THREE.TorusGeometry(0.26, 0.02, 6, radial, Math.PI),
+      sheave: new THREE.CylinderGeometry(0.1, 0.1, 0.04, radial).rotateX(Math.PI / 2),
+      beacon: new THREE.SphereGeometry(0.055, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+    };
+  }, [FX, FZ, cab.u0, cab.u1, cab.z0, cab.z1, cab.h0, cab.h1, radial]);
   useDisposeAll(g);
-  const legA = useRef<THREE.Group>(null);
-  const legB = useRef<THREE.Group>(null);
-  const brace = useRef<THREE.Group>(null);
-  const arm = useRef<THREE.Group>(null);
+  const frameRef = useRef<THREE.Group>(null);
+  const armRef = useRef<THREE.Group>(null);
   const head = useRef<THREE.Group>(null);
+  const ramBodies = [useRef<THREE.Group>(null), useRef<THREE.Group>(null)];
+  const ramRods = [useRef<THREE.Group>(null), useRef<THREE.Group>(null)];
   const reduced = useAppStore((s) => s.reducedMotion);
   const pose = (t: number) => {
-    const h = tautWireHeadUH(t);
-    const e = tautWireElbowUH(h);
-    const [pu, ph] = TW_PIVOT_UH;
-    setBeam(legA.current, [pu, ph, TW_HEAD_Z + 0.6], [e[0], e[1], TW_HEAD_Z + 0.12]);
-    setBeam(legB.current, [pu, ph, TW_HEAD_Z - 0.6], [e[0], e[1], TW_HEAD_Z - 0.12]);
-    const m = 0.45;
-    setBeam(brace.current, [pu + (e[0] - pu) * m, ph + (e[1] - ph) * m, TW_HEAD_Z + 0.6 - 0.48 * m], [pu + (e[0] - pu) * m, ph + (e[1] - ph) * m, TW_HEAD_Z - 0.6 + 0.48 * m]);
-    setBeam(arm.current, [e[0], e[1], TW_HEAD_Z], [h[0], h[1] + 0.06, TW_HEAD_Z]);
-    head.current?.position.set(h[0], h[1], TW_HEAD_Z);
+    const [theta, phi] = tautWireJoints(t);
+    const [eu, eh] = twElbow(theta);
+    frameRef.current?.rotation.set(0, 0, -theta);
+    armRef.current?.position.set(eu, eh, TW_HEAD_Z);
+    armRef.current?.rotation.set(0, 0, phi);
+    head.current?.position.set(eu + TW_L2 * Math.cos(phi), eh + TW_L2 * Math.sin(phi), TW_HEAD_Z);
+    // Luffing rams: fixed body length from the skid anchor, rod to the leg.
+    const ru = TW_PIVOT_UH[0] + TW_RAM_LEG_Y * Math.sin(theta);
+    const rh = TW_PIVOT_UH[1] + TW_RAM_LEG_Y * Math.cos(theta);
+    [-1, 1].forEach((k, i) => {
+      const z = TW_HEAD_Z + k * (legZ(TW_RAM_LEG_Y) - 0.1);
+      const a = [TW_RAM_ANCHOR_U, 0.3, z];
+      const b = [ru, rh, z];
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const f = Math.min(1, 0.62 / len);
+      setBeam(ramBodies[i].current, a, [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, z]);
+      setBeam(ramRods[i].current, a, b);
+    });
   };
   useFrame((_, dt) => {
     const out = posRefs.getState().tautwire.phase !== 'stowed' ? 1 : 0;
     boomExtension.current = reduced ? out : ease(boomExtension.current, out, dt, 1.5);
     pose(boomExtension.current);
   });
+  const legs = useMemo(
+    () =>
+      [-1, 1].map((k) => beamProps([0, -0.05, k * TW_LEG_FOOT], [0, TW_L1 + 0.05, k * TW_LEG_HEAD])),
+    [],
+  );
+  const armBeam = useMemo(() => {
+    const a = twArmLocal(-0.12, 0);
+    const b = twArmLocal(0.78, 0);
+    return { position: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, 0] as [number, number, number], rotation: Math.atan2(b[1] - a[1], b[0] - a[0]), length: Math.hypot(b[0] - a[0], b[1] - a[1]) };
+  }, []);
   const o = visual.outline;
-  const base = TW_BASKET_H;
+  const winchU = -1.3;
+  const holes: [number, number][] = [
+    [-0.25, 0.2],
+    [0.25, 0.2],
+    [-0.25, -0.2],
+    [0.25, -0.2],
+    [0, 0.28],
+  ];
   return (
     <group name={`equipment:${TW_ID}`} position={[TAUTWIRE_EDGE_X, DECK_Y, TAUTWIRE_Z]} {...handlers}>
+      {/* Skid base: perimeter beams, cross members, lifting eyes and grating walkways */}
       {[-1, 1].map((k) => (
-        <EqMesh key={`r${k}`} geometry={g.rail} material={mats.frame} outline={o} position={[-FX / 2, base / 2, k * (FZ / 2 - 0.06)]} name={k > 0 ? 'skid' : undefined} />
+        <EqMesh key={`r${k}`} geometry={g.rail} material={mats.frame} outline={o} position={[-FX / 2, 0.075, k * (FZ / 2 - 0.07)]} name={k > 0 ? 'skid' : undefined} />
       ))}
-      {[0.06, FX / 2, FX - 0.06].map((x) => (
-        <EqMesh key={`c${x}`} geometry={g.cross} material={mats.frame} outline={o} position={[-x, base / 2, 0]} />
+      {[0.07, 0.95, FX - 0.07].map((x) => (
+        <EqMesh key={`c${x}`} geometry={g.cross} material={mats.frame} outline={o} position={[-x, 0.075, 0]} />
       ))}
-      <mesh geometry={g.grating} material={mats.grating} position={[-FX / 2, base - 0.015, 0]} />
-      <group position={[-0.35, base + 0.15, TW_HEAD_Z]} name="weight-basket">
-        <mesh geometry={g.basket} material={mats.frame} />
-        <EqMesh geometry={g.basketRim} material={mats.frame} outline={o} position={[0, 0.15, 0]} />
+      {[-1, 1].flatMap((k) =>
+        [-0.05, -FX + 0.05].map((x) => <mesh key={`e${k}${x}`} geometry={g.eye} material={mats.frame} position={[x, 0.2, k * (FZ / 2 - 0.07)]} />),
+      )}
+      <mesh geometry={g.grating} material={mats.grating} position={[-1.3, 0.14, 0]} />
+      {/* Weight basket at the outboard end, with the side plates carrying the A-frame pivots */}
+      <group position={[TW_BASKET_U, 0, TW_HEAD_Z]} name="weight-basket">
+        {[0, 1, 2, 3].map((i) => (
+          <mesh key={i} geometry={g.basketPost} material={mats.frame} position={[0.36 * Math.cos((i * Math.PI) / 2 + Math.PI / 4), 0.15 + (TW_BASKET_H - 0.15) / 2, 0.36 * Math.sin((i * Math.PI) / 2 + Math.PI / 4)]} />
+        ))}
+        <mesh geometry={g.basketSeat} material={mats.head} position={[0, TW_BASKET_H - 0.015, 0]} />
+        <EqMesh geometry={g.basketRing} material={mats.frame} outline={o} position={[0, TW_BASKET_H + 0.05, 0]} />
+        <EqMesh geometry={g.basketPlate} material={mats.frame} outline={o} position={[0.42, 0.31, 0]} name="basket-front-plate" />
       </group>
-      <EqMesh geometry={g.cabinet} material={mats.cabinet} outline={o} position={[-0.6, base + cabH / 2, -FZ / 2 + 0.245]} name="control-cabinet" />
-      <group position={[-1.4, 0, 0.05]} name="winch">
-        {[-0.45, 0.45].map((z) => (
-          <EqMesh key={z} geometry={g.drumStand} material={mats.frame} outline={o} position={[0, base + 0.22, z]} />
+      {[-1, 1].map((k) => (
+        <EqMesh key={`p${k}`} geometry={g.pivotPlate} material={mats.frame} outline={o} position={[TW_PIVOT_UH[0] - 0.05, 0.3, TW_HEAD_Z + k * (TW_LEG_FOOT + 0.08)]} />
+      ))}
+      <mesh geometry={g.pin} material={mats.head} position={[TW_PIVOT_UH[0], TW_PIVOT_UH[1], TW_HEAD_Z]} scale={[1, 1, 2 * TW_LEG_FOOT + 0.24]} name="a-frame-pivot" />
+      {/* Control cabinet with the cable entry panel below its sloped front */}
+      <EqMesh geometry={g.cabinet} material={mats.cabinet} outline={o} position={[(cab.u0 + cab.u1) / 2, (cab.h0 + cab.h1) / 2, (cab.z0 + cab.z1) / 2]} name="control-cabinet" />
+      <mesh geometry={g.cabinetPlinth} material={mats.grating} position={[(cab.u0 + cab.u1) / 2, 0.32, cab.z1 + 0.03]} />
+      {[-0.2, -0.05, 0.1].map((du) => (
+        <mesh key={du} geometry={g.plug} material={mats.gland} position={[(cab.u0 + cab.u1) / 2 + du, 0.42, cab.z1 + 0.07]} rotation={[Math.PI / 2, 0, 0]} />
+      ))}
+      {/* Winch: drum between perforated side plates, drive motor outboard of the plate */}
+      <group position={[winchU, 0, TW_HEAD_Z]} name="winch">
+        {[-0.36, 0.36].map((z) => (
+          <group key={z} position={[0, 0.51, z]}>
+            <EqMesh geometry={g.winchPlate} material={mats.frame} outline={o} />
+            {holes.map(([hu, hh]) => (
+              <mesh key={`${hu}${hh}`} geometry={g.hole} material={mats.drum} position={[hu, hh, 0]} />
+            ))}
+          </group>
         ))}
         <EqMesh geometry={g.drum} material={mats.drum} outline={o} position={[0, 0.5, 0]} name="winch-drum" />
-        {[-0.4, 0.4].map((z) => (
-          <EqMesh key={z} geometry={g.drumFlange} material={mats.motor} outline={o} position={[0, 0.5, z]} />
+        <EqMesh geometry={g.motor} material={mats.motor} outline={o} position={[0, 1.05, 0]} name="winch-motor" />
+        <mesh geometry={g.motorFins} material={mats.motor} position={[-0.23, 1.05, 0]} />
+      </group>
+      {/* Ladder-braced A-frame, turning about the pivot at the basket */}
+      <group position={[TW_PIVOT_UH[0], TW_PIVOT_UH[1], TW_HEAD_Z]}>
+        <group ref={frameRef} name="a-frame">
+          {legs.map((p, i) => (
+            <group key={i} position={p.position} quaternion={p.quaternion} scale={p.scale}>
+              <EqMesh geometry={g.leg} material={mats.frame} outline={o} />
+            </group>
+          ))}
+          {TW_RUNGS.map((y) => (
+            <group key={y} position={[0, y, 0]} scale={[1, 1, 2 * legZ(y)]}>
+              <EqMesh geometry={g.rung} material={mats.frame} outline={o} />
+            </group>
+          ))}
+          <mesh geometry={g.pin} material={mats.head} position={[0, TW_L1, 0]} scale={[1, 1, 2 * TW_LEG_HEAD + 0.12]} />
+          {[-1, 1].map((k) => (
+            <mesh key={k} geometry={g.pinCap} material={mats.drum} position={[0, TW_L1, k * (TW_LEG_HEAD + 0.07)]} />
+          ))}
+        </group>
+      </group>
+      {[0, 1].map((i) => (
+        <group key={i}>
+          <group ref={ramBodies[i]}>
+            <EqMesh geometry={g.ramBody} material={mats.frame} outline={o} name={i === 0 ? 'luffing-ram' : undefined} />
+          </group>
+          <group ref={ramRods[i]}>
+            <mesh geometry={g.ramRod} material={mats.rod} />
+          </group>
+        </group>
+      ))}
+      {/* Cranked upper arm with its arched end */}
+      <group ref={armRef} name="cranked-arm">
+        <group position={armBeam.position} rotation={[0, 0, armBeam.rotation]} scale={[armBeam.length, 1, 1]}>
+          <EqMesh geometry={g.armBeam} material={mats.frame} outline={o} />
+        </group>
+        {[-0.12, 0.12].map((z) => (
+          <EqMesh key={z} geometry={g.arch} material={mats.frame} outline={o} position={[0, 0, z]} />
         ))}
-        <EqMesh geometry={g.motor} material={mats.motor} outline={o} position={[0, 0.5, 0.65]} name="winch-motor" />
       </group>
-      <EqMesh geometry={g.hinge} material={mats.head} outline={o} position={[TW_PIVOT_UH[0], TW_PIVOT_UH[1], TW_HEAD_Z]} name="a-frame-pivot" />
-      <group ref={legA}>
-        <EqMesh geometry={g.leg} material={mats.frame} outline={o} name="a-frame" />
-      </group>
-      <group ref={legB}>
-        <EqMesh geometry={g.leg} material={mats.frame} outline={o} />
-      </group>
-      <group ref={brace}>
-        <mesh geometry={g.leg} material={mats.frame} />
-      </group>
-      <group ref={arm}>
-        <EqMesh geometry={g.arm} material={mats.frame} outline={o} name="cranked-arm" />
-      </group>
+      {/* Gimbal head: ring and wire guide under a ribbed dome, beacon on top; stays level */}
       <group ref={head} name="gimbal-head">
-        <EqMesh geometry={g.gimbalDisc} material={mats.head} outline={o} position={[0, 0.06, 0]} />
-        <EqMesh geometry={g.gimbal} material={mats.head} outline={o} rotation={[Math.PI / 2, 0, 0]} />
-        <mesh geometry={g.sheave} material={mats.drum} position={[0, -0.1, 0]} />
-        <mesh geometry={g.beacon} material={mats.beacon} position={[0.12, 0.12, 0]} />
+        <EqMesh geometry={g.ring} material={mats.frame} outline={o} />
+        <mesh geometry={g.disc} material={mats.head} position={[0, -0.03, 0]} />
+        <EqMesh geometry={g.rib} material={mats.frame} outline={o} />
+        <EqMesh geometry={g.rib} material={mats.frame} outline={o} rotation={[0, Math.PI / 2, 0]} />
+        <mesh geometry={g.sheave} material={mats.drum} position={[0, 0.1, 0]} />
+        <mesh geometry={g.beacon} material={mats.beacon} position={[0.16, 0.2, 0]} />
       </group>
     </group>
   );

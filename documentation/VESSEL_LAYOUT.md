@@ -34,16 +34,16 @@ All values live in `src/vessels/vesselLayout.ts`. The plan was read at 1:175 wit
 | --- | --- |
 | IBS forward console, steering stand, chart table | Wheelhouse forward part, bridge deck 12.9 m |
 | DP operator station (aft-facing) | Wheelhouse aft windows; DP3 backup station in an A60 room on the officers deck below |
-| RadaScan View, CyScan AS | Compass deck forward of the mast, port and starboard (z 19.4 m) |
+| RadaScan View, CyScan AS | Aft corners of the bridge deck on 1.1 m plinths, port and starboard (z 6.4 m), facing the working area astern |
 | Seastar GA830 antennas | Mast yardarm ends |
 | HPR (Type 7950 + HPT 5000) | Centreline at z 12 m, on the bottom plating (keel at the 4.8 m draught) |
-| Taut wire | Starboard aft main deck at z −14 m, at a bulwark and rail opening |
+| Taut wire | Starboard main deck at z −6 m (near the roll centre), at a bulwark and rail opening |
 | SPRINT-Nav DP on the 8097 pole | Port aft main deck, pivot at z −7 m |
 
 ## Assumptions and not from the plan
 
 - Hull lines (section shape, bow and stern form) are illustrative at the plan's main dimensions; the plan gives no lines plan.
 - Colours: dark hull, red-brown antifouling, white superstructure, orange cranes and rescue boat. The plan has no paint scheme.
-- The HPR, taut wire, RadaScan View and CyScan AS positions are not on the plan; they are placed where they fit the arrangement.
+- The HPR, taut wire, RadaScan View and CyScan AS positions are not on the plan; they follow the installation rules in [INSTALLATION_GUIDE.md](INSTALLATION_GUIDE.md).
 - The A-frame of the previous concept vessel is not on the plan and was removed.
 - No 3D reference image or model was supplied, so the superstructure is built from the plan views only.

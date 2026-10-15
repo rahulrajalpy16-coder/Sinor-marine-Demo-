@@ -24,6 +24,7 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
     summary:
       'Integrated bridge system on a dual redundant network. The forward console carries five multi-function workstations (X-band radar, ECDIS, conning, ECDIS, S-band radar); any application can run on any workstation. Overhead displays, steering stand with the Z-Thrust BT1 panel, navigator chairs and chart table complete the layout.',
     specs: [
+      { label: 'Installation', value: 'Wheelhouse forward console, centreline; SOLAS V/22 view ahead, MSC/Circ.982 layout' },
       { label: 'Workstations', value: '5 × MFW, 26" displays' },
       { label: 'Applications', value: 'ARPA radar, ECDIS, conning, ICAS, DP, cameras, thruster control' },
       { label: 'Network', value: 'Dual redundant Ethernet' },
@@ -43,7 +44,7 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
     summary:
       'Aft-facing DP station on the bridge, overlooking the working deck. 26-inch pedestal operator stations hold the DP panel (joystick, trackball, mode keys), the display and a 19-inch rack with the DP control and operator computers. Class 2 has three voting controllers, two stations and a dual network; class 3 adds a backup station in a separate A60 room.',
     specs: [
-      { label: 'Location', value: 'Bridge, aft-facing station' },
+      { label: 'Location', value: 'Bridge, aft-facing station with a view of the working deck and vessel side (IMO MSC.1/Circ.1580 §3.1.8); DP3 backup in an A-60 room below (§3.4.2.6)' },
       { label: 'Console', value: '26" pedestal, 654 × 1206 mm (drawing 5000-501092)' },
       { label: 'Rack', value: 'MT computer, DP control + operator computers, PoE switch' },
       { label: 'Class options', value: 'DP1 · DP2 (default) · DP3' },
@@ -63,6 +64,7 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
     summary:
       'Sonardyne HPT 5000 USBL transceiver (Type 8142-000-01), deployed through the hull by the Type 7950 machine. It measures range and bearing to seabed transponders and is one of the DP position references. It can only measure while fully deployed through an open gate valve.',
     specs: [
+      { label: 'Installation', value: 'Centreline, z +12 m: 13 m aft of BT2, far from the azimuths; transceiver 2.9 m below the keel (UM-8142: 2–3 m, away from thrusters and aeration)' },
       { label: 'Type', value: '8142-000-01 HPT 5000 (Ethernet and serial)' },
       { label: 'Frequency', value: 'MF, 19–34 kHz' },
       { label: 'Operating range', value: 'Up to 7,000 m' },
@@ -87,7 +89,7 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
     summary:
       'P2 standard bow thruster: a fixed transverse tunnel with a controllable-pitch propeller driven by a constant-speed electric motor. Blade pitch, set from the Z-Thrust CPP control system, decides how hard and to which side it pushes the bow. It has no azimuth steering.',
     specs: [
-      { label: 'Location', value: 'Bow, BT1 at +28.4 m (BT2 at +25.4 m), per the GA plan' },
+      { label: 'Location', value: 'Bow, BT1 at +28.4 m (BT2 at +25.4 m), per the GA plan: as far forward as the hull allows, tunnel top well below the waterline' },
       { label: 'Type', value: 'Tunnel, controllable pitch (CPP)' },
       { label: 'Drive', value: '800 kW electric motor, constant speed' },
       { label: 'Tunnel / blades', value: 'Ø2.1 m, 4 blades' },
@@ -109,6 +111,7 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
     summary:
       'Sonardyne Type 7950 through-hull deployment machine, standard length. A hydraulically operated pole runs through a sealed bearing (sealing) section and a seachest service section with an inspection door. The machine sits on a 14-inch gate valve on the flange of the hull penetration, and lowers the HPT 5000 to its working depth. Controlled locally or from a remote panel.',
     specs: [
+      { label: 'Installation', value: 'Dedicated trunk above the hull penetration and 14" gate valve, centreline z +11.6 m' },
       { label: 'Mounting space', value: '6.1 m H × 1.8 m W × 1.0 m D' },
       { label: 'Standard length', value: '5,930 mm (datum to top support)' },
       { label: 'Transceiver extension', value: '2,775 mm below datum' },
@@ -123,14 +126,15 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
   },
   'radascan-001': {
     short: 'RadaScan',
-    target: [-4.4, 16.55, 19.4],
-    camera: [-9.5, 19.4, 13.2],
+    target: [-4.6, 14.2, 6.4],
+    camera: [-9.8, 16.4, 0.4],
     underwater: false,
     explodable: false,
     implemented: true,
     summary:
       'Guidance Marine RadaScan View: a combined position reference sensor and navigation radar for the 500 m zone. It measures range and bearing to uniquely coded responders on a fixed or moving structure, so DP holds position relative to that structure, and adds a radar picture to the Dashboard. Radar is not blinded by fog, rain or steam. In the scene the responder is on an illustrative platform astern.',
     specs: [
+      { label: 'Installation', value: "Port aft corner of the bridge deck on a 1.1 m plinth: clear view astern, level with the responders, 9 m from and 4.6 m below the S-band radar, panel facing forward (installer's guide 94-0492-4-A)" },
       { label: 'System', value: 'Responders, RadaScan View sensor, Dashboard software' },
       { label: 'Measures', value: 'Range and bearing to coded responders' },
       { label: 'Working range', value: '"Suitable for the 500 m zone"; no maximum stated' },
@@ -144,14 +148,15 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
   },
   'cyscan-001': {
     short: 'CyScan',
-    target: [4.4, 16.55, 19.4],
-    camera: [9.6, 19.0, 13.6],
+    target: [4.6, 14.3, 6.4],
+    camera: [9.8, 16.2, 0.6],
     underwater: false,
     explodable: false,
     implemented: true,
     summary:
       'Guidance Marine CyScan AS: a rotating Class 1M laser that measures range and bearing to Absolute Signature targets. A relative position reference with high precision, but fog, heavy rain or spray can block the beam. Use the fog switch in its panel to see the difference from RadaScan View.',
     specs: [
+      { label: 'Installation', value: "Starboard aft corner of the bridge deck on a 1.1 m plinth: clear view astern, 9 m from the radars (≥ 5 m rule), clear of the exhausts, access cover facing the bow (installer's guide 94-0559-C)" },
       { label: 'Range', value: '10–2,500 m (prism); about 300 m (1.9 m cylinder)' },
       { label: 'Noise', value: 'Range 50 mm, bearing 0.2 mrad' },
       { label: 'Laser / beam', value: 'Class 1M pulsed diodes, 12° × 0.13°' },
@@ -172,6 +177,7 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
     summary:
       'Two Fugro Seastar 9410-AUT DGNSS receivers (DGPS 1 and DGPS 2 in the DP), each with one Trimble GA830 antenna on the mast yardarm. Corrections arrive over L-band or NTRIP through the same antenna. These are the absolute position references; DP votes them against the others.',
     specs: [
+      { label: 'Installation', value: 'Mast yardarm ends, 6 m apart: open sky, out of both radar beams and about 3.5 m from the radar centres (IMO SN/Circ.227: ≥ 3 m, out of the beam)' },
       { label: 'Receiver', value: 'Seastar 9410-AUT, 672 channels' },
       { label: 'Constellations', value: 'GPS, GLONASS, Galileo, BeiDou' },
       { label: 'Accuracy (G4)', value: '< 10 cm horizontal, < 15 cm vertical (95 %)' },
@@ -183,14 +189,15 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
   },
   'tautwire-001': {
     short: 'Taut Wire',
-    target: [10.6, 2.9, -14],
-    camera: [20, 7.2, -5.5],
+    target: [10.6, 2.9, -6],
+    camera: [5.2, 6.8, 0.2],
     underwater: false,
     explodable: false,
     implemented: true,
     summary:
       'SMT Taut Wire 2.0, Z Range Mk2. A 400 kg depressor weight is lowered to the seabed by a constant-tension electric winch; the gimbal head on the cranked boom measures the wire angles across and along ship, which give the vessel offset from the weight. Usable within ±30°.',
     specs: [
+      { label: 'Installation', value: 'Starboard main deck, 6 m aft of midships at a bulwark opening: near the roll centre, clear of thrusters, opposite the pole, within crane reach (SMT manual PJ 0044-13 §3)' },
       { label: 'Water depth', value: '500 m (700 m cable on drum)' },
       { label: 'Depressor weight', value: '400 kg' },
       { label: 'Skid / height', value: '1700 × 1600 mm; 2085 mm stored, 2395 mm deploying' },
@@ -211,6 +218,7 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
     summary:
       'Sonardyne SPRINT-Nav DP: inertial sensors and a pressure sensor aided by a 375 kHz DVL locked on to the seabed, giving a GNSS-independent position reference in shallow water. It is lowered over the port side on a Sonardyne Type 8097 three-section pole, swung down from its stowed position along the deck edge by winch and held by a hydraulic lock welded to the hull.',
     specs: [
+      { label: 'Installation', value: 'Port aft main deck where the GA plan shows it: opposite the taut wire, 27 m forward of the azimuths' },
       { label: 'Station keeping', value: '< 3.2 m over 12 h (1DRMS), < 5.2 m R95' },
       { label: 'DVL', value: '375 kHz, bottom lock 0.4–200 m altitude' },
       { label: 'Heading / roll, pitch', value: '0.04° / 0.01°' },

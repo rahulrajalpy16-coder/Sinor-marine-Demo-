@@ -73,7 +73,8 @@ Only those documents are used for each unit. Nothing is carried over from the or
 | CyScan AS base / rotor split | 0.2 m base, rest rotor | Scaled from the installer's guide drawing, inside the 563 mm height |
 | CyScan AS position noise | 0.05 m | From the 50 mm range noise |
 | SMT head along-ship offset | 0.28 m from the skid centre | Scaled off SMT-TW-MD-28; its 1010 mm offset is to an undimensioned reference point |
-| SMT A-frame pivot and knuckle | Pivot at the skid edge 0.23 m up; knuckle 1.16 m out, 1.41 m up when deployed | Scaled off SMT-TW-MD-21 |
+| SMT A-frame pivot, pin and arm | Pivot 0.25 m inside the skid edge, 0.35 m up; A-frame 2.045 m (pin top = the 2395 mm max height); arm 1.06 m to the head; recovered lean 37° inboard | Scaled off SMT-TW-MD-20/21 and the manual cover render |
+| SMT unit appearance | Yellow skid, orange bell weight in the basket, winch with perforated side plates and motor, white cabinet, ladder-braced A-frame on two luffing rams, cranked arm with domed gimbal head and amber beacon | Manual PJ 0044-13 cover render |
 | 8097 pole diameter | 0.23 m | Scaled off the datasheet drawing |
 
 ## Unverified: not in any supplied document
@@ -94,7 +95,7 @@ Only those documents are used for each unit. Nothing is carried over from the or
 | Bulwark opening at the taut wire | 2.6 m, so the boom can pass the deck edge |
 | 8097 pole swing / lock time | 90 s / 5 s |
 | SPRINT-Nav DVL beam angle; housing colour split | 30°; from the datasheet photo |
-| Placements on the vessel | RadaScan View and CyScan AS on the bridge top, antennas on the yardarm ends, taut wire on the starboard main deck at −14 m, pole on the port side at −7 m (port aft main deck, as on the GA plan) |
+| Placements on the vessel | RadaScan View and CyScan AS at the aft corners of the bridge deck on 1.1 m plinths, antennas on the yardarm ends, taut wire on the starboard main deck at −6 m, pole on the port side at −7 m (port aft main deck, as on the GA plan). Reasons in [INSTALLATION_GUIDE.md](INSTALLATION_GUIDE.md) |
 | Fixed platform, responder and target | 110 m astern of the starting position; a scene prop |
 | Water depth | 42 m (the existing scene seabed) |
 
