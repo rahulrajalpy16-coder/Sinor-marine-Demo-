@@ -222,7 +222,7 @@ export function RadaScanPanel() {
       <Alarms list={s.alarms.filter((a) => a === 'RADASCAN_NO_TARGET')} testid="radascan-alarms" />
       <Note>
         RadaScan View brochure: combined position reference and navigation radar for the 500 m zone, range and bearing to coded responders, works through rain,
-        fog, steam and dust, −25 to +55 °C. Not stated, so illustrative: sensor size (drawn from the photo), maximum range, lock-on time{' '}
+        fog, steam and dust, −25 to +55 °C. Sensor Ø500 × 410 mm (installer’s guide). Not stated, so illustrative: maximum range, lock-on time{' '}
         {RADASCAN.acquireSeconds.value} s, position noise {RADASCAN.accuracy.value} m, the platform and its radar echo.
       </Note>
     </Shell>
@@ -253,8 +253,8 @@ export function CyScanPanel() {
       <DpRef id="CYSCAN" testid="cyscan" />
       <Alarms list={s.alarms.filter((a) => a === 'CYSCAN_NO_TARGET')} testid="cyscan-alarms" />
       <Note>
-        CyScan AS leaflet: 10–2,500 m with prisms, 10–400 m with the 1.9 m cylindrical target used here; beam 12° × 0.13°; ±20° gimbal; 30 targets detectable,
-        9 trackable; sensor 405 × 407 × 565 mm, 28 kg. Not stated, so illustrative: lock-on time {CYSCAN.acquireSeconds.value} s and the {CYSCAN.fogRangeM.value} m
+        CyScan AS leaflet: 10–2,500 m with prisms, about 10–300 m with the 1.9 m cylindrical target used here (installer’s guide; the leaflet says 400 m); beam 12° × 0.13°; ±20° gimbal; 30 targets detectable,
+        9 trackable; sensor base 405 × 327 mm plus the 80 mm access cover facing forward, 563 mm high, 4 × M8 on 190 × 360 mm, 28 kg. Not stated, so illustrative: lock-on time {CYSCAN.acquireSeconds.value} s and the {CYSCAN.fogRangeM.value} m
         range in fog (lasers lose range in fog and spray; the radar does not).
       </Note>
     </Shell>
@@ -294,7 +294,7 @@ export function DGPSPanel() {
       })}
       <Note>
         Seastar 9410-AUT datasheet: 672 channels, G4 &lt; 10 cm horizontal / &lt; 15 cm vertical (95 %), L-band or NTRIP corrections through one antenna, 24 V DC 6 W,
-        270 × 140 × 70 mm. Antenna option GA 830 or AD 492 (not stated which); its size is drawn from the photo. The display text is a mock-up. DGPS 2 is fitted from
+        270 × 140 × 70 mm. Antenna: Trimble GA830, Ø149 × 99 mm, 0.82 kg, 5/8" pole mount (Trimble datasheet); its colours are drawn from the photo. The display text is a mock-up. DGPS 2 is fitted from
         DP2. Losing corrections removes that receiver from DP voting.
       </Note>
     </Shell>
@@ -368,10 +368,10 @@ export function SprintNavPanel() {
       <ErrorLine error={error} testid="sn-error" />
       <Alarms list={s.alarms.filter((a) => a === 'POLE_OVERSPEED')} testid="sn-alarms" />
       <Note>
-        Datasheet: SPRINT-Nav DP {SPRINTNAV.diameter.value * 1000} × {SPRINTNAV.height.value * 1000} mm titanium, 100 m rating, 375 kHz DVL, bottom lock 0.4–200 m, station
-        keeping &lt; 3.2 m over 12 h (modelled as a slow drift); public datasheet, no document supplied. Type 8097 pole datasheet: 9190 mm pivot to end, joints at 3110
+        Datasheet: SPRINT-Nav DP {SPRINTNAV.diameter.value * 1000} × {SPRINTNAV.height.value * 1000} mm titanium, 100 m rating, 375 kHz DVL, altitude 0.4–200 m, 10-minute initialisation, 5 min battery, 1 × RS422, station
+        keeping &lt; 3.2 m over 12 h (modelled as a slow drift). Type 8097 pole datasheet: 9190 mm pivot to end, joints at 3110
         and 6170 mm, strakes, 1,000 kg, axis 525 mm above the deck edge, hull lock 2415 mm below it, 5 kn. Illustrative: pole diameter (scaled), swing{' '}
-        {POLE_8097.swingSeconds.value} s, lock {POLE_8097.lockSeconds.value} s, INS alignment {SPRINTNAV.alignSeconds.value} s, DVL beam angle.
+        {POLE_8097.swingSeconds.value} s, lock {POLE_8097.lockSeconds.value} s, DVL beam angle.
       </Note>
     </Shell>
   );

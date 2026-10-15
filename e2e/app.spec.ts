@@ -38,6 +38,19 @@ async function boot(page: Page, query = '?intro=0') {
 }
 
 const state = (page: Page) => page.evaluate(() => window.__SINOR__!.state());
+/** Resolves when the camera has stopped moving (two samples 250 ms apart within 1 cm). */
+async function waitCameraSettled(page: Page) {
+  const cam = async () => (await page.evaluate(() => window.__SINOR__!.camera())).position;
+  await expect
+    .poll(async () => {
+      const a = await cam();
+      await page.waitForTimeout(250);
+      const b = await cam();
+      return Math.hypot(...a.map((v, i) => v - b[i]));
+    })
+    .toBeLessThan(0.01);
+}
+
 const waitFocused = (page: Page, id: string) =>
   expect.poll(async () => {
     const s = await state(page);
@@ -255,6 +268,8 @@ test('HPR: Type 7950 interlocks, deployment of the HPT 5000, and the deployed tr
   await page.getByTestId('reset-overview').click();
   await expect(page.getByTestId('camera-mode')).toHaveText('Overview');
   await page.getByTestId('mode-xray').click();
+  // The mode label switches at the start of the camera flight; pick only once the camera has settled.
+  await waitCameraSettled(page);
   const pt = (await page.evaluate(() => window.__SINOR__!.project('hpr-001')))!;
   await page.mouse.click(pt.x, pt.y);
   await waitFocused(page, 'hpr-001');

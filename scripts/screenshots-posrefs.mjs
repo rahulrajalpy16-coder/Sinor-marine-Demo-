@@ -36,6 +36,7 @@ await p.screenshot({ path: `${out}/43b-taut-wire-on-bottom.png` });
 
 await p.click('[data-testid=tree-sprintnav-001]'); await focused('sprintnav-001'); await p.waitForTimeout(600);
 await p.screenshot({ path: `${out}/44-sprintnav-stowed.png` });
+await p.selectOption('[data-testid=sn-speed]', '20');
 await p.click('[data-testid=sprintnav-power]');
 await p.click('[data-testid=pole-deploy]');
 await text('sprintnav-hmi-status', 'REFERENCE OK');

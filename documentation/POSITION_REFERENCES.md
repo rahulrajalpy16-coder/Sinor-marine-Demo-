@@ -8,7 +8,7 @@ First added on 2026-10-14 from public datasheets (PR #5). Rebuilt the same day t
 4. **SMT Taut Wire 2.0, Z Range Mk2**
 5. Sonardyne **SPRINT-Nav DP** on the Sonardyne **Type 8097 modular over-the-side deployment pole**
 
-Only those documents are used for each unit. Nothing is carried over from the original RadaScan, the older CyScan, the SMT TW-1.0 or the Fugro service page used in PR #5. No SPRINT-Nav document was supplied, so the SPRINT-Nav DP itself stays on its public Sonardyne datasheet (8388). All values and their sources live in `src/equipment/posrefData.ts`, tagged datasheet, derived or assumed.
+Only those documents are used for each unit. Nothing is carried over from the original RadaScan, the older CyScan, the SMT TW-1.0 or the Fugro service page used in PR #5. On 2026-10-15 the CyScan AS and RadaScan View installer's guides and the SPRINT-Nav DP 8388 datasheet (09/2026) were supplied, and the Seastar antenna was confirmed as the Trimble GA830 (public Trimble datasheet used for its size). All values and their sources live in `src/equipment/posrefData.ts`, tagged datasheet, derived or assumed.
 
 ## Sources
 
@@ -20,7 +20,10 @@ Only those documents are used for each unit. Nothing is carried over from the or
 | smt | SMT Taut Wire Z Range Mk2 system specification, AD 0004-10 |
 | smtManual | SMT Taut Wire 2.0 Installation Manual PJ 0044-13 (drawings SMT-TW-MD-20 GA recovered, -21 GA deployed, -28 DP offsets) |
 | pole8097 | Sonardyne Deployment Pole, modular over-the-side, Type 8097 datasheet, 03/2023 |
-| sprintnav | Sonardyne SPRINT-Nav DP datasheet 8388 (public, not supplied) |
+| radascanGuide | RadaScan View Installer's Guide 94-0492-4-A |
+| cyscanGuide | CyScan AS Installer's Guide 94-0559-C |
+| ga830 | Trimble GA830 GNSS antenna datasheet (public), PN 44830-00 |
+| sprintnav | Sonardyne SPRINT-Nav DP datasheet 8388, 09/2026 (supplied) |
 
 ## From the documents
 
@@ -31,18 +34,20 @@ Only those documents are used for each unit. Nothing is carried over from the or
 | | Range | "Radar suitable for the 500 m zone" (no maximum range stated) |
 | | Environment | Rain, snow, fog, steam, dust; −25 to +55 °C |
 | | Responders | CSA and ATEX certified, intrinsically safe; usable by any number of vessels |
-| CyScan AS | Range | 10–2,500 m nominal; 1.9 m cylindrical target 10–400 m; prism 10–2,500 m |
+| | Sensor (guide) | Ø500 × 410 mm; 240 × 240 mm plate, 4 × M8; plinth for 25 kg; 800 mm above and 1000 mm around kept clear; connection panel underneath on one side, facing away from the operating area |
+| CyScan AS | Range | 10–2,500 m nominal; prism 10–2,500 m; 1.9 m cylindrical target about 300 m (installer's guide; the leaflet says 400 m, the lower figure is used) |
 | | Laser | Pulsed laser diodes, Class 1M; beam 12° × 0.13°; vertical coverage 52° |
 | | Noise | Range 50 mm (resolution 0.01 m); bearing 0.2 mrad |
 | | Gimbal | Single axis ±20°; wave motion compensation ±5° at 5 s; tilt ±20° |
 | | Targets | 30 detectable, 9 trackable |
-| | Sensor | 405 W × 407 D × 565 H mm, 28 kg, IP66, −25 to +55 °C; 85–264 VAC, 100 W max |
+| | Sensor | 405 W × 327 D base plus the 80 mm access-cover box (407 overall); 563 mm from the mounting plate (leaflet 565); 28 kg, IP66; 85–264 VAC, 100 W max |
+| | Mounting (guide) | 4 × M8 on 190 × 360 mm; flat surface for 30 kg, above the wheelhouse, 5 m from VHF and radar antennas; access cover facing forward |
 | Seastar 9410-AUT | Receiver | 672 channels (dual Maxwell 7); GPS, GLONASS, Galileo, BeiDou, NavIC L5 |
 | | Accuracy | Seastar G4: < 10 cm horizontal, < 15 cm vertical (95 %) |
 | | Corrections | Fugro L-band or NTRIP, all through one antenna; G2, G4, XP2, XP3 |
 | | Unit | 270 × 140 × 70 mm, 1.82 kg; 24 V DC, 6 W; display 32 × 4 characters |
 | | Outputs | NMEA GGA, GST, GSA, VTG, ZDA, GNS, GBS, RMC; 1PPS |
-| | Antenna | GA 830 or AD 492 |
+| | Antenna | Trimble GA830 (confirmed): Ø149 × 99 mm, 0.82 kg, 5/8"-11 or 3 × M8 mount, TNC, L1 phase centre 88.5 mm |
 | SMT TW 2.0 Z Mk2 | Range | 500 m water depth, 700 m cable on the drum |
 | | Weight | 400 kg depressor; unit 1600 kg (2100 kg with weight); boom SWL 575 kg |
 | | Skid | 1700 (across ship) × 1600 mm; stored height 2085 mm; max 2395 mm while deploying |
@@ -56,15 +61,16 @@ Only those documents are used for each unit. Nothing is carried over from the or
 | | Mounting | Pole axis 525 mm above the deck edge; hydraulic lock bracket welded to the hull 2415 mm below, in line with the pole |
 | | Motion | Stowed horizontal along the deck edge, swung down over the side to vertical, locked (datasheet illustration) |
 | | Limits, mass | 5 kn operational, 10 kn survival; 1,000 kg; galvanised steel with epoxy |
-| SPRINT-Nav DP (public) | Unit | Ø225 × 346 mm titanium, 100 m rating, 375 kHz DVL, bottom lock 0.4–200 m |
-| | Performance | Station keeping < 3.2 m over 12 h (1DRMS) |
+| SPRINT-Nav DP | Unit | Ø225 × 346 mm titanium, 23.9 / 13.1 kg, 100 m rating, 375 kHz DVL / ADCP, altitude 0.4–200 m |
+| | Performance | Station keeping < 3.2 m over 12 h (1DRMS); unaided 1.2 m in 60 s; heave 5 cm |
+| | Interfaces | 1 × RS422, Web UI, TCP/UDP, 2 PPS triggers; Li-ion backup 5 min; 10-minute initialisation |
 
 ## Derived from the documents
 
 | Item | Used value | How |
 | --- | --- | --- |
 | RadaScan View working range | 500 m | From "suitable for the 500 m zone" |
-| CyScan AS head / base split | 0.2 m base, rest head | Scaled from the leaflet photo, inside the 565 mm overall height |
+| CyScan AS base / rotor split | 0.2 m base, rest rotor | Scaled from the installer's guide drawing, inside the 563 mm height |
 | CyScan AS position noise | 0.05 m | From the 50 mm range noise |
 | SMT head along-ship offset | 0.28 m from the skid centre | Scaled off SMT-TW-MD-28; its 1010 mm offset is to an undimensioned reference point |
 | SMT A-frame pivot and knuckle | Pivot at the skid edge 0.23 m up; knuckle 1.16 m out, 1.41 m up when deployed | Scaled off SMT-TW-MD-21 |
@@ -74,12 +80,11 @@ Only those documents are used for each unit. Nothing is carried over from the or
 
 | Item | Used value |
 | --- | --- |
-| RadaScan View sensor size | Ø0.6 × 0.48 m, drawn in the proportions of the brochure photo |
-| RadaScan View accuracy, lock-on time | 0.5 m noise (1σ), 6 s |
+| RadaScan View accuracy, lock-on time, plinth height | 0.5 m noise (1σ), 6 s, 0.6 m |
 | Responder size | Box 0.26 × 0.42 × 0.2 m with handle, from the photo |
 | CyScan AS lock-on time; range in fog | 4 s; 60 m |
 | CyScan target diameter | 0.3 m (the 1.9 m height is from the leaflet) |
-| Seastar antenna size and which option | Ø0.18 × 0.13 m, drawn from the datasheet photo; GA 830 or AD 492 not stated |
+| GA830 colours | Light grey radome, dark grey base, from the product photo |
 | Seastar front-panel text | Layout mock-up |
 | SMT bell weight size | Ø0.55 m base, Ø0.3 m top, 0.55 m tall, from the render |
 | SMT boom path between the drawn poses | Illustrative, kept under 2395 mm |
@@ -88,7 +93,7 @@ Only those documents are used for each unit. Nothing is carried over from the or
 | SMT position noise in the 42 m scene | 0.3 m (the accuracy table starts at 100 m) |
 | Bulwark opening at the taut wire | 2.6 m, so the boom can pass the deck edge |
 | 8097 pole swing / lock time | 90 s / 5 s |
-| SPRINT-Nav INS alignment time, DVL beam angle | 120 s, 30° |
+| SPRINT-Nav DVL beam angle; housing colour split | 30°; from the datasheet photo |
 | Placements on the vessel | RadaScan View and CyScan AS on the bridge top, antennas on the yardarm ends, taut wire on the starboard main deck at −14 m, pole on the port side at −6 m |
 | Fixed platform, responder and target | 110 m astern of the starting position; a scene prop |
 | Water depth | 42 m (the existing scene seabed) |
@@ -103,3 +108,10 @@ Only those documents are used for each unit. Nothing is carried over from the or
 - DP: the four operator references are fitted on every class but start deselected. Select them in the sensor panel or on the DP Redundancy tab. A selected reference that is not ready raises `REF_NOT_READY`. All ready, selected references are median-voted.
 
 Not connected to real equipment; not certified.
+
+## Equipment indicators (all systems)
+
+- Overview: one small ring per installed system, no names and no leader lines. Rings that would sit on top of each other are merged (the nearer one stays).
+- Zooming in (camera within 85 m) fades in a short name (for example "Taut Wire", "HPR", "SeaStar GNSS", "DP Console"); fully shown within 35 m. Labels never overlap: a nearer label wins.
+- Rings behind the hull or superstructure are faint and never show a name. Hover or keyboard focus shows the name at any distance; click or tap opens the panel.
+- Occlusion is checked every 0.2–0.5 s depending on the quality profile; all updates happen per frame without React re-renders. Logic in `src/scene/Hotspots.tsx`, tested in `Hotspots.test.ts`.
