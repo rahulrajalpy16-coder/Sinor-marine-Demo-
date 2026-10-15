@@ -14,6 +14,7 @@
  * This is a teaching model; it does not imitate any proprietary DP algorithm.
  */
 
+import { AZIMUTHS, BOW_THRUSTERS } from '../vessels/vesselLayout';
 import { HPT5000_REPEATABILITY } from '../equipment/hprData';
 import { CYSCAN, RADASCAN, SEASTAR, SMT_TW, SPRINTNAV } from '../equipment/posrefData';
 import { HPR_NOMINAL_SLANT_M } from './acoustic';
@@ -111,10 +112,10 @@ export const DEFAULT_DP_PARAMS: DPParams = {
   currentAreaFront: 117,
   currentAreaLateral: 520,
   thrusters: [
-    { id: 'BT1', x: 31, y: 0, maxN: 105e3, azimuth: false },
-    { id: 'BT2', x: 28.5, y: 0, maxN: 105e3, azimuth: false },
-    { id: 'AZ1', x: -34.5, y: -4.6, maxN: 250e3, azimuth: true },
-    { id: 'AZ2', x: -34.5, y: 4.6, maxN: 250e3, azimuth: true },
+    { id: 'BT1', x: BOW_THRUSTERS.bt1Z, y: 0, maxN: 105e3, azimuth: false },
+    { id: 'BT2', x: BOW_THRUSTERS.bt2Z, y: 0, maxN: 105e3, azimuth: false },
+    { id: 'AZ1', x: AZIMUTHS.z, y: -AZIMUTHS.x, maxN: 250e3, azimuth: true },
+    { id: 'AZ2', x: AZIMUTHS.z, y: AZIMUTHS.x, maxN: 250e3, azimuth: true },
   ],
   azimuthRateRadS: (12 * Math.PI) / 180,
   thrustTimeConstantS: 2,

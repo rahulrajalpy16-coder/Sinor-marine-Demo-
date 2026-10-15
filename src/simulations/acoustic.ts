@@ -2,6 +2,7 @@
  * Illustrative two-way acoustic ranging (not a proprietary HPR implementation).
  * Measurement type: two-way travel time to a seabed transponder, converted with an assumed sound speed.
  */
+import { PRINCIPAL } from '../vessels/vesselLayout';
 import { STROKE, T7950, transceiverY } from '../equipment/hprData';
 
 export const ASSUMED_SOUND_SPEED = 1500; // m/s, nominal sea water
@@ -34,10 +35,10 @@ export const TRANSPONDER: Vec3 = [9, SEABED_Y + 1.2, 2];
 
 /**
  * Where the Type 7950 sits on this vessel (scene metres): pole axis on the centreline at frame +12 m,
- * standing on the bottom plating (keel at -5 m there). Datum = top of the 150 mm hull penetrator.
+ * standing on the bottom plating (keel at the 4.8 m design draught there). Datum = top of the 150 mm hull penetrator.
  */
 export const HPR_AXIS = { x: 0, z: 12 };
-export const HULL_BOTTOM_Y = -5;
+export const HULL_BOTTOM_Y = -PRINCIPAL.draft;
 export const HPR_DATUM_Y = HULL_BOTTOM_Y + T7950.penetratorHeight.value;
 
 /** Scene position of the transceiver face for a given pole travel. */

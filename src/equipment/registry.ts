@@ -9,14 +9,14 @@ export const vessel = parseVesselConfig(vesselJson, new Set(registry.equipment.m
 export const design = parseDesignConfig(designJson);
 
 /**
- * Where each system sits on the procedural vessel. Positions are representative,
- * chosen for legibility on an 80 m concept hull; they are not engineering drawings.
+ * Where each system sits on the procedural vessel (generic 78 m DP2 vessel laid out from the supplied GA plan,
+ * see vesselLayout.ts). Positions are representative; they are not engineering drawings.
  */
 export const PLACEMENTS: Record<string, EquipmentPlacement> = {
   'ibs-001': {
     short: 'IBS',
-    target: [0, 10.2, 21.4],
-    camera: [1.4, 11.1, 17.6],
+    target: [0, 14.1, 22.7],
+    camera: [1.4, 15.0, 18.9],
     underwater: false,
     interior: true,
     explodable: false,
@@ -34,8 +34,8 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
   },
   'dp-console-001': {
     short: 'DP Console',
-    target: [0, 10.1, 12.95],
-    camera: [0.7, 11.25, 16.3],
+    target: [0, 14.0, 7.45],
+    camera: [0.7, 15.15, 10.8],
     underwater: false,
     interior: true,
     explodable: true,
@@ -55,8 +55,8 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
   'hpr-001': {
     short: 'HPR',
     // Deployed transceiver face, 2.95 m below the bottom plating at frame +12 m.
-    target: [0, -7.9, 12],
-    camera: [5.2, -8.6, 18.2],
+    target: [0, -7.7, 12],
+    camera: [5.2, -8.4, 18.2],
     underwater: true,
     explodable: false,
     implemented: true,
@@ -79,15 +79,15 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
   },
   'bow-thruster-001': {
     short: 'Bow Thruster',
-    target: [0, -2.4, 31],
-    camera: [19, 1.5, 43],
+    target: [0, -3.5, 28.4],
+    camera: [19, 2.4, 40.4],
     underwater: true,
     explodable: true,
     implemented: true,
     summary:
       'P2 standard bow thruster: a fixed transverse tunnel with a controllable-pitch propeller driven by a constant-speed electric motor. Blade pitch, set from the Z-Thrust CPP control system, decides how hard and to which side it pushes the bow. It has no azimuth steering.',
     specs: [
-      { label: 'Location', value: 'Bow, frame ~ +31 m' },
+      { label: 'Location', value: 'Bow, BT1 at +28.4 m (BT2 at +25.4 m), per the GA plan' },
       { label: 'Type', value: 'Tunnel, controllable pitch (CPP)' },
       { label: 'Drive', value: '800 kW electric motor, constant speed' },
       { label: 'Tunnel / blades', value: 'Ø2.1 m, 4 blades' },
@@ -99,8 +99,8 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
   'deployment-001': {
     short: 'HPR Hoist',
     // Machine stands on the bottom plating at frame +12 m; the camera is inside the hull, in the trunk space.
-    target: [0, -2.1, 11.6],
-    camera: [4.2, -1.2, 19.4],
+    target: [0, -1.9, 11.6],
+    camera: [4.2, -1.0, 19.4],
     underwater: true,
     interior: true,
     interiorMaxDistance: 11,
@@ -123,8 +123,8 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
   },
   'radascan-001': {
     short: 'RadaScan',
-    target: [-4.4, 13.2, 14.2],
-    camera: [-8.5, 15, 7.6],
+    target: [-4.4, 16.55, 19.4],
+    camera: [-9.5, 19.4, 13.2],
     underwater: false,
     explodable: false,
     implemented: true,
@@ -144,8 +144,8 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
   },
   'cyscan-001': {
     short: 'CyScan',
-    target: [4.4, 13.1, 14.2],
-    camera: [8.6, 14.6, 8.2],
+    target: [4.4, 16.55, 19.4],
+    camera: [9.6, 19.0, 13.6],
     underwater: false,
     explodable: false,
     implemented: true,
@@ -164,8 +164,8 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
   },
   'dgps-001': {
     short: 'SeaStar GNSS',
-    target: [0, 18.2, 16],
-    camera: [6, 20.5, 9.5],
+    target: [0, 21.9, 14],
+    camera: [6, 24.2, 7.5],
     underwater: false,
     explodable: false,
     implemented: true,
@@ -183,8 +183,8 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
   },
   'tautwire-001': {
     short: 'Taut Wire',
-    target: [9.6, 4.2, -14],
-    camera: [19, 8.5, -5.5],
+    target: [10.6, 2.9, -14],
+    camera: [20, 7.2, -5.5],
     underwater: false,
     explodable: false,
     implemented: true,
@@ -203,8 +203,8 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
   },
   'sprintnav-001': {
     short: 'SPRINT-Nav',
-    target: [-9.8, -0.4, -6.4],
-    camera: [-25, 3.5, 4],
+    target: [-10.8, -1.7, -7.4],
+    camera: [-26, 2.2, 3],
     underwater: true,
     explodable: false,
     implemented: true,

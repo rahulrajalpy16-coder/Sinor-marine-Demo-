@@ -25,6 +25,7 @@ import {
   RESPONDER_WORLD,
   SCENE_SEABED_Y,
   SEASTAR,
+  SHIP_SIDE_X,
   SMT_TW,
   SPRINTNAV,
   TAUTWIRE_EDGE_X,
@@ -468,12 +469,12 @@ export function SprintNavPole() {
     }
   });
   const o = visual.outline;
-  const hullX = -9;
+  const hullX = -SHIP_SIDE_X;
   return (
     <group name={`equipment:${SN_ID}`} {...handlers}>
       {/* Deck pivot bracket: post on the deck inside the bulwark, beam out over the side to the hub (datasheet photo). */}
-      <EqMesh geometry={g.post} material={mats.mount} outline={o} position={[-8.55, DECK_Y + (pivotY - DECK_Y + 0.35) / 2, POLE_PIVOT[2]]} name="pivot-mount" />
-      <EqMesh geometry={g.beam} material={mats.mount} outline={o} position={[(-8.55 + POLE_PIVOT[0]) / 2 - 0.05, pivotY + 0.2, POLE_PIVOT[2]]} />
+      <EqMesh geometry={g.post} material={mats.mount} outline={o} position={[-SHIP_SIDE_X + 0.45, DECK_Y + (pivotY - DECK_Y + 0.35) / 2, POLE_PIVOT[2]]} name="pivot-mount" />
+      <EqMesh geometry={g.beam} material={mats.mount} outline={o} position={[(-SHIP_SIDE_X + 0.45 + POLE_PIVOT[0]) / 2 - 0.05, pivotY + 0.2, POLE_PIVOT[2]]} />
       {POLE_8097.stowSupports.value.map((d) => (
         <EqMesh key={d} geometry={g.stand} material={mats.mount} outline={o} position={[POLE_PIVOT[0] + 0.1, (railTop + POLE_PIVOT[1] - D / 2) / 2, POLE_PIVOT[2] - d]} />
       ))}

@@ -1,3 +1,4 @@
+import { LEVEL, WHEELHOUSE_FRONT_Z } from '../vessels/vesselLayout';
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -20,8 +21,9 @@ export const MFW_LAYOUT: { app: MfwApp; label: string; x: number; yaw: number }[
   { app: 'ecdis', label: 'ECDIS 2', x: 2.4, yaw: -0.12 },
   { app: 'radar-s', label: 'S-band ARPA radar', x: 4.7, yaw: -0.32 },
 ];
-const CONSOLE_Z = 21.75;
-const FLOOR = 9;
+/** Forward console line and bridge deck, from the vessel layout (front windows 1.35 m ahead). */
+const CONSOLE_Z = WHEELHOUSE_FRONT_Z - 1.35;
+const FLOOR = LEVEL.bridge;
 const MFW_W = 1.15;
 
 function canvas(w = 384, h = 240) {
@@ -303,21 +305,21 @@ export function IntegratedBridge() {
         </group>
       ))}
       {/* Overhead console along the top of the front windows, displays facing aft */}
-      <group position={[0, 11.65, 22.45]}>
+      <group position={[0, LEVEL.roof - 0.65, CONSOLE_Z + 0.7]}>
         <EqMesh geometry={g.overhead} material={mats.dark} outline={o} />
         {ohMats.map((m, i) => (
           <mesh key={i} geometry={g.ohScreen} material={m} position={[-2.4 + i * 1.6, 0, -0.13]} rotation={[0, Math.PI, 0]} />
         ))}
       </group>
       {/* Steering stand with autopilot wheel and the Z-Thrust BT1 control panel */}
-      <group position={[0, FLOOR, 20.75]} name="steering-stand">
+      <group position={[0, FLOOR, CONSOLE_Z - 1]} name="steering-stand">
         <EqMesh geometry={g.stand} material={mats.console} outline={o} position={[0, 0.5, 0]} />
         <EqMesh geometry={g.wheel} material={mats.dark} outline={o} position={[0, 1.12, -0.2]} rotation={[0.4, 0, 0]} />
         <mesh geometry={g.smallScreen} material={btMat} position={[0, 0.88, -0.26]} rotation={[0.45, Math.PI, 0]} />
         <EqMesh geometry={g.lever} material={mats.accent} outline={o} position={[0.25, 1.06, -0.15]} name="bt1-lever" />
       </group>
       {[-1.25, 1.25].map((x) => (
-        <group key={x} position={[x, FLOOR, 20.35]} name="navigator-chair">
+        <group key={x} position={[x, FLOOR, CONSOLE_Z - 1.4]} name="navigator-chair">
           <EqMesh geometry={g.post} material={mats.dark} outline={o} position={[0, 0.25, 0]} />
           <EqMesh geometry={g.seat} material={mats.chair} outline={o} position={[0, 0.55, 0]} />
           <EqMesh geometry={g.back} material={mats.chair} outline={o} position={[0, 0.98, -0.28]} rotation={[0.1, 0, 0]} />
@@ -325,7 +327,7 @@ export function IntegratedBridge() {
           <EqMesh geometry={g.arm} material={mats.chair} outline={o} position={[0.32, 0.72, 0]} />
         </group>
       ))}
-      <EqMesh geometry={g.table} material={mats.wood} outline={o} position={[-5.6, FLOOR + 0.475, 15.2]} name="chart-table" />
+      <EqMesh geometry={g.table} material={mats.wood} outline={o} position={[-5.6, FLOOR + 0.475, 16.6]} name="chart-table" />
     </group>
   );
 }
