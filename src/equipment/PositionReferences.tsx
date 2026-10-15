@@ -36,6 +36,10 @@ const CYSCAN_ID = 'cyscan-001';
 const DGPS_ID = 'dgps-001';
 const TW_ID = 'tautwire-001';
 const SN_ID = 'sprintnav-001';
+// SPRINT-Nav housing split along its 346 mm length, scaled off the datasheet photo.
+const SN_CAP = 0.07;
+const SN_FLANGE = 0.03;
+const SN_BAND = SPRINTNAV.height.value - SN_CAP - SN_FLANGE - 0.06;
 
 function useDisposeAll(g: Record<string, { dispose(): void }>) {
   useEffect(() => () => Object.values(g).forEach((x) => x.dispose()), [g]);
@@ -43,7 +47,11 @@ function useDisposeAll(g: Record<string, { dispose(): void }>) {
 
 const ease = (cur: number, target: number, dt: number, rate = 3) => cur + (target - cur) * (1 - Math.exp(-dt * rate));
 
-/** Guidance Marine RadaScan View sensor: white radome with the blue base band (brochure photo), on a pedestal. */
+/**
+ * Guidance Marine RadaScan View sensor, Ø500 × 410 mm (installer's guide 94-0492-4-A): white radome with the blue
+ * base band, on a 240 mm square M8 mounting plate and plinth. The connection panel and information display sit
+ * underneath on one side, facing away from the operating area (forward, for working astern).
+ */
 export function RadaScanSensor() {
   const handlers = useSelectable(RADASCAN_ID);
   const { mats, visual } = useEquipmentMaterials(RADASCAN_ID, {
@@ -51,24 +59,29 @@ export function RadaScanSensor() {
     base: { color: '#3c434a', metalness: 0.6, roughness: 0.45 },
     band: { color: '#2b6cb3', metalness: 0.2, roughness: 0.45 },
     antenna: { color: '#9aa1a6', metalness: 0.6, roughness: 0.4 },
+    panel: { color: '#22272c', metalness: 0.3, roughness: 0.5 },
   });
   const radial = useQualityProfile().radialSegments;
   const R = RADASCAN.diameter.value / 2;
   const H = RADASCAN.height.value;
   const P = RADASCAN.pedestalHeight.value;
-  const band = H * 0.15;
-  const body = H * 0.55;
+  const plate = RADASCAN.mountHoles.value + 0.06;
+  const band = H * 0.2;
+  const body = H * 0.62;
   const cap = H - band - body;
   const g = useMemo(
     () => ({
       pedestal: new THREE.CylinderGeometry(0.1, 0.16, P, radial),
-      flange: new THREE.CylinderGeometry(0.26, 0.26, 0.03, radial),
+      plate: new THREE.BoxGeometry(plate, 0.02, plate),
+      bolt: new THREE.CylinderGeometry(0.008, 0.008, 0.02, 6),
       band: new THREE.CylinderGeometry(R, R, band, radial),
-      body: new THREE.CylinderGeometry(R * 0.93, R * 0.98, body, radial),
-      cap: new THREE.SphereGeometry(R * 0.93, radial, 10, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, cap / (R * 0.93), 1),
+      body: new THREE.CylinderGeometry(R * 0.96, R, body, radial),
+      cap: new THREE.SphereGeometry(R * 0.96, radial, 10, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, cap / (R * 0.96), 1),
       antenna: new THREE.BoxGeometry(R * 1.5, body * 0.6, 0.05),
+      panel: new THREE.BoxGeometry(0.2, band * 0.6, 0.012),
+      display: new THREE.PlaneGeometry(0.07, band * 0.3),
     }),
-    [R, P, band, body, cap, radial],
+    [R, P, plate, band, body, cap, radial],
   );
   useDisposeAll(g);
   const rotor = useRef<THREE.Group>(null);
@@ -78,48 +91,72 @@ export function RadaScanSensor() {
     if (rotor.current && posRefs.getState().radascan.phase !== 'off') rotor.current.rotation.y += dt * (reduced ? 0.4 : 2.4);
   });
   const o = visual.outline;
+  const y0 = P + 0.02;
+  const half = RADASCAN.mountHoles.value / 2;
   return (
     <group name={`equipment:${RADASCAN_ID}`} position={RADASCAN_POS} {...handlers}>
-      <EqMesh geometry={g.pedestal} material={mats.base} outline={o} position={[0, P / 2, 0]} name="pedestal" />
-      <EqMesh geometry={g.flange} material={mats.base} outline={o} position={[0, P + 0.015, 0]} />
-      <EqMesh geometry={g.band} material={mats.band} outline={o} position={[0, P + 0.03 + band / 2, 0]} name="radome-band" />
-      <EqMesh geometry={g.body} material={mats.radome} outline={o} position={[0, P + 0.03 + band + body / 2, 0]} name="radome" />
-      <EqMesh geometry={g.cap} material={mats.radome} outline={o} position={[0, P + 0.03 + band + body, 0]} />
-      <group ref={rotor} position={[0, P + 0.03 + band + body / 2, 0]} name="scanning-antenna">
+      <EqMesh geometry={g.pedestal} material={mats.base} outline={o} position={[0, P / 2, 0]} name="plinth" />
+      <EqMesh geometry={g.plate} material={mats.base} outline={o} position={[0, P + 0.01, 0]} name="mounting-plate-240" />
+      {[-half, half].flatMap((x) => [-half, half].map((z) => <mesh key={`${x}${z}`} geometry={g.bolt} material={mats.antenna} position={[x, P + 0.025, z]} />))}
+      <EqMesh geometry={g.band} material={mats.band} outline={o} position={[0, y0 + band / 2, 0]} name="radome-band" />
+      <mesh geometry={g.panel} material={mats.panel} position={[0, y0 + band / 2, R + 0.006]} name="connection-panel" />
+      <mesh geometry={g.display} position={[0.06, y0 + band / 2, R + 0.013]} name="information-display">
+        <meshBasicMaterial color="#3fd0ff" toneMapped={false} />
+      </mesh>
+      <EqMesh geometry={g.body} material={mats.radome} outline={o} position={[0, y0 + band + body / 2, 0]} name="radome" />
+      <EqMesh geometry={g.cap} material={mats.radome} outline={o} position={[0, y0 + band + body, 0]} />
+      <group ref={rotor} position={[0, y0 + band + body / 2, 0]} name="scanning-antenna">
         <mesh geometry={g.antenna} material={mats.antenna} />
       </group>
     </group>
   );
 }
 
-/** Guidance Marine CyScan AS: white base, blue ring and rotating grey head with the laser window (leaflet photo, 405 × 407 × 565 mm). */
+/**
+ * Guidance Marine CyScan AS (installer's guide 94-0559-C): base 405 wide × 327 deep with the 80 mm access-cover box
+ * facing forward, cable gland plate aft, and the rounded rotor with its slanted top and tall laser window;
+ * 563 mm from the mounting plate. Bolted 190 × 360 mm, 4 × M8.
+ */
 export function CyScanSensor() {
   const handlers = useSelectable(CYSCAN_ID);
   const { mats, visual } = useEquipmentMaterials(CYSCAN_ID, {
-    head: { color: '#c9ced3', metalness: 0.3, roughness: 0.45 },
+    head: { color: '#e9ecef', metalness: 0.15, roughness: 0.45 },
     base: { color: '#eef0f2', metalness: 0.15, roughness: 0.5 },
     ring: { color: '#2f6fdd', metalness: 0.2, roughness: 0.4 },
     pedestal: { color: '#3c434a', metalness: 0.6, roughness: 0.45 },
     window: { color: '#14181c', metalness: 0.9, roughness: 0.1 },
+    gland: { color: '#9aa1a6', metalness: 0.7, roughness: 0.35 },
   });
   const radial = useQualityProfile().radialSegments;
   const W = CYSCAN.width.value;
-  const D = CYSCAN.depth.value;
+  const BD = CYSCAN.baseDepth.value;
+  const cover = CYSCAN.depth.value - BD;
   const B = CYSCAN.baseHeight.value;
-  const ring = 0.025;
+  const ring = 0.02;
   const HH = CYSCAN.headHeight.value - B - ring;
-  const g = useMemo(
-    () => ({
-      pedestal: new THREE.CylinderGeometry(0.09, 0.14, CYSCAN_PEDESTAL, radial),
-      base: new THREE.BoxGeometry(W, B, D),
-      ring: new THREE.CylinderGeometry(W * 0.4, W * 0.4, ring, radial),
-      head: new THREE.BoxGeometry(W * 0.74, HH, D * 0.74),
-      top: new THREE.CylinderGeometry(W * 0.37, W * 0.37, D * 0.74, radial, 1, false, 0, Math.PI).rotateZ(Math.PI / 2).rotateY(Math.PI / 2).scale(1, 0.25, 1),
-      window: new THREE.BoxGeometry(0.02, HH * 0.42, W * 0.52),
-      lens: new THREE.CylinderGeometry(0.035, 0.035, 0.012, 16).rotateZ(Math.PI / 2),
-    }),
-    [W, D, B, HH, radial],
-  );
+  const RR = Math.min(W, BD) * 0.42;
+  const slant = 0.06;
+  const g = useMemo(() => {
+    // Rotor: a cylinder whose top is cut on a slope (slanted top), rounded at the upper edge.
+    const rotor = new THREE.CylinderGeometry(RR, RR, HH, radial, 4);
+    const pos = rotor.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const y = pos.getY(i);
+      if (y > 0) pos.setY(i, y - slant / 2 + (pos.getX(i) / RR) * (slant / 2));
+    }
+    rotor.computeVertexNormals();
+    return {
+      pedestal: new THREE.BoxGeometry(W + 0.04, CYSCAN_PEDESTAL, BD + 0.04),
+      base: new THREE.BoxGeometry(W, B, BD),
+      cover: new THREE.BoxGeometry(W * 0.7, B * 0.8, cover),
+      gland: new THREE.BoxGeometry(W * 0.5, B * 0.45, 0.01),
+      handle: new THREE.TorusGeometry(0.04, 0.008, 6, 12, Math.PI),
+      ring: new THREE.CylinderGeometry(RR * 1.04, RR * 1.04, ring, radial),
+      rotor,
+      window: new THREE.BoxGeometry(0.012, HH * 0.62, RR * 0.9),
+      display: new THREE.PlaneGeometry(0.08, B * 0.25),
+    };
+  }, [W, BD, cover, B, HH, RR, radial]);
   useDisposeAll(g);
   const head = useRef<THREE.Group>(null);
   const reduced = useAppStore((s) => s.reducedMotion);
@@ -130,51 +167,59 @@ export function CyScanSensor() {
   const y0 = CYSCAN_PEDESTAL;
   return (
     <group name={`equipment:${CYSCAN_ID}`} position={CYSCAN_POS} {...handlers}>
-      <EqMesh geometry={g.pedestal} material={mats.pedestal} outline={o} position={[0, y0 / 2, 0]} name="pedestal" />
+      <EqMesh geometry={g.pedestal} material={mats.pedestal} outline={o} position={[0, y0 / 2, 0]} name="mounting-plinth" />
       <EqMesh geometry={g.base} material={mats.base} outline={o} position={[0, y0 + B / 2, 0]} name="sensor-base" />
+      <EqMesh geometry={g.cover} material={mats.base} outline={o} position={[0, y0 + B * 0.45, BD / 2 + cover / 2]} name="access-cover" />
+      <mesh geometry={g.display} position={[0, y0 + B * 0.55, BD / 2 + cover + 0.002]} name="sensor-information-display">
+        <meshBasicMaterial color="#3fd0ff" toneMapped={false} />
+      </mesh>
+      <mesh geometry={g.gland} material={mats.gland} position={[0, y0 + B * 0.4, -BD / 2 - 0.005]} name="cable-gland-plate" />
+      {[-1, 1].map((k) => (
+        <mesh key={k} geometry={g.handle} material={mats.gland} position={[k * (W / 2 + 0.005), y0 + B * 0.5, 0]} rotation={[0, Math.PI / 2, 0]} name="lifting-handle" />
+      ))}
       <EqMesh geometry={g.ring} material={mats.ring} outline={o} position={[0, y0 + B + ring / 2, 0]} name="blue-ring" />
       <group ref={head} position={[0, y0 + B + ring + HH / 2, 0]}>
-        <EqMesh geometry={g.head} material={mats.head} outline={o} name="rotating-head" />
-        <mesh geometry={g.window} material={mats.window} position={[(W * 0.74) / 2 + 0.005, HH * 0.05, 0]} />
-        {[-1, 1].map((k) => (
-          <mesh key={k} geometry={g.lens} material={mats.head} position={[(W * 0.74) / 2 + 0.016, HH * 0.05, k * 0.06]} />
-        ))}
+        <EqMesh geometry={g.rotor} material={mats.head} outline={o} name="rotor" />
+        <mesh geometry={g.window} material={mats.window} position={[RR - 0.004, -HH * 0.08, 0]} name="laser-window" />
       </group>
     </group>
   );
 }
 
-/** Fugro Seastar 9410-AUT: one GNSS antenna per receiver on the yardarm (yellow base, white dome, as in the datasheet photo). */
+/**
+ * Trimble GA830 GNSS antenna (Ø149 × 99 mm, 0.82 kg) for each Seastar 9410-AUT receiver, on a 5/8"-11 pole mount
+ * on the mast yardarm. Colours are not stated in the datasheet; drawn from the product photo.
+ */
 export function DGPSAntennas() {
   const handlers = useSelectable(DGPS_ID);
   const { mats, visual } = useEquipmentMaterials(DGPS_ID, {
-    dome: { color: '#f3f4f5', metalness: 0.1, roughness: 0.5 },
-    base: { color: '#e8b21c', metalness: 0.2, roughness: 0.45 },
-    ring: { color: '#202326', metalness: 0.2, roughness: 0.6 },
+    dome: { color: '#d9dcde', metalness: 0.1, roughness: 0.55 },
+    base: { color: '#4a4f54', metalness: 0.3, roughness: 0.5 },
     mount: { color: '#5d656c', metalness: 0.7, roughness: 0.35 },
   });
   const radial = useQualityProfile().radialSegments;
   const r = SEASTAR.antennaDiameter.value / 2;
   const h = SEASTAR.antennaHeight.value;
+  const baseH = h * 0.3;
   const g = useMemo(
     () => ({
-      post: new THREE.CylinderGeometry(0.03, 0.03, 0.5, 8),
-      base: new THREE.CylinderGeometry(r * 0.8, r * 0.7, h * 0.5, radial),
-      ring: new THREE.CylinderGeometry(r, r, h * 0.15, radial),
-      dome: new THREE.SphereGeometry(r * 0.95, radial, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, (h * 0.35) / (r * 0.95), 1),
+      post: new THREE.CylinderGeometry(0.02, 0.02, 0.5, 8),
+      base: new THREE.CylinderGeometry(r, r * 0.92, baseH, radial),
+      dome: new THREE.SphereGeometry(r * 0.98, radial, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, (h - baseH) / (r * 0.98), 1),
+      tnc: new THREE.CylinderGeometry(0.008, 0.008, 0.03, 8).rotateZ(Math.PI / 2),
     }),
-    [r, h, radial],
+    [r, h, baseH, radial],
   );
   useDisposeAll(g);
   const o = visual.outline;
   return (
     <group name={`equipment:${DGPS_ID}`} {...handlers}>
       {GNSS_ANTENNAS.map((p, i) => (
-        <group key={i} position={p} name={`seastar-9410-antenna-${i + 1}`}>
-          <EqMesh geometry={g.post} material={mats.mount} outline={o} position={[0, 0.25, 0]} />
-          <EqMesh geometry={g.base} material={mats.base} outline={o} position={[0, 0.5 + h * 0.25, 0]} />
-          <EqMesh geometry={g.ring} material={mats.ring} outline={o} position={[0, 0.5 + h * 0.575, 0]} />
-          <EqMesh geometry={g.dome} material={mats.dome} outline={o} position={[0, 0.5 + h * 0.65, 0]} />
+        <group key={i} position={p} name={`ga830-antenna-${i + 1}`}>
+          <EqMesh geometry={g.post} material={mats.mount} outline={o} position={[0, 0.25, 0]} name="pole-mount-5-8" />
+          <EqMesh geometry={g.base} material={mats.base} outline={o} position={[0, 0.5 + baseH / 2, 0]} name="antenna-base" />
+          <mesh geometry={g.tnc} material={mats.mount} position={[r * 0.6, 0.5 - 0.01, 0]} name="tnc-connector" />
+          <EqMesh geometry={g.dome} material={mats.dome} outline={o} position={[0, 0.5 + baseH, 0]} name="radome" />
         </group>
       ))}
     </group>
@@ -348,6 +393,7 @@ export function SprintNavPole() {
     adapter: { color: '#c62828', metalness: 0.4, roughness: 0.45 },
     ti: { color: '#b9bec2', metalness: 0.85, roughness: 0.25 },
     dvl: { color: '#202428', metalness: 0.4, roughness: 0.5 },
+    navy: { color: '#1d2b4a', metalness: 0.35, roughness: 0.45 },
   });
   const radial = useQualityProfile().radialSegments;
   const L = POLE_8097.length.value;
@@ -370,7 +416,10 @@ export function SprintNavPole() {
       lockPlate: new THREE.BoxGeometry(0.12, 0.6, 0.8),
       lockArm: new THREE.BoxGeometry(0.4, 0.14, 0.14),
       jaw: new THREE.BoxGeometry(0.08, 0.4, 0.26),
-      body: new THREE.CylinderGeometry(SPRINTNAV.diameter.value / 2, SPRINTNAV.diameter.value / 2, SPRINTNAV.height.value - 0.06, radial).rotateX(Math.PI / 2),
+      cap: new THREE.CylinderGeometry(SPRINTNAV.diameter.value / 2, SPRINTNAV.diameter.value / 2, SN_CAP, radial).rotateX(Math.PI / 2),
+      body: new THREE.CylinderGeometry(SPRINTNAV.diameter.value / 2 - 0.006, SPRINTNAV.diameter.value / 2 - 0.006, SN_BAND, radial).rotateX(Math.PI / 2),
+      snFlange: new THREE.CylinderGeometry(SPRINTNAV.diameter.value / 2 + 0.006, SPRINTNAV.diameter.value / 2 + 0.006, SN_FLANGE, radial).rotateX(Math.PI / 2),
+      connector: new THREE.CylinderGeometry(0.014, 0.014, 0.03, 8).rotateX(Math.PI / 2),
       dvlHead: new THREE.CylinderGeometry(SPRINTNAV.diameter.value / 2, SPRINTNAV.diameter.value / 2 - 0.02, 0.06, radial).rotateX(Math.PI / 2),
       transducer: new THREE.CylinderGeometry(0.03, 0.03, 0.02, 12).rotateX(Math.PI / 2),
       adaptor: new THREE.CylinderGeometry(D / 2 + 0.07, D / 2 + 0.07, 0.14, radial).rotateX(Math.PI / 2),
@@ -462,11 +511,27 @@ export function SprintNavPole() {
           })}
           <group position={[0, 0, -L]} name="sprint-nav-dp">
             <EqMesh geometry={g.adaptor} material={mats.adapter} outline={o} position={[0, 0, 0.07]} name="transceiver-adapter" />
-            <EqMesh geometry={g.body} material={mats.ti} outline={o} position={[0, 0, -(SPRINTNAV.height.value - 0.06) / 2]} name="sprint-nav-housing" />
-            <EqMesh geometry={g.dvlHead} material={mats.dvl} outline={o} position={[0, 0, -SPRINTNAV.height.value + 0.03]} name="dvl-head" />
-            {[0, 1, 2, 3].map((k) => (
-              <mesh key={k} geometry={g.transducer} material={mats.ti} position={[Math.cos((k * Math.PI) / 2) * 0.06, Math.sin((k * Math.PI) / 2) * 0.06, -SPRINTNAV.height.value - 0.005]} />
+            {/* Datasheet photo: titanium top cap with connectors, dark navy body band, titanium flange, DVL endcap with four angled transducers. */}
+            <EqMesh geometry={g.cap} material={mats.ti} outline={o} position={[0, 0, -SN_CAP / 2]} name="titanium-top-cap" />
+            {[0.05, -0.05].map((x) => (
+              <mesh key={x} geometry={g.connector} material={mats.ti} position={[x, 0.07, 0.015]} name="connector" />
             ))}
+            <EqMesh geometry={g.body} material={mats.navy} outline={o} position={[0, 0, -SN_CAP - SN_BAND / 2]} name="sprint-nav-housing" />
+            <EqMesh geometry={g.snFlange} material={mats.ti} outline={o} position={[0, 0, -SN_CAP - SN_BAND - SN_FLANGE / 2]} name="bottom-flange" />
+            <EqMesh geometry={g.dvlHead} material={mats.dvl} outline={o} position={[0, 0, -SPRINTNAV.height.value + 0.03]} name="dvl-endcap" />
+            {[0, 1, 2, 3].map((k) => {
+              const a = (k * Math.PI) / 2 + Math.PI / 4;
+              return (
+                <mesh
+                  key={k}
+                  geometry={g.transducer}
+                  material={mats.ti}
+                  position={[Math.cos(a) * 0.065, Math.sin(a) * 0.065, -SPRINTNAV.height.value - 0.002]}
+                  rotation={[-Math.sin(a) * 0.5, Math.cos(a) * 0.5, 0]}
+                  name="dvl-transducer"
+                />
+              );
+            })}
           </group>
         </group>
       </group>

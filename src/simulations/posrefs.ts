@@ -187,7 +187,7 @@ export function cyscanRange(eta: readonly [number, number, number]) {
   return rangeBearing(CYSCAN_WINDOW, REFLECTOR_WORLD, eta);
 }
 
-/** The scene's CyScan AS target is the 1.9 m cylindrical target (10–400 m); prisms reach 2,500 m. */
+/** The scene's CyScan AS target is the 1.9 m cylindrical target (about 300 m per the installer’s guide); prisms reach 2,500 m. */
 export const cyscanMaxRange = (s: Pick<PosRefState, 'fog'>) => (s.fog ? CYSCAN.fogRangeM.value : CYSCAN.cylinderRange.value);
 const radascanInRange = (eta: readonly [number, number, number]) => radascanRange(eta).range <= RADASCAN.maxRange.value;
 function cyscanInRange(s: PosRefState, eta: readonly [number, number, number]) {

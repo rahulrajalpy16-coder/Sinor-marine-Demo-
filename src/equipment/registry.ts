@@ -14,6 +14,7 @@ export const design = parseDesignConfig(designJson);
  */
 export const PLACEMENTS: Record<string, EquipmentPlacement> = {
   'ibs-001': {
+    short: 'IBS',
     target: [0, 10.2, 21.4],
     camera: [1.4, 11.1, 17.6],
     underwater: false,
@@ -32,6 +33,7 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
     ],
   },
   'dp-console-001': {
+    short: 'DP Console',
     target: [0, 10.1, 12.95],
     camera: [0.7, 11.25, 16.3],
     underwater: false,
@@ -51,6 +53,7 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
     ],
   },
   'hpr-001': {
+    short: 'HPR',
     // Deployed transceiver face, 2.95 m below the bottom plating at frame +12 m.
     target: [0, -7.9, 12],
     camera: [5.2, -8.6, 18.2],
@@ -75,6 +78,7 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
     ],
   },
   'bow-thruster-001': {
+    short: 'Bow Thruster',
     target: [0, -2.4, 31],
     camera: [19, 1.5, 43],
     underwater: true,
@@ -93,6 +97,7 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
     ],
   },
   'deployment-001': {
+    short: 'HPR Hoist',
     // Machine stands on the bottom plating at frame +12 m; the camera is inside the hull, in the trunk space.
     target: [0, -2.1, 11.6],
     camera: [4.2, -1.2, 19.4],
@@ -117,6 +122,7 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
     ],
   },
   'radascan-001': {
+    short: 'RadaScan',
     target: [-4.4, 13.2, 14.2],
     camera: [-8.5, 15, 7.6],
     underwater: false,
@@ -130,11 +136,14 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
       { label: 'Working range', value: '"Suitable for the 500 m zone"; no maximum stated' },
       { label: 'Environment', value: 'Rain, snow, fog, steam, dust; −25 to +55 °C' },
       { label: 'Responders', value: 'Coded; CSA and ATEX certified; multi-vessel' },
-      { label: 'Unverified', value: 'Sensor size (drawn from the photo), accuracy, lock-on time' },
-      { label: 'Source', value: 'RadaScan View brochure (supplied)' },
+      { label: 'Sensor', value: 'Ø500 × 410 mm; 240 × 240 mm plate, 4 × M8' },
+      { label: 'Clearance', value: '800 mm above, 1000 mm around' },
+      { label: 'Unverified', value: 'Accuracy, lock-on time, plinth height' },
+      { label: 'Source', value: 'RadaScan View brochure and installer’s guide (supplied)' },
     ],
   },
   'cyscan-001': {
+    short: 'CyScan',
     target: [4.4, 13.1, 14.2],
     camera: [8.6, 14.6, 8.2],
     underwater: false,
@@ -143,35 +152,37 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
     summary:
       'Guidance Marine CyScan AS: a rotating Class 1M laser that measures range and bearing to Absolute Signature targets. A relative position reference with high precision, but fog, heavy rain or spray can block the beam. Use the fog switch in its panel to see the difference from RadaScan View.',
     specs: [
-      { label: 'Range', value: '10–2,500 m (prism); 10–400 m (1.9 m cylinder)' },
+      { label: 'Range', value: '10–2,500 m (prism); about 300 m (1.9 m cylinder)' },
       { label: 'Noise', value: 'Range 50 mm, bearing 0.2 mrad' },
       { label: 'Laser / beam', value: 'Class 1M pulsed diodes, 12° × 0.13°' },
       { label: 'Gimbal', value: '±20°, wave compensation ±5° at 5 s' },
       { label: 'Targets', value: '30 detectable, 9 trackable' },
-      { label: 'Sensor', value: '405 × 407 × 565 mm, 28 kg, IP66' },
+      { label: 'Sensor', value: '405 × 407 × 563 mm, 28 kg, IP66; 4 × M8 on 190 × 360' },
       { label: 'Power', value: '85–264 VAC, 100 W max' },
-      { label: 'Source', value: 'CyScan AS leaflet 2025 (supplied)' },
+      { label: 'Source', value: 'CyScan AS leaflet and installer’s guide (supplied)' },
     ],
   },
   'dgps-001': {
+    short: 'SeaStar GNSS',
     target: [0, 18.2, 16],
     camera: [6, 20.5, 9.5],
     underwater: false,
     explodable: false,
     implemented: true,
     summary:
-      'Two Fugro Seastar 9410-AUT DGNSS receivers (DGPS 1 and DGPS 2 in the DP), each with one antenna on the mast yardarm. Corrections arrive over L-band or NTRIP through the same antenna. These are the absolute position references; DP votes them against the others.',
+      'Two Fugro Seastar 9410-AUT DGNSS receivers (DGPS 1 and DGPS 2 in the DP), each with one Trimble GA830 antenna on the mast yardarm. Corrections arrive over L-band or NTRIP through the same antenna. These are the absolute position references; DP votes them against the others.',
     specs: [
       { label: 'Receiver', value: 'Seastar 9410-AUT, 672 channels' },
       { label: 'Constellations', value: 'GPS, GLONASS, Galileo, BeiDou' },
       { label: 'Accuracy (G4)', value: '< 10 cm horizontal, < 15 cm vertical (95 %)' },
       { label: 'Outputs', value: 'NMEA GGA, GST, GSA, VTG, ZDA, GNS, GBS, RMC; 1PPS' },
       { label: 'Unit', value: '270 × 140 × 70 mm, 1.82 kg, 24 V DC 6 W' },
-      { label: 'Antenna', value: 'GA 830 or AD 492 (not stated which; size unverified)' },
-      { label: 'Source', value: 'Fugro Seastar 9410-AUT datasheet (supplied)' },
+      { label: 'Antenna', value: 'Trimble GA830, Ø149 × 99 mm, 0.82 kg, 5/8" mount' },
+      { label: 'Source', value: 'Seastar 9410-AUT datasheet (supplied); Trimble GA830 datasheet' },
     ],
   },
   'tautwire-001': {
+    short: 'Taut Wire',
     target: [9.6, 4.2, -14],
     camera: [19, 8.5, -5.5],
     underwater: false,
@@ -191,23 +202,25 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
     ],
   },
   'sprintnav-001': {
+    short: 'SPRINT-Nav',
     target: [-9.8, -0.4, -6.4],
     camera: [-25, 3.5, 4],
     underwater: true,
     explodable: false,
     implemented: true,
     summary:
-      'Sonardyne SPRINT-Nav DP: inertial navigation (ring laser gyros) aided by a 375 kHz Syrinx DVL locked on to the seabed, giving a GNSS-independent position reference in shallow water. It is lowered over the port side on a Sonardyne Type 8097 three-section pole, swung down from its stowed position along the deck edge by winch and held by a hydraulic lock welded to the hull.',
+      'Sonardyne SPRINT-Nav DP: inertial sensors and a pressure sensor aided by a 375 kHz DVL locked on to the seabed, giving a GNSS-independent position reference in shallow water. It is lowered over the port side on a Sonardyne Type 8097 three-section pole, swung down from its stowed position along the deck edge by winch and held by a hydraulic lock welded to the hull.',
     specs: [
       { label: 'Station keeping', value: '< 3.2 m over 12 h (1DRMS), < 5.2 m R95' },
       { label: 'DVL', value: '375 kHz, bottom lock 0.4–200 m altitude' },
       { label: 'Heading / roll, pitch', value: '0.04° / 0.01°' },
       { label: 'Depth rating', value: '100 m' },
       { label: 'Unit', value: 'Ø225 × 346 mm titanium, 23.9 kg air' },
-      { label: 'Power / comms', value: '24 V dc, 18 W nominal; RS422/485, TCP/UDP' },
+      { label: 'Power / comms', value: '24 V dc, 18 W nominal; 1 × RS422, TCP/UDP' },
+      { label: 'Initialisation', value: '10 minutes from GNSS; 5 min battery backup' },
       { label: 'Pole (Type 8097)', value: '9190 mm pivot to end, 3 sections, strakes, 1,000 kg' },
       { label: 'Pole limits', value: '5 kn operational, 10 kn survival' },
-      { label: 'Source', value: '8097 pole datasheet (supplied); SPRINT-Nav DP public datasheet 8388' },
+      { label: 'Source', value: 'SPRINT-Nav DP 8388 and 8097 pole datasheets (supplied)' },
     ],
   },
 };

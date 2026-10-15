@@ -58,6 +58,8 @@ export interface DesignConfig {
 
 /** Scene-side metadata the JSON does not carry: where each system lives on the procedural vessel. */
 export interface EquipmentPlacement {
+  /** Short system name for the scene indicators (e.g. "Taut Wire"). */
+  short: string;
   /** Point the camera looks at when focusing (scene metres, +Y up, +Z bow, +X starboard). */
   target: [number, number, number];
   /** Camera position for the focus anchor. */

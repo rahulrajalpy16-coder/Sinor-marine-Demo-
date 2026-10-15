@@ -20,12 +20,14 @@ export interface QualityProfile {
   screenHz: number;
   /** Curve segments for procedural round parts (cylinders, tori) in new equipment. */
   radialSegments: number;
+  /** Seconds between occlusion checks for the scene's equipment indicators. */
+  indicatorOcclusionS: number;
 }
 
 export const QUALITY_PROFILES: Record<QualityPreset, QualityProfile> = {
-  low: { dpr: [0.75, 1], postprocessing: false, bloomIntensity: 0, multisampling: 0, oceanSegments: 96, screenHz: 2, radialSegments: 12 },
-  medium: { dpr: [1, 1.5], postprocessing: true, bloomIntensity: 0.6, multisampling: 0, oceanSegments: 192, screenHz: 5, radialSegments: 24 },
-  high: { dpr: [1, 2], postprocessing: true, bloomIntensity: 0.9, multisampling: 4, oceanSegments: 288, screenHz: 8, radialSegments: 40 },
+  low: { dpr: [0.75, 1], postprocessing: false, bloomIntensity: 0, multisampling: 0, oceanSegments: 96, screenHz: 2, radialSegments: 12, indicatorOcclusionS: 0.5 },
+  medium: { dpr: [1, 1.5], postprocessing: true, bloomIntensity: 0.6, multisampling: 0, oceanSegments: 192, screenHz: 5, radialSegments: 24, indicatorOcclusionS: 0.3 },
+  high: { dpr: [1, 2], postprocessing: true, bloomIntensity: 0.9, multisampling: 4, oceanSegments: 288, screenHz: 8, radialSegments: 40, indicatorOcclusionS: 0.2 },
 };
 
 export const qualityProfile = (q: QualityPreset) => QUALITY_PROFILES[q];
