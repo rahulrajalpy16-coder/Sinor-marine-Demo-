@@ -112,7 +112,7 @@ Not connected to real equipment; not certified.
 
 ## Equipment indicators (all systems)
 
-- Overview: one small ring per installed system, no names and no leader lines. Rings that would sit on top of each other are merged (the nearer one stays).
+- Overview: one small orange ring with a red core and glow per installed system, so it stands out against the blue hologram, no names and no leader lines. Rings that would sit on top of each other are merged (the nearer one stays).
 - Zooming in (camera within 85 m) fades in a short name (for example "Taut Wire", "HPR", "SeaStar GNSS", "DP Console"); fully shown within 35 m. Labels never overlap: a nearer label wins.
-- Rings behind the hull or superstructure are faint and never show a name. Hover or keyboard focus shows the name at any distance; click or tap opens the panel.
+- Rings behind the hull or superstructure are dimmer and never show a name. Hover or keyboard focus shows the name at any distance; click or tap opens the panel.
 - Occlusion is checked every 0.2–0.5 s depending on the quality profile; all updates happen per frame without React re-renders. Logic in `src/scene/Hotspots.tsx`, tested in `Hotspots.test.ts`.
