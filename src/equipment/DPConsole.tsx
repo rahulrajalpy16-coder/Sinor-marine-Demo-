@@ -1,3 +1,4 @@
+import { LEVEL, WHEELHOUSE_AFT_Z } from '../vessels/vesselLayout';
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -13,9 +14,9 @@ import { classLayout, DEFAULT_DP_PARAMS, headingDeg, positionError, type DPState
 const ID = 'dp-console-001';
 
 /** Aft-facing DP station on the bridge (operators look over the aft working deck). */
-export const DP_STATION: [number, number, number] = [0, 9, 12.95];
+export const DP_STATION: [number, number, number] = [0, LEVEL.bridge, WHEELHOUSE_AFT_Z + 0.95];
 /** DP3 backup station in a separate A60 compartment one deck below. */
-export const DP_BACKUP_ROOM = { min: [3.6, 6, 8.2] as const, max: [6.6, 9, 11.4] as const };
+export const DP_BACKUP_ROOM = { min: [3.6, LEVEL.officers, 8.2] as const, max: [6.6, LEVEL.bridge - 0.15, 11.4] as const };
 
 /**
  * 26" DP operator pedestal, after the Console II drawing (5000-501092): 654 mm wide, 1206 mm high,
@@ -196,7 +197,7 @@ export function DPConsole() {
       back: new THREE.BoxGeometry(0.55, 0.65, 0.1),
       post: new THREE.CylinderGeometry(0.05, 0.08, 0.45, 12),
       cab: new THREE.BoxGeometry(0.6, 1.9, 0.6),
-      a60: new THREE.BoxGeometry(DP_BACKUP_ROOM.max[0] - DP_BACKUP_ROOM.min[0], 3, DP_BACKUP_ROOM.max[2] - DP_BACKUP_ROOM.min[2]),
+      a60: new THREE.BoxGeometry(DP_BACKUP_ROOM.max[0] - DP_BACKUP_ROOM.min[0], DP_BACKUP_ROOM.max[1] - DP_BACKUP_ROOM.min[1], DP_BACKUP_ROOM.max[2] - DP_BACKUP_ROOM.min[2]),
     }),
     [],
   );

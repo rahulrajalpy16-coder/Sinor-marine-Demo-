@@ -1,15 +1,16 @@
 /**
- * Parametric hull for the representative 80 m offshore support vessel.
- * Scene frame: metres, +Y up (waterline at y = 0), +Z bow, +X starboard.
- * The lines are an illustrative concept shape, not a naval architecture design.
+ * Parametric hull for the generic 78 m DP2 offshore support vessel (proportions from the supplied GA plan,
+ * see vesselLayout.ts). Scene frame: metres, +Y up (waterline at y = 0), +Z bow, +X starboard.
+ * The lines are an illustrative shape at the plan's main dimensions, not a naval architecture design.
  */
 import * as THREE from 'three';
+import { FORECASTLE_Z, LEVEL, PRINCIPAL } from './vesselLayout';
 
 export const HULL = {
-  length: 80,
-  halfBeam: 9,
-  draft: 5,
-  depth: 8,
+  length: PRINCIPAL.loa,
+  halfBeam: PRINCIPAL.beam / 2,
+  draft: PRINCIPAL.draft,
+  depth: PRINCIPAL.depth,
   stations: 97,
   sectionPoints: 22,
 } as const;
@@ -25,10 +26,16 @@ export function keelY(z: number): number {
   return -HULL.draft + rise;
 }
 
-/** Main deck height (y) at z, with sheer rising toward the bow. */
+/** Main deck height (y) at z: the flat aft working deck, with a slight sheer under the forecastle. */
 export function deckY(z: number): number {
   const u = z / L2;
-  return HULL.depth - HULL.draft + (u > 0.3 ? 2.6 * Math.pow((u - 0.3) / 0.7, 2) : 0);
+  return HULL.depth - HULL.draft + (u > 0.3 ? 0.8 * Math.pow((u - 0.3) / 0.7, 2) : 0);
+}
+
+/** Top of the raised hull side forward of FORECASTLE_Z (upper deck level, with sheer toward the stem). */
+export function forecastleTopY(z: number): number {
+  const t = Math.max(0, (z - FORECASTLE_Z) / (L2 - FORECASTLE_Z));
+  return LEVEL.upper + 1.0 * t * t;
 }
 
 /** Bow entrance fraction: 0 at the start of the entrance, 1 at the stem, for a height fraction h. */
@@ -114,9 +121,10 @@ export function buildHullGeometry(): THREE.BufferGeometry {
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   // Paint: light grey topsides, dark slate antifouling below the boot-top line.
   const col: number[] = [];
-  const top = new THREE.Color('#c3cbd2');
-  const bottom = new THREE.Color('#3d4852');
-  const boot = new THREE.Color('#1c242b');
+  // Blue-grey topsides, black boot-top, red-brown antifouling.
+  const top = new THREE.Color('#56626e');
+  const bottom = new THREE.Color('#6b2c26');
+  const boot = new THREE.Color('#15191d');
   for (let v = 1; v < pos.length; v += 3) {
     const y = pos[v];
     const c = y > 0.45 ? top : y > -0.15 ? boot : bottom;
@@ -151,7 +159,10 @@ export function buildDeckGeometry(): THREE.BufferGeometry {
   return g;
 }
 
-/** Bulwark: a 1.1 m rail-height strip along both deck edges, with optional openings (side ±1, z range). */
+/**
+ * Bulwark: a 1.1 m strip along both deck edges, with optional openings (side ±1, z range). It follows the
+ * main deck aft of the forecastle and the forecastle top forward of it.
+ */
 export function buildBulwarkGeometry(height = 1.1, gaps: readonly { side: number; z0: number; z1: number }[] = []): THREE.BufferGeometry {
   const pos: number[] = [];
   const idx: number[] = [];
@@ -160,7 +171,7 @@ export function buildBulwarkGeometry(height = 1.1, gaps: readonly { side: number
     for (let i = 0; i < HULL.stations; i++) {
       const z = stationZ(i);
       const w = halfBreadth(z, 1) * side;
-      const y = deckY(z);
+      const y = z > FORECASTLE_Z ? forecastleTopY(z) : deckY(z);
       pos.push(w, y, z, w, y + height, z);
       const zPrev = i > 0 ? stationZ(i - 1) : z;
       const open = gaps.some((g) => g.side === side && Math.max(z, zPrev) > g.z0 && Math.min(z, zPrev) < g.z1);
@@ -170,6 +181,49 @@ export function buildBulwarkGeometry(height = 1.1, gaps: readonly { side: number
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+/**
+ * Raised hull side forward of the accommodation front (forecastle): side walls from the main deck to the
+ * upper deck level, the upper deck plate and the aft bulkhead facing the working deck.
+ */
+export function buildForecastleGeometry(): THREE.BufferGeometry {
+  const pos: number[] = [];
+  const col: number[] = [];
+  const idx: number[] = [];
+  const zs: number[] = [];
+  for (let i = 0; i < HULL.stations; i++) if (stationZ(i) > FORECASTLE_Z) zs.push(stationZ(i));
+  zs.unshift(FORECASTLE_Z);
+  const side = new THREE.Color('#56626e');
+  const deck = new THREE.Color('#4f5a64');
+  let c = side;
+  const quad = (a: number[], b: number[], cc: number[], d: number[]) => {
+    const v = pos.length / 3;
+    pos.push(...a, ...b, ...cc, ...d);
+    for (let k = 0; k < 4; k++) col.push(c.r, c.g, c.b);
+    idx.push(v, v + 1, v + 2, v, v + 2, v + 3);
+  };
+  for (let i = 0; i < zs.length - 1; i++) {
+    const [z0, z1] = [zs[i], zs[i + 1]];
+    const [w0, w1] = [halfBreadth(z0, 1), halfBreadth(z1, 1)];
+    const [d0, d1] = [deckY(z0), deckY(z1)];
+    const [t0, t1] = [forecastleTopY(z0), forecastleTopY(z1)];
+    // Starboard wall (outward normal +x), port wall, top plate.
+    c = side;
+    quad([w0, d0, z0], [w1, d1, z1], [w1, t1, z1], [w0, t0, z0]);
+    quad([-w0, d0, z0], [-w0, t0, z0], [-w1, t1, z1], [-w1, d1, z1]);
+    c = deck;
+    quad([-w0, t0, z0], [w0, t0, z0], [w1, t1, z1], [-w1, t1, z1]);
+  }
+  c = side;
+  const w = halfBreadth(FORECASTLE_Z, 1);
+  quad([-w, deckY(FORECASTLE_Z), FORECASTLE_Z], [-w, forecastleTopY(FORECASTLE_Z), FORECASTLE_Z], [w, forecastleTopY(FORECASTLE_Z), FORECASTLE_Z], [w, deckY(FORECASTLE_Z), FORECASTLE_Z]);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   g.setIndex(idx);
   g.computeVertexNormals();
   return g;
@@ -216,7 +270,8 @@ export function buildHullLines(stationEvery = 3, longEvery = 2): THREE.BufferGeo
     for (const s of [-1, 1]) {
       const z0 = stationZ(i);
       const z1 = stationZ(i + 1);
-      pts.push(s * halfBreadth(z0, 1), deckY(z0) + 1.1, z0, s * halfBreadth(z1, 1), deckY(z1) + 1.1, z1);
+      const top = (z: number) => (z > FORECASTLE_Z ? forecastleTopY(z) : deckY(z)) + 1.1;
+      pts.push(s * halfBreadth(z0, 1), top(z0), z0, s * halfBreadth(z1, 1), top(z1), z1);
     }
   }
   const g = new THREE.BufferGeometry();

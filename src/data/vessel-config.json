@@ -4,9 +4,9 @@
   "type": "representative offshore DP support vessel",
   "certified": false,
   "dimensionsMeters": {
-    "length": 80,
-    "beam": 18,
-    "depth": 8
+    "length": 78,
+    "beam": 20,
+    "depth": 6.5
   },
   "coordinates": {
     "up": "+Y",

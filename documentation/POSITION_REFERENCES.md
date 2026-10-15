@@ -94,7 +94,7 @@ Only those documents are used for each unit. Nothing is carried over from the or
 | Bulwark opening at the taut wire | 2.6 m, so the boom can pass the deck edge |
 | 8097 pole swing / lock time | 90 s / 5 s |
 | SPRINT-Nav DVL beam angle; housing colour split | 30°; from the datasheet photo |
-| Placements on the vessel | RadaScan View and CyScan AS on the bridge top, antennas on the yardarm ends, taut wire on the starboard main deck at −14 m, pole on the port side at −6 m |
+| Placements on the vessel | RadaScan View and CyScan AS on the bridge top, antennas on the yardarm ends, taut wire on the starboard main deck at −14 m, pole on the port side at −7 m (port aft main deck, as on the GA plan) |
 | Fixed platform, responder and target | 110 m astern of the starting position; a scene prop |
 | Water depth | 42 m (the existing scene seabed) |
 

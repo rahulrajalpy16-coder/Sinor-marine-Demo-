@@ -10,7 +10,7 @@ describe('content schemas', () => {
     expect(reg.equipment).toHaveLength(10);
     const v = parseVesselConfig(vesselJson, new Set(reg.equipment.map((e) => e.id)));
     expect(v.certified).toBe(false);
-    expect(v.dimensionsMeters).toEqual({ length: 80, beam: 18, depth: 8 });
+    expect(v.dimensionsMeters).toEqual({ length: 78, beam: 20, depth: 6.5 });
     expect(parseDesignConfig(designJson).defaultMode).toBe('hybrid');
   });
 

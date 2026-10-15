@@ -27,6 +27,8 @@ const ds = <T,>(value: T, doc: keyof typeof SOURCES, note?: string): RefValue<T>
 const der = <T,>(value: T, doc: keyof typeof SOURCES, note: string): RefValue<T> => ({ value, source: 'derived', doc, note });
 const asm = <T,>(value: T, note?: string): RefValue<T> => ({ value, source: 'assumed', note });
 
+import { LEVEL, MAST, PRINCIPAL } from '../vessels/vesselLayout';
+
 export const SOURCES = {
   radascan: 'Guidance Marine RadaScan View brochure (971055613-radascanView.pdf)',
   radascanGuide: 'Guidance Marine RadaScan View Installer’s Guide 94-0492-4-A',
@@ -195,34 +197,44 @@ export const POLE_8097 = {
 };
 
 // ---------------------------------------------------------------------------------------------
-// Placement on the 80 m concept vessel (vessel frame). Representative, chosen for this hull.
+// Placement on the generic 78 m vessel (vessel frame, see vesselLayout.ts). Representative.
 // ---------------------------------------------------------------------------------------------
 
-export const DECK_Y = 3;
+export const DECK_Y = LEVEL.main;
 export const BULWARK_H = 1.1;
-export const BRIDGE_TOP_Y = 12.35;
-export const RADASCAN_POS: [number, number, number] = [-4.4, BRIDGE_TOP_Y, 14.2];
-export const CYSCAN_POS: [number, number, number] = [4.4, BRIDGE_TOP_Y, 14.2];
+/** Ship side at the aft working deck (half the moulded breadth). */
+export const SHIP_SIDE_X = PRINCIPAL.beam / 2;
+export const BRIDGE_TOP_Y = LEVEL.roof;
+/** RadaScan View and CyScan AS on the compass deck forward of the mast, port and starboard, clear of the
+ *  mast radars (CyScan guide: at least 5 m from radar antennas) with a view astern past the mast. */
+export const RADASCAN_POS: [number, number, number] = [-4.4, BRIDGE_TOP_Y, 19.4];
+export const CYSCAN_POS: [number, number, number] = [4.4, BRIDGE_TOP_Y, 19.4];
 /** CyScan AS on a short pedestal (assumed 0.4 m) so the beam clears the bridge-top rail. */
 export const CYSCAN_PEDESTAL = 0.4;
-/** One GNSS antenna per 9410-AUT receiver, on the mast yardarm ends (yard top at y 17.6, z 16). */
+/** One GA830 antenna per 9410-AUT receiver, on the mast yardarm ends. */
 export const GNSS_ANTENNAS: [number, number, number][] = [
-  [-3.0, 17.6, 16],
-  [3.0, 17.6, 16],
+  [-3.0, MAST.yard + 0.1, MAST.z],
+  [3.0, MAST.yard + 0.1, MAST.z],
 ];
 
-/** Taut wire skid on the starboard main deck: outboard edge 0.1 m inside the ship side (x 9),
+/** Taut wire skid on the starboard main deck: outboard edge 0.1 m inside the ship side,
  *  at a bulwark opening (assumed; the boom passes the deck edge low). */
 export const TAUTWIRE_Z = -14;
-export const TAUTWIRE_EDGE_X = 8.9;
+export const TAUTWIRE_EDGE_X = SHIP_SIDE_X - 0.1;
 export const TAUTWIRE_POS: [number, number, number] = [TAUTWIRE_EDGE_X - SMT_TW.footprintX.value / 2, DECK_Y, TAUTWIRE_Z];
 /** Gimbal head when deployed: 2510 mm outboard of the skid edge, 1059 mm above the skid base. */
 export const TAUTWIRE_TIP: [number, number, number] = [TAUTWIRE_EDGE_X + SMT_TW.reach.value, DECK_Y + SMT_TW.headHeight.value, TAUTWIRE_Z + SMT_TW.headLateral.value];
 /** Bulwark openings cut in the procedural hull for the equipment above. */
 export const BULWARK_GAPS: { side: 1 | -1; z0: number; z1: number }[] = [{ side: 1, z0: TAUTWIRE_Z - 1.3, z1: TAUTWIRE_Z + 1.3 }];
 
-/** Over-the-side pole pivot: port side, axis 525 mm above the bulwark top, just outside the hull plating. */
-export const POLE_PIVOT: [number, number, number] = [-9.25, DECK_Y + BULWARK_H + POLE_8097.pivotAboveDeckEdge.value, -6];
+/** Over-the-side pole pivot: port side of the aft main deck (where the GA plan shows the SPRINT-Nav DP),
+ *  axis 525 mm above the bulwark top, just outside the hull plating. */
+export const POLE_PIVOT: [number, number, number] = [-(SHIP_SIDE_X + 0.25), DECK_Y + BULWARK_H + POLE_8097.pivotAboveDeckEdge.value, -7];
+/** Openings in the crash barrier rail: the taut wire boom and the stowed pole. */
+export const CRASH_RAIL_GAPS: { side: 1 | -1; z0: number; z1: number }[] = [
+  ...BULWARK_GAPS,
+  { side: -1, z0: POLE_PIVOT[2] - POLE_8097.length.value - 0.6, z1: POLE_PIVOT[2] + 0.8 },
+];
 
 /** Water depth in the scene (seabed plane, matching the HPR scene). */
 export const SCENE_SEABED_Y = -42;

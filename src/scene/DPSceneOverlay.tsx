@@ -1,3 +1,4 @@
+import { BOW_THRUSTERS, LEVEL, MAST } from '../vessels/vesselLayout';
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html, Line } from '@react-three/drei';
@@ -57,7 +58,7 @@ export function BT2Tunnel() {
     arrow.current.scale.set(dir * (1.5 + 9 * Math.abs(f)), 1.6, 1.6);
   });
   return (
-    <group name="bt2-tunnel" position={[0, -2.4, 28.5]}>
+    <group name="bt2-tunnel" position={[0, BOW_THRUSTERS.y, BOW_THRUSTERS.bt2Z]}>
       <mesh geometry={geo} material={mat} />
       <mesh geometry={rim} material={mat} position={[5.15, 0, 0]} />
       <mesh geometry={rim} material={mat} position={[-5.15, 0, 0]} />
@@ -76,11 +77,11 @@ export function BT2Tunnel() {
 type V3 = [number, number, number];
 /** IO units after the distributed architecture: one near each thruster, reference system and sensor group. */
 const IO_UNITS: { id: string; label: string; pos: V3 }[] = [
-  { id: 'io-bt1', label: 'IO · BT1', pos: [1.6, 1.2, 31] },
-  { id: 'io-bt2', label: 'IO · BT2', pos: [-1.6, 1.2, 28.5] },
+  { id: 'io-bt1', label: 'IO · BT1', pos: [1.6, 1.2, BOW_THRUSTERS.bt1Z] },
+  { id: 'io-bt2', label: 'IO · BT2', pos: [-1.6, 1.2, BOW_THRUSTERS.bt2Z] },
   { id: 'io-az', label: 'IO · AZ1/AZ2', pos: [0, 1.5, -33] },
-  { id: 'io-sensors', label: 'IO · Gyro/MRU/Wind', pos: [0, 15.5, 16] },
-  { id: 'io-gnss', label: 'GNSS 1/2', pos: [0, 19.9, 16] },
+  { id: 'io-sensors', label: 'IO · Gyro/MRU/Wind', pos: [0, LEVEL.roof + 0.6, MAST.z + 1.5] },
+  { id: 'io-gnss', label: 'GNSS 1/2', pos: [0, MAST.yard + 0.8, MAST.z] },
   { id: 'io-hpr', label: 'IO · HPR', pos: [1.4, 1.2, 12] },
   { id: 'io-power', label: 'IO · Power plant/UPS', pos: [0, 3.2, 0] },
 ];

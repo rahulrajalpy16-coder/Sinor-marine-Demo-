@@ -33,7 +33,7 @@ export interface CameraPose {
   target: [number, number, number];
 }
 
-export const OVERVIEW_POSE: CameraPose = { position: [74, 30, 50], target: [0, 2, -2] };
+export const OVERVIEW_POSE: CameraPose = { position: [84, 38, 70], target: [0, 5, 10] };
 /** Pull the overview camera back on portrait screens so the whole hull fits horizontally. */
 export function overviewPoseFor(aspect: number): CameraPose {
   if (!(aspect > 0) || aspect >= 1.2) return OVERVIEW_POSE;

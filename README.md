@@ -27,7 +27,7 @@ Responsive design: see [documentation/DEVICE_COMPATIBILITY.md](documentation/DEV
 
 | Area | Behaviour |
 | --- | --- |
-| Scene | Dark animated ocean with fresnel, glints and a technical grid; procedural 80 × 18 × 8 m hull lofted from stations, plus superstructure, open bridge, mast, crane, A-frame and azimuth pods |
+| Scene | Dark animated ocean with fresnel, glints and a technical grid; procedural generic 78 × 20 m DP2 offshore vessel (depth 6.5 m, draught 4.8 m) laid out from a supplied GA plan: forecastle, three-tier accommodation, wheelhouse with wings, mast, helideck over the bow, knuckle-boom crane and crash barrier on the aft working deck, azimuth pods (see documentation/VESSEL_LAYOUT.md) |
 | Opening | The ship is revealed as a holographic wireframe, then a sweep turns it solid while the camera orbits in. You can skip it with the button, Esc or a drag. With reduced motion on, it is skipped |
 | Visual modes | **Hybrid** (realistic aft, cyan holographic forward), **Realistic**, **Blueprint**, **X-ray** (see-through hull and sea), **Isolate** (selected system only) and **Exploded** (bow thruster assembly; disabled when no explodable system is selected). Switching modes never moves the camera or drops the selection |
 | Selection | Click the 3D mesh, its callout label or the system explorer list. All three call the same store action. The camera flies to a focus anchor (GSAP, 1.3 s, instant with reduced motion), the mesh lights up and outlines, and the inspector opens |

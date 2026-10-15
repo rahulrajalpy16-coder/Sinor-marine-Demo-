@@ -50,7 +50,8 @@ export default function App() {
       <div className="scanlines pointer-events-none absolute inset-0" aria-hidden />
 
       {/* One shell for every device: only the containers change with the layout class. */}
-      <div className="pointer-events-none absolute inset-0 flex flex-col" data-layout={layout} data-testid="app-shell">
+      {/* Above the scene indicators (z 0–20) so panels always cover them; clicks still pass through empty areas. */}
+      <div className="pointer-events-none absolute inset-0 z-[25] flex flex-col" data-layout={layout} data-testid="app-shell">
         <TopBar layout={layout} />
         <div className={`relative flex min-h-0 flex-1 gap-3 ${layout === 'desktop' ? 'p-3' : 'safe-x'}`}>
           <SystemsPanel layout={layout} />
