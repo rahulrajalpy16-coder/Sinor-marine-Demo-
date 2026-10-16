@@ -21,6 +21,8 @@ allowDevEmulator();
 export const xrStore = createXRStore({
   controller: { teleportPointer: true },
   hand: { teleportPointer: true },
+  // Full fixed foveation: lower resolution at the lens edges, where the Quest optics blur anyway.
+  foveation: 1,
   emulate: import.meta.env.DEV ? 'metaQuest3' : false,
 });
 

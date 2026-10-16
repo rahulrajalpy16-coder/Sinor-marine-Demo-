@@ -18,11 +18,14 @@ import { OVERVIEW_POSE } from '../camera/cameraMachine';
 import { useQualityProfile, type QualityProfile } from '../rendering/quality';
 import { XR } from '@react-three/xr';
 import { xrStore } from '../xr/xrStore';
-import { VRPlayer, useInVR } from '../xr/VRPlayer';
+import { VRPlayer } from '../xr/VRPlayer';
+import { useVRActive } from '../xr/vrState';
+import { VRStats, vrStatsRequested } from '../xr/VRStats';
 import { WORLD_SCALE } from './vesselTransform';
 
 export function SceneRoot({ onError }: { onError?: (e: unknown) => void }) {
   const profile = useQualityProfile();
+  const inVR = useVRActive();
   const [lo, hi] = profile.dpr;
   // Start at the top of the preset's pixel-ratio range; the monitor steps down if frames drop.
   const [dpr, setDpr] = useState(hi);
@@ -60,12 +63,14 @@ export function SceneRoot({ onError }: { onError?: (e: unknown) => void }) {
             <Ocean />
             <VesselMotion>
               <VesselWithEquipment />
-              <Hotspots />
+              {/* Indicators are page overlays the headset never shows; skip them and their occlusion raycasts. */}
+              {!inVR && <Hotspots />}
             </VesselMotion>
             <DPSetpointMarker />
             <PositionReferenceWorld />
           </group>
           <VRPlayer />
+          {inVR && vrStatsRequested() && <VRStats />}
           <ModeController />
           <SimulationDriver />
           <CameraRig />
@@ -77,10 +82,9 @@ export function SceneRoot({ onError }: { onError?: (e: unknown) => void }) {
   );
 }
 
-/** Bloom and vignette on screens only: the composer does not render to a WebXR framebuffer. */
+/** Bloom and vignette on screens only; the VR profile turns them off (the composer cannot draw into WebXR). */
 function PostEffects({ profile }: { profile: QualityProfile }) {
-  const inVR = useInVR();
-  if (!profile.postprocessing || inVR) return null;
+  if (!profile.postprocessing) return null;
   return (
     <EffectComposer multisampling={profile.multisampling}>
       <Bloom intensity={profile.bloomIntensity} luminanceThreshold={0.62} luminanceSmoothing={0.2} mipmapBlur />

@@ -2,6 +2,7 @@ import type { QualityPreset } from '../equipment/types';
 import { useAppStore } from '../store/useAppStore';
 import { detectCapabilities, recommendQuality } from '../responsive/device';
 import { useDevice } from '../responsive/useDevice';
+import { useVRActive } from '../xr/vrState';
 
 /**
  * Everything the renderer and equipment may scale by quality, in one place.
@@ -32,8 +33,32 @@ export const QUALITY_PROFILES: Record<QualityPreset, QualityProfile> = {
 
 export const qualityProfile = (q: QualityPreset) => QUALITY_PROFILES[q];
 
+/**
+ * Caps applied on top of the chosen preset during a VR session. A standalone headset (Quest 3 / 3S) renders
+ * every frame twice at 72–90 Hz, and the post-processing composer cannot draw into the WebXR framebuffer.
+ */
+export function vrCapped(p: QualityProfile): QualityProfile {
+  return {
+    ...p,
+    dpr: [1, 1],
+    postprocessing: false,
+    bloomIntensity: 0,
+    multisampling: 0,
+    oceanSegments: Math.min(p.oceanSegments, 96),
+    screenHz: Math.min(p.screenHz, 2),
+    radialSegments: Math.min(p.radialSegments, 16),
+  };
+}
+
+/** The profile in effect now: the preset, capped while in VR. For code outside React render. */
+export function activeQualityProfile(): QualityProfile {
+  const p = QUALITY_PROFILES[useAppStore.getState().quality];
+  return useVRActive.getState() ? vrCapped(p) : p;
+}
+
 export function useQualityProfile(): QualityProfile {
-  return QUALITY_PROFILES[useAppStore((s) => s.quality)];
+  const p = QUALITY_PROFILES[useAppStore((s) => s.quality)];
+  return useVRActive() ? vrCapped(p) : p;
 }
 
 const STORAGE_KEY = 'sinor.quality';
