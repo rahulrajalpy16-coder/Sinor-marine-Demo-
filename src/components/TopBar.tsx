@@ -5,6 +5,7 @@ import { rememberQuality } from '../rendering/quality';
 import { useAppStore } from '../store/useAppStore';
 import { getEquipment, vessel } from '../equipment/registry';
 import type { LayoutClass } from '../responsive/device';
+import { EnterVRButton } from '../xr/EnterVRButton';
 
 function ModeButtons({ compact }: { compact: boolean }) {
   const mode = useAppStore((s) => s.visualMode);
@@ -51,6 +52,7 @@ function Settings() {
   const setReducedMotion = useAppStore((s) => s.setReducedMotion);
   return (
     <div className="flex items-center gap-3">
+      <EnterVRButton />
       <label className="flex items-center gap-1.5 text-[11px] text-mute">
         <span className="font-mono uppercase tracking-wider">Quality</span>
         <select
