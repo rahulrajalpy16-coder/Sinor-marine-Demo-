@@ -6,7 +6,7 @@ import { useEquipmentMaterials, useSelectable } from '../interactions/useSelecta
 import { EqMesh } from './EqMesh';
 import { useAppStore } from '../store/useAppStore';
 import { MODE_STYLES } from '../rendering/modes';
-import { qualityProfile } from '../rendering/quality';
+import { activeQualityProfile } from '../rendering/quality';
 import { dpSystem } from '../simulations/dpController';
 import { useControllerState } from '../simulations/useController';
 import { classLayout, DEFAULT_DP_PARAMS, headingDeg, positionError, type DPState } from '../simulations/dp';
@@ -148,7 +148,7 @@ function useDPScreens(count: number) {
   const acc = useRef(1);
   useFrame((_, dt) => {
     acc.current += dt;
-    if (acc.current < Math.max(0.25, 1 / qualityProfile(useAppStore.getState().quality).screenHz)) return; // ≤4 Hz is plenty for a DP display
+    if (acc.current < Math.max(0.25, 1 / activeQualityProfile().screenHz)) return; // ≤4 Hz is plenty for a DP display
     acc.current = 0;
     const st = dpSystem.getState();
     screens.slice(0, count).forEach((s, i) => {
