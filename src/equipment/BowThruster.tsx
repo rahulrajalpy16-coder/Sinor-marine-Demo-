@@ -10,6 +10,7 @@ import { DEFAULT_THRUSTER_PARAMS } from '../simulations/thruster';
 import { useAppStore } from '../store/useAppStore';
 import { MODE_STYLES } from '../rendering/modes';
 import { CYAN } from '../rendering/materials';
+import { readableInWorld } from '../scene/vesselTransform';
 
 const ID = 'bow-thruster-001';
 const JET_PARTICLES = 90;
@@ -64,6 +65,7 @@ function makeCabinetScreen(): THREE.Texture | null {
   ctx.fillText('PITCH', 168, 140);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
+  readableInWorld(tex);
   return tex;
 }
 

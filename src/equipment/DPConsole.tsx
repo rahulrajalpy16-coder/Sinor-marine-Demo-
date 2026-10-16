@@ -10,6 +10,7 @@ import { qualityProfile } from '../rendering/quality';
 import { dpSystem } from '../simulations/dpController';
 import { useControllerState } from '../simulations/useController';
 import { classLayout, DEFAULT_DP_PARAMS, headingDeg, positionError, type DPState } from '../simulations/dp';
+import { readableInWorld } from '../scene/vesselTransform';
 
 const ID = 'dp-console-001';
 
@@ -131,6 +132,7 @@ function useDPScreens(count: number) {
         const ctx = c.getContext('2d');
         const tex = new THREE.CanvasTexture(c);
         tex.colorSpace = THREE.SRGBColorSpace;
+        readableInWorld(tex);
         return { mat: new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }), ctx, tex };
       }),
     [],

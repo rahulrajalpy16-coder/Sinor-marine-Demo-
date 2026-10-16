@@ -19,6 +19,7 @@ import { useQualityProfile, type QualityProfile } from '../rendering/quality';
 import { XR } from '@react-three/xr';
 import { xrStore } from '../xr/xrStore';
 import { VRPlayer, useInVR } from '../xr/VRPlayer';
+import { WORLD_SCALE } from './vesselTransform';
 
 export function SceneRoot({ onError }: { onError?: (e: unknown) => void }) {
   const profile = useQualityProfile();
@@ -54,14 +55,17 @@ export function SceneRoot({ onError }: { onError?: (e: unknown) => void }) {
           <directionalLight position={[60, 80, 40]} intensity={2.2} color="#e8f2ff" />
           <directionalLight position={[-50, 30, -60]} intensity={0.7} color="#5fd6ff" />
           <ambientLight intensity={0.15} />
-          <Ocean />
-          <VesselMotion>
-            <VesselWithEquipment />
-            <Hotspots />
-            <VRPlayer />
-          </VesselMotion>
-          <DPSetpointMarker />
-          <PositionReferenceWorld />
+          {/* Model frames are left-handed; this reflection shows the ship the right way round (see vesselTransform). */}
+          <group name="world" scale={WORLD_SCALE}>
+            <Ocean />
+            <VesselMotion>
+              <VesselWithEquipment />
+              <Hotspots />
+            </VesselMotion>
+            <DPSetpointMarker />
+            <PositionReferenceWorld />
+          </group>
+          <VRPlayer />
           <ModeController />
           <SimulationDriver />
           <CameraRig />

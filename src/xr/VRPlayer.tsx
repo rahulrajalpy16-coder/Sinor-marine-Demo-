@@ -1,18 +1,24 @@
 import { useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { TeleportTarget, XROrigin, useXR, useXRControllerLocomotion } from '@react-three/xr';
 import { VR_DECKS, VR_HELIDECK, VR_SPAWN } from './vrDecks';
+import { vesselFrameUnmirrored } from '../scene/vesselTransform';
 
 const FLOOR_COLOR = '#5fd6ff';
 
 /**
  * The VR visitor: their feet on the vessel (so they ride with DP moves), teleport onto the walkable decks,
  * left stick to walk, right stick to snap-turn 45°. Renders nothing outside a VR session.
- * Must sit inside the vessel-motion group so its positions are in vessel coordinates.
+ * It follows the vessel in an unreflected frame (a mirrored parent would mirror the headset view), where vessel
+ * x is negated; the decks and spawn point are symmetric about the centreline, so their numbers carry over.
  */
 export function VRPlayer() {
   const inVR = useXR((s) => s.mode === 'immersive-vr');
   const origin = useRef<THREE.Group>(null);
+  const frame = useRef<THREE.Group>(null);
+
+  useFrame(() => frame.current && vesselFrameUnmirrored(frame.current));
 
   useXRControllerLocomotion(origin, { speed: 2 }, { type: 'snap', degrees: 45 }, 'left');
 
@@ -23,7 +29,7 @@ export function VRPlayer() {
   };
 
   return (
-    <>
+    <group ref={frame} name="vr-vessel-frame">
       <XROrigin ref={origin} position={VR_SPAWN.position} rotation={[0, VR_SPAWN.yaw, 0]} />
       {inVR && (
         <TeleportTarget onTeleport={teleport}>
@@ -39,7 +45,7 @@ export function VRPlayer() {
           </mesh>
         </TeleportTarget>
       )}
-    </>
+    </group>
   );
 }
 
