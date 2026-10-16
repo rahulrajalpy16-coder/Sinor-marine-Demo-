@@ -18,7 +18,7 @@ export const isTooSmall = (radius: number, distance: number) => distance > 0 && 
  * come back as soon as the visitor gets close or leaves VR.
  */
 export function SmallFeatureCulling() {
-  const gl = useThree((s) => s.gl);
+  const camera = useThree((s) => s.camera);
   const scene = useThree((s) => s.scene);
   const culled = useRef(new Set<THREE.Object3D>());
   const t = useRef(0);
@@ -37,7 +37,8 @@ export function SmallFeatureCulling() {
     if (t.current < CHECK_SECONDS) return;
     t.current = 0;
     const { eye, sphere } = tmp.current;
-    gl.xr.getCamera().getWorldPosition(eye);
+    camera.updateWorldMatrix(true, false);
+    eye.setFromMatrixPosition(camera.matrixWorld);
     scene.traverse((o) => {
       const m = o as THREE.Mesh;
       if (!(m.isMesh || (o as THREE.Line).isLine) || !m.geometry) return;

@@ -14,6 +14,11 @@ export function isTap(deltaPx: number, pointerType: string | undefined): boolean
   return deltaPx <= (TAP_SLOP_PX[pointerType ?? 'mouse'] ?? TAP_SLOP_PX.mouse);
 }
 
+/** Events from WebXR controller and hand pointers (@pmndrs/pointer-events) carry their pointer; screen events do not. */
+export function isXRPointerEvent(e: object): boolean {
+  return 'internalPointer' in e;
+}
+
 /** Mouse: left orbit, wheel/middle zoom, right pan. Touch: one finger orbits, two fingers pinch-zoom and pan. */
 export const ORBIT_MOUSE = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
 export const ORBIT_TOUCH = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
