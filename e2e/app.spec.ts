@@ -7,6 +7,7 @@ declare global {
       sample: () => { lit: number; cyan: number; total: number };
       state: () => {
         selectedId: string | null;
+        hoveredId: string | null;
         phase: string;
         cameraMode: string;
         visualMode: string;
