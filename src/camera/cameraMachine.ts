@@ -33,7 +33,8 @@ export interface CameraPose {
   target: [number, number, number];
 }
 
-export const OVERVIEW_POSE: CameraPose = { position: [84, 38, 70], target: [0, 5, 10] };
+// Scene coordinates (after the world reflection): from the starboard bow quarter, where the crane side shows.
+export const OVERVIEW_POSE: CameraPose = { position: [-84, 38, 70], target: [0, 5, 10] };
 /** Pull the overview camera back on portrait screens so the whole hull fits horizontally. */
 export function overviewPoseFor(aspect: number): CameraPose {
   if (!(aspect > 0) || aspect >= 1.2) return OVERVIEW_POSE;
@@ -42,7 +43,7 @@ export function overviewPoseFor(aspect: number): CameraPose {
   return { position: [x * k, y * k, z * k], target: OVERVIEW_POSE.target };
 }
 
-export const INTRO_START_POSE: CameraPose = { position: [26, 6, 78], target: [0, 1, 26] };
+export const INTRO_START_POSE: CameraPose = { position: [-26, 6, 78], target: [0, 1, 26] };
 
 /** Orbit limits per mode: distance and polar angle (0 = straight down, π/2 = horizon). */
 export interface OrbitLimits {

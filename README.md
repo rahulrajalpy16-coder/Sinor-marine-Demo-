@@ -19,6 +19,8 @@ npm run test:e2e     # browser tests (Playwright; serves dist/ via vite preview)
 
 Playwright uses the Chromium at `PW_CHROMIUM` (defaults to the headless shell in this build container). On your own machine run `npx playwright install chromium` and `PW_CHROMIUM=$(node -e "console.log(require('@playwright/test').chromium.executablePath())") npm run test:e2e`.
 
+VR (WebXR): on a headset browser (Meta Quest 3 is the target) an **Enter VR** button appears in the top bar. You stand on the aft working deck at real scale and ride with the vessel; point a controller at the aft deck, bridge floor or helideck to teleport, use the left stick to walk and the right stick to snap-turn 45°. `npm run dev` emulates a Quest 3 on localhost when the browser has no headset. The headset must reach the site over HTTPS (or localhost via `adb reverse`).
+
 URL options: `?intro=0` skips the opening sequence, `?quality=low|medium|high` sets the render quality (otherwise the last choice in this browser, or a device-based recommendation).
 
 Responsive design: see [documentation/DEVICE_COMPATIBILITY.md](documentation/DEVICE_COMPATIBILITY.md) for layouts, input and supported browsers, and [documentation/RESPONSIVE_ARCHITECTURE.md](documentation/RESPONSIVE_ARCHITECTURE.md) for how new systems inherit it.

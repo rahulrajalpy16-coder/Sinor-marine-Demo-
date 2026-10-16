@@ -3,7 +3,7 @@
  *
  * Coordinates: NED plane. eta = [north m, east m, heading rad (clockwise from north)],
  * nu = [surge m/s, sway m/s (+ starboard), yaw rate rad/s]. Scene mapping: X = east, Z = north,
- * rotation.y = heading.
+ * rotation.y = heading, inside the reflected world group (see scene/vesselTransform.ts).
  *   eta_dot = R(psi) nu
  *   M nu_dot + D_lin nu_r + D_quad(nu_r) = tau_thrusters + tau_wind      (nu_r = nu - current)
  * Control: PID on the body-frame position/heading error with wind feed-forward, then weighted

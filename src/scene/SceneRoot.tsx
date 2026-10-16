@@ -15,7 +15,11 @@ import { VesselMotion } from './VesselMotion';
 import { DPSetpointMarker } from './DPSceneOverlay';
 import { PositionReferenceWorld } from '../equipment/PositionReferences';
 import { OVERVIEW_POSE } from '../camera/cameraMachine';
-import { useQualityProfile } from '../rendering/quality';
+import { useQualityProfile, type QualityProfile } from '../rendering/quality';
+import { XR } from '@react-three/xr';
+import { xrStore } from '../xr/xrStore';
+import { VRPlayer, useInVR } from '../xr/VRPlayer';
+import { WORLD_SCALE } from './vesselTransform';
 
 export function SceneRoot({ onError }: { onError?: (e: unknown) => void }) {
   const profile = useQualityProfile();
@@ -45,29 +49,42 @@ export function SceneRoot({ onError }: { onError?: (e: unknown) => void }) {
         onChange={({ factor }) => setDpr(Math.round((lo + (hi - lo) * factor) * 4) / 4)}
         onFallback={() => setDpr(lo)}
       />
-      <Suspense fallback={null}>
-        <hemisphereLight args={['#9cc8e8', '#02060c', 0.65]} />
-        <directionalLight position={[60, 80, 40]} intensity={2.2} color="#e8f2ff" />
-        <directionalLight position={[-50, 30, -60]} intensity={0.7} color="#5fd6ff" />
-        <ambientLight intensity={0.15} />
-        <Ocean />
-        <VesselMotion>
-          <VesselWithEquipment />
-          <Hotspots />
-        </VesselMotion>
-        <DPSetpointMarker />
-        <PositionReferenceWorld />
-        <ModeController />
-        <SimulationDriver />
-        <CameraRig />
-        <TestBridge />
-        {profile.postprocessing && (
-          <EffectComposer multisampling={profile.multisampling}>
-            <Bloom intensity={profile.bloomIntensity} luminanceThreshold={0.62} luminanceSmoothing={0.2} mipmapBlur />
-            <Vignette eskil={false} offset={0.25} darkness={0.7} />
-          </EffectComposer>
-        )}
-      </Suspense>
+      <XR store={xrStore}>
+        <Suspense fallback={null}>
+          <hemisphereLight args={['#9cc8e8', '#02060c', 0.65]} />
+          <directionalLight position={[60, 80, 40]} intensity={2.2} color="#e8f2ff" />
+          <directionalLight position={[-50, 30, -60]} intensity={0.7} color="#5fd6ff" />
+          <ambientLight intensity={0.15} />
+          {/* Model frames are left-handed; this reflection shows the ship the right way round (see vesselTransform). */}
+          <group name="world" scale={WORLD_SCALE}>
+            <Ocean />
+            <VesselMotion>
+              <VesselWithEquipment />
+              <Hotspots />
+            </VesselMotion>
+            <DPSetpointMarker />
+            <PositionReferenceWorld />
+          </group>
+          <VRPlayer />
+          <ModeController />
+          <SimulationDriver />
+          <CameraRig />
+          <TestBridge />
+          <PostEffects profile={profile} />
+        </Suspense>
+      </XR>
     </Canvas>
+  );
+}
+
+/** Bloom and vignette on screens only: the composer does not render to a WebXR framebuffer. */
+function PostEffects({ profile }: { profile: QualityProfile }) {
+  const inVR = useInVR();
+  if (!profile.postprocessing || inVR) return null;
+  return (
+    <EffectComposer multisampling={profile.multisampling}>
+      <Bloom intensity={profile.bloomIntensity} luminanceThreshold={0.62} luminanceSmoothing={0.2} mipmapBlur />
+      <Vignette eskil={false} offset={0.25} darkness={0.7} />
+    </EffectComposer>
   );
 }

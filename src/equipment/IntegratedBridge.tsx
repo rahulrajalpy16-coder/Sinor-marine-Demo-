@@ -9,6 +9,7 @@ import { bowThruster } from '../simulations/controller';
 import { headingDeg } from '../simulations/dp';
 import { qualityProfile } from '../rendering/quality';
 import { useAppStore } from '../store/useAppStore';
+import { readableInWorld } from '../scene/vesselTransform';
 
 const ID = 'ibs-001';
 
@@ -35,6 +36,7 @@ function canvas(w = 384, h = 240) {
   if (!ctx) return null;
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
+  readableInWorld(tex);
   return { c, ctx, tex };
 }
 
