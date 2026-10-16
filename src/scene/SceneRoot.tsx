@@ -73,7 +73,8 @@ export function SceneRoot({ onError }: { onError?: (e: unknown) => void }) {
           {inVR && vrStatsRequested() && <VRStats />}
           <ModeController />
           <SimulationDriver />
-          <CameraRig />
+          {/* The headset owns the camera in VR; the orbit rig and its focus flights would fight it. */}
+          {!inVR && <CameraRig />}
           <TestBridge />
           <PostEffects profile={profile} />
         </Suspense>

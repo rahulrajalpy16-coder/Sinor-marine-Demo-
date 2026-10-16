@@ -6,7 +6,7 @@ import { useAppStore } from '../store/useAppStore';
 import { currentCameraPose } from './poseRegistry';
 import { equipmentVisual } from './equipmentVisual';
 import { CYAN } from '../rendering/materials';
-import { isTap } from './input';
+import { isTap, isXRPointerEvent } from './input';
 
 /**
  * Pointer handlers shared by every selectable equipment group (mouse, touch and pen alike).
@@ -19,12 +19,26 @@ export function useSelectable(id: string) {
   useEffect(() => () => {
     document.body.style.cursor = '';
   }, []);
-  return useMemo(
-    () => ({
+  return useMemo(() => {
+    // Headset rays select on trigger down and up over the same system, however long the pull; their events have no
+    // screen drag to measure (`delta` throws) and pointer-events' own click gives up after 300 ms.
+    let xrPressed = false;
+    return {
       onClick: (e: ThreeEvent<MouseEvent>) => {
         e.stopPropagation();
-        if (!isTap(e.delta, (e.nativeEvent as PointerEvent).pointerType)) return;
+        if (isXRPointerEvent(e) || !isTap(e.delta, (e.nativeEvent as PointerEvent).pointerType)) return;
         select(id, currentCameraPose());
+      },
+      onPointerDown: (e: ThreeEvent<PointerEvent>) => {
+        if (!isXRPointerEvent(e)) return;
+        e.stopPropagation();
+        xrPressed = true;
+      },
+      onPointerUp: (e: ThreeEvent<PointerEvent>) => {
+        if (!isXRPointerEvent(e) || !xrPressed) return;
+        e.stopPropagation();
+        xrPressed = false;
+        select(id);
       },
       onPointerOver: (e: ThreeEvent<PointerEvent>) => {
         e.stopPropagation();
@@ -34,13 +48,13 @@ export function useSelectable(id: string) {
         document.body.style.cursor = 'pointer';
       },
       onPointerOut: () => {
+        xrPressed = false;
         if (useAppStore.getState().hoveredId === id) hover(null);
         document.body.style.cursor = '';
       },
       userData: { equipmentId: id },
-    }),
-    [id, hover, select],
-  );
+    };
+  }, [id, hover, select]);
 }
 
 export interface EquipmentMaterialSpec {

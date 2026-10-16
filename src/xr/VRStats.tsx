@@ -1,12 +1,14 @@
 import { useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
+import { readHeadPose } from './vrState';
 
 /** `?vrstats=1`: a small frame-rate and draw-call readout that floats low in the visitor's view while in VR. */
 export const vrStatsRequested = () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('vrstats') === '1';
 
 export function VRStats() {
   const gl = useThree((s) => s.gl);
+  const camera = useThree((s) => s.camera);
   const mesh = useRef<THREE.Mesh>(null);
   const acc = useRef({ frames: 0, t: 0, calls: 0, tris: 0 });
   const pos = useMemo(() => ({ v: new THREE.Vector3(), q: new THREE.Quaternion() }), []);
@@ -40,9 +42,7 @@ export function VRStats() {
     // Follow the head: 1.2 m ahead, 0.35 m below eye level.
     const m = mesh.current;
     if (!m) return;
-    const cam = gl.xr.getCamera();
-    cam.getWorldPosition(pos.v);
-    cam.getWorldQuaternion(pos.q);
+    readHeadPose(camera, pos.v, pos.q);
     m.position.copy(pos.v).add(new THREE.Vector3(0, -0.35, -1.2).applyQuaternion(pos.q));
     m.quaternion.copy(pos.q);
   });
