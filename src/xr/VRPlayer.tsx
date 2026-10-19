@@ -1,9 +1,11 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { TeleportTarget, XROrigin, useXR, useXRControllerLocomotion } from '@react-three/xr';
 import { VR_DECKS, VR_HELIDECK, VR_SPAWN } from './vrDecks';
 import { vesselFrameUnmirrored } from '../scene/vesselTransform';
+import { SmallFeatureCulling } from './SmallFeatureCulling';
+import { useVRActive } from './vrState';
 
 const FLOOR_COLOR = '#5fd6ff';
 
@@ -19,6 +21,7 @@ export function VRPlayer() {
   const frame = useRef<THREE.Group>(null);
 
   useFrame(() => frame.current && vesselFrameUnmirrored(frame.current));
+  useEffect(() => useVRActive.setState(inVR, true), [inVR]);
 
   useXRControllerLocomotion(origin, { speed: 2 }, { type: 'snap', degrees: 45 }, 'left');
 
@@ -31,6 +34,7 @@ export function VRPlayer() {
   return (
     <group ref={frame} name="vr-vessel-frame">
       <XROrigin ref={origin} position={VR_SPAWN.position} rotation={[0, VR_SPAWN.yaw, 0]} />
+      {inVR && <SmallFeatureCulling />}
       {inVR && (
         <TeleportTarget onTeleport={teleport}>
           {VR_DECKS.map((d) => (
@@ -49,5 +53,3 @@ export function VRPlayer() {
   );
 }
 
-/** True while an immersive VR session is running. Only usable inside `<XR>`. */
-export const useInVR = () => useXR((s) => s.mode === 'immersive-vr');

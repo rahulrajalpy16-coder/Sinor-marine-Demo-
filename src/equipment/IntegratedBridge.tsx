@@ -7,8 +7,7 @@ import { EqMesh } from './EqMesh';
 import { dpSystem } from '../simulations/dpController';
 import { bowThruster } from '../simulations/controller';
 import { headingDeg } from '../simulations/dp';
-import { qualityProfile } from '../rendering/quality';
-import { useAppStore } from '../store/useAppStore';
+import { activeQualityProfile } from '../rendering/quality';
 import { readableInWorld } from '../scene/vesselTransform';
 
 const ID = 'ibs-001';
@@ -251,7 +250,7 @@ export function IntegratedBridge() {
   useFrame((_, dt) => {
     sweep.current += dt * 1.6;
     acc.current += dt;
-    if (acc.current < 1 / qualityProfile(useAppStore.getState().quality).screenHz) return;
+    if (acc.current < 1 / activeQualityProfile().screenHz) return;
     acc.current = 0;
     const dp = dpSystem.getState();
     const bt = bowThruster.getState();

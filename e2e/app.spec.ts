@@ -7,6 +7,7 @@ declare global {
       sample: () => { lit: number; cyan: number; total: number };
       state: () => {
         selectedId: string | null;
+        hoveredId: string | null;
         phase: string;
         cameraMode: string;
         visualMode: string;
@@ -270,8 +271,18 @@ test('HPR: Type 7950 interlocks, deployment of the HPT 5000, and the deployed tr
   await page.getByTestId('mode-xray').click();
   // The mode label switches at the start of the camera flight; pick only once the camera has settled.
   await waitCameraSettled(page);
-  const pt = (await page.evaluate(() => window.__SINOR__!.project('hpr-001')))!;
-  await page.mouse.click(pt.x, pt.y);
+  // Hover first and wait for the pick to land: on the software renderer a frame can take longer than a
+  // click, and the scene only picks on rendered frames.
+  // The vessel keeps moving in the seaway, so re-project and click again if a frame-late pick missed.
+  await expect(async () => {
+    const p = (await page.evaluate(() => window.__SINOR__!.project('hpr-001')))!;
+    await page.mouse.move(p.x, p.y);
+    await expect.poll(async () => (await state(page)).hoveredId, { timeout: 3_000 }).toBe('hpr-001');
+    await page.waitForTimeout(300);
+    await page.mouse.down();
+    await page.mouse.up();
+    await expect.poll(async () => (await state(page)).selectedId, { timeout: 3_000 }).toBe('hpr-001');
+  }).toPass({ timeout: 30_000 });
   await waitFocused(page, 'hpr-001');
   await expect(page.getByTestId('inspector-title')).toHaveText('HPR · HPT 5000 USBL');
   // DP sees the HPR as ready only while deployed.
