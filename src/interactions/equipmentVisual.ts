@@ -19,6 +19,8 @@ export function equipmentVisual(
   const hovered = s.hoveredId === id;
   const style = MODE_STYLES[s.visualMode];
   const ghost = style.isolateSelection && s.selectedId !== null && !selected;
+  // Realistic shows true PBR colours: no cyan tint, and only a hover outline (the panel marks the focus).
+  if (s.visualMode === 'realistic') return { glow: 0, ghost, outline: hovered && !selected };
   const base = s.visualMode === 'blueprint' || s.visualMode === 'xray' ? 0.35 : 0.08;
   return {
     glow: selected ? 0.55 : hovered ? 0.4 : base,

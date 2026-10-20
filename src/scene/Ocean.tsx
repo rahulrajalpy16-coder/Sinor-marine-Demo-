@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useAppStore } from '../store/useAppStore';
-import { MODE_STYLES } from '../rendering/modes';
+import { MODE_STYLES, REALISTIC_ENV } from '../rendering/modes';
 import { useQualityProfile } from '../rendering/quality';
 import { getEquipment, design } from '../equipment/registry';
 
@@ -94,6 +94,13 @@ export function Ocean() {
   );
   useEffect(() => () => geometry.dispose(), [geometry]);
   useEffect(() => () => material.dispose(), [material]);
+  const palette = useMemo(
+    () => ({
+      stage: { deep: new THREE.Color('#03101b'), shallow: new THREE.Color(design.colors.ocean).multiplyScalar(1.9), fog: new THREE.Color(design.colors.background) },
+      real: { deep: new THREE.Color(REALISTIC_ENV.seaDeep), shallow: new THREE.Color(REALISTIC_ENV.seaShallow), fog: new THREE.Color(REALISTIC_ENV.horizon) },
+    }),
+    [],
+  );
 
   useFrame((_, dt) => {
     const s = useAppStore.getState();
@@ -105,6 +112,11 @@ export function Ocean() {
     const k = 1 - Math.exp(-dt * 4);
     u.uOpacity.value += (targetOpacity - u.uOpacity.value) * k;
     u.uGrid.value += (st.gridStrength - u.uGrid.value) * k;
+    // Realistic: natural sea colours fading into the daylight horizon.
+    const pal = s.visualMode === 'realistic' ? palette.real : palette.stage;
+    (u.uDeep.value as THREE.Color).lerp(pal.deep, k);
+    (u.uShallow.value as THREE.Color).lerp(pal.shallow, k);
+    (u.uFog.value as THREE.Color).lerp(pal.fog, k);
     u.uAmp.value = reducedMotion ? 0.3 : 1;
     u.uTime.value += dt * (reducedMotion ? 0.25 : 1);
   });

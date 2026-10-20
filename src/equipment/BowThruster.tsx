@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { hullHalfWidthAt } from '../vessels/hullGeometry';
+import { TunnelPortals, usePortalOrder, useTunnelOpenings } from './tunnelPortal';
 import { getEquipment } from './registry';
 import { useEquipmentMaterials, useSelectable } from '../interactions/useSelectable';
 import { EqMesh } from './EqMesh';
@@ -75,10 +75,13 @@ function makeCabinetScreen(): THREE.Texture | null {
 export function BowThruster() {
   const eq = getEquipment(ID)!;
   const [, ty, tz] = eq.placement.target;
-  const half = useMemo(() => hullHalfWidthAt(tz, ty) + 0.15, [tz, ty]);
+  // Tunnel ends flush with the shell plating, open to the sea through the portal discs.
+  const tunnel = useTunnelOpenings(tz, ty, 1.05);
+  const half = tunnel.half;
   const handlers = useSelectable(ID);
   const { mats, visual } = useEquipmentMaterials(ID, {
-    tunnel: { color: '#56616b', metalness: 0.7, roughness: 0.4 },
+    // Tunnel bore is painted like the underwater hull, so it reads dark inside the opening.
+    tunnel: { color: '#3a3330', metalness: 0.25, roughness: 0.75 },
     bronze: { color: '#b08a4a', metalness: 0.9, roughness: 0.25 },
     unit: { color: '#b3261e', metalness: 0.45, roughness: 0.45 },
     motor: { color: '#2f6f8f', metalness: 0.5, roughness: 0.4 },
@@ -93,8 +96,6 @@ export function BowThruster() {
     const strut = new THREE.CylinderGeometry(0.22, 0.22, 1.05, 16);
     strut.scale(1, 1, 1.9);
     return {
-      tunnel: new THREE.CylinderGeometry(1.05, 1.05, half * 2, 32, 1, true).rotateZ(Math.PI / 2),
-      rim: new THREE.TorusGeometry(1.08, 0.1, 8, 32).rotateY(Math.PI / 2),
       pod: new THREE.CapsuleGeometry(0.36, 1.0, 6, 20).rotateZ(Math.PI / 2),
       strut,
       hub: new THREE.SphereGeometry(0.4, 24, 16).scale(1.15, 1, 1),
@@ -190,12 +191,16 @@ export function BowThruster() {
     }
   });
 
+  const root = useRef<THREE.Group>(null);
+  usePortalOrder(root);
   const o = visual.outline;
   return (
-    <group name={`equipment:${ID}`} position={[0, ty, tz]} {...handlers}>
-      <EqMesh geometry={g.tunnel} material={mats.tunnel} outline={o} name="tunnel" />
-      <EqMesh geometry={g.rim} material={mats.steel} outline={o} position={[half, 0, 0]} />
-      <EqMesh geometry={g.rim} material={mats.steel} outline={o} position={[-half, 0, 0]} />
+    <group ref={root} name={`equipment:${ID}`} position={[0, ty, tz]} {...handlers}>
+      <TunnelPortals geometry={tunnel.portals} />
+      <EqMesh geometry={tunnel.wall} material={mats.tunnel} outline={o} name="tunnel" />
+      {tunnel.lips.map((lip, i) => (
+        <mesh key={i} geometry={lip} material={mats.steel} />
+      ))}
       <group ref={propGroup}>
         <group position={[0.55, 0, 0]}>
           <group ref={prop} name="cpp-propeller">

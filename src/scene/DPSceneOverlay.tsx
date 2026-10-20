@@ -8,6 +8,7 @@ import { useControllerState } from '../simulations/useController';
 import { classLayout, DEFAULT_DP_PARAMS } from '../simulations/dp';
 import { useAppStore } from '../store/useAppStore';
 import { DP_BACKUP_ROOM, DP_STATION } from '../equipment/DPConsole';
+import { TunnelPortals, usePortalOrder, useTunnelOpenings } from '../equipment/tunnelPortal';
 
 /** Setpoint marker on the sea surface (scene frame, not moving with the vessel). */
 export function DPSetpointMarker() {
@@ -34,19 +35,19 @@ export function DPSetpointMarker() {
 
 /** Second P2 bow tunnel thruster (DP-only twin of BT1), in vessel coordinates. */
 export function BT2Tunnel() {
-  const geo = useMemo(() => new THREE.CylinderGeometry(1.05, 1.05, 10.3, 28, 1, true).rotateZ(Math.PI / 2), []);
-  const rim = useMemo(() => new THREE.TorusGeometry(1.08, 0.1, 8, 28).rotateY(Math.PI / 2), []);
-  const mat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#56616b', metalness: 0.7, roughness: 0.4, side: THREE.DoubleSide }), []);
+  const tunnel = useTunnelOpenings(BOW_THRUSTERS.bt2Z, BOW_THRUSTERS.y, 1.05);
+  const half = tunnel.half;
+  const mat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#3a3330', metalness: 0.25, roughness: 0.75, side: THREE.DoubleSide }), []);
   const arrowMat = useMemo(() => new THREE.MeshBasicMaterial({ color: '#00D9FF', toneMapped: false }), []);
   const arrow = useRef<THREE.Group>(null);
+  const root = useRef<THREE.Group>(null);
+  usePortalOrder(root);
   useEffect(
     () => () => {
-      geo.dispose();
-      rim.dispose();
       mat.dispose();
       arrowMat.dispose();
     },
-    [geo, rim, mat, arrowMat],
+    [mat, arrowMat],
   );
   useFrame(() => {
     const t = dpSystem.getState().thrusters.find((x) => x.id === 'BT2');
@@ -54,14 +55,16 @@ export function BT2Tunnel() {
     const f = t.forceN / DEFAULT_DP_PARAMS.thrusters[1].maxN;
     arrow.current.visible = Math.abs(f) > 0.02;
     const dir = Math.sign(f) || 1;
-    arrow.current.position.set(dir * 5.6, 0, 0);
+    arrow.current.position.set(dir * (half + 0.4), 0, 0);
     arrow.current.scale.set(dir * (1.5 + 9 * Math.abs(f)), 1.6, 1.6);
   });
   return (
-    <group name="bt2-tunnel" position={[0, BOW_THRUSTERS.y, BOW_THRUSTERS.bt2Z]}>
-      <mesh geometry={geo} material={mat} />
-      <mesh geometry={rim} material={mat} position={[5.15, 0, 0]} />
-      <mesh geometry={rim} material={mat} position={[-5.15, 0, 0]} />
+    <group ref={root} name="bt2-tunnel" position={[0, BOW_THRUSTERS.y, BOW_THRUSTERS.bt2Z]}>
+      <TunnelPortals geometry={tunnel.portals} />
+      <mesh geometry={tunnel.wall} material={mat} />
+      {tunnel.lips.map((lip, i) => (
+        <mesh key={i} geometry={lip} material={mat} />
+      ))}
       <group ref={arrow} visible={false}>
         <mesh material={arrowMat} position={[0.42, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
           <cylinderGeometry args={[0.07, 0.07, 0.84, 10]} />

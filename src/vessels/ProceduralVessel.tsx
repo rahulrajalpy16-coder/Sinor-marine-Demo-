@@ -50,7 +50,7 @@ export function ProceduralVessel() {
   return (
     <group name="vessel:generic-dp2-osv-78m">
       <group name="segment:hull">
-        <HybridPart geometry={geo.hull} material="hull" lines={geo.hullLines} />
+        <HybridPart geometry={geo.hull} material="shell" lines={geo.hullLines} />
         <HybridPart geometry={geo.transom} material="hull" />
         <HybridPart geometry={geo.deck} material="deck" holo={false} />
         <HybridPart geometry={geo.forecastle} material="hull" />
