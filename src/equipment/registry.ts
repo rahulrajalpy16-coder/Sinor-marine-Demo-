@@ -37,9 +37,11 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
   },
   'dp-console-001': {
     short: 'DP Console',
-    target: [0, 13.7, 7.3],
+    // On the starboard operator station's desk (the stations stand either side of the centreline), so a click
+    // on the target lands on the equipment.
+    target: [0.62, 13.7, 7.3],
     // From behind the DP chairs, high enough to see both operator stations over the headrests.
-    camera: [1.1, 15.75, 10.6],
+    camera: [1.4, 15.75, 10.6],
     underwater: false,
     interior: true,
     explodable: true,
