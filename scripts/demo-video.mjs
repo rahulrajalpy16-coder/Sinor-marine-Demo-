@@ -138,7 +138,7 @@ function helpers(p) {
   const h = helpers(p);
   const { wait, caption, card, tap, select, type, text, system, drag, zoom } = h;
 
-  await p.goto(base + '/?quality=low');
+  await p.goto(base + '/?quality=low&start=stowed');
   await card('SINOR MARINE', 'Offshore Vessel Explorer', 'Demo of the web interface: an interactive 3D DP2 offshore vessel with its bridge, dynamic positioning, position references and thrusters', 4500);
 
   // 1. Opening
@@ -291,7 +291,7 @@ function helpers(p) {
 {
   const { ctx, page: p } = await newPage({ width: 405, height: 720 });
   const { wait, caption, tap, focused } = helpers(p);
-  await p.goto(base + '/?intro=0&quality=low');
+  await p.goto(base + '/?intro=0&quality=low&start=stowed');
   await p.waitForFunction(() => !!window.__SINOR__, null, { timeout: 60000 });
   await wait(1500);
   await caption('14 · Phones and tablets', 'Same app on a phone: systems in a drawer');

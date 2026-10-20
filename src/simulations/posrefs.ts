@@ -95,6 +95,20 @@ export const initialPosRefState = (): PosRefState => ({
   time: 0,
 });
 
+/**
+ * The vessel on station with its DP references set up: RadaScan and CyScan tracking, the taut wire weight on the
+ * bottom, the pole deployed and locked with SPRINT-Nav aligned. Reached by running the normal operator sequence
+ * from the stowed state at the given pose, so every interlock and timing still applies.
+ */
+export function onStationPosRefState(pose: VesselPose = { eta: [0, 0, 0], speed: 0 }): PosRefState {
+  let s = initialPosRefState();
+  const cmds: PosRefCommand[] = [{ type: 'radascan', on: true }, { type: 'cyscan', on: true }, { type: 'tw-deploy' }, { type: 'pole-deploy' }, { type: 'sprintnav-power', on: true }];
+  for (const c of cmds) s = applyPosRefCommand(s, c, pose);
+  const ready = (x: PosRefState) => Object.values(posRefReadiness(x, pose)).every(Boolean);
+  for (let i = 0; i < 100000 && !ready(s); i++) s = stepPosRefs(s, 0.1, pose);
+  return { ...s, time: 0 };
+}
+
 /** Vessel-frame point to scene frame (X east, Y up, Z north), same as the 3D vessel transform. */
 export function toWorld(p: readonly [number, number, number], eta: readonly [number, number, number]): [number, number, number] {
   const [n, e, psi] = eta;

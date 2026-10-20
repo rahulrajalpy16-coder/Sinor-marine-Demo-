@@ -223,28 +223,35 @@ export const GNSS_ANTENNAS: [number, number, number][] = [
 ];
 
 /**
- * Taut wire skid on the starboard main deck, outboard edge 0.1 m inside the ship side at a bulwark opening.
- * SMT manual §3.1: as close as possible to the roll centre (here 6 m aft of midships, the nearest clear deck to
- * the accommodation front), well clear of the thrusters (31 m from BT2, 28 m from the azimuths), on the side
- * opposite other over-side equipment (the SPRINT-Nav pole is to port) and within reach of the deck crane for the
- * 2100 kg lift (14.5 m from the main crane). The along-ship position is a judgement; the plan does not show it.
+ * Taut wire skid on the starboard side of the upper (forecastle) deck, at its aft end just aft of the rescue
+ * boat, outboard edge 0.1 m inside the ship side at a bulwark opening. Position marked by Sinor Marine on
+ * 2026-10-20. SMT manual PJ 0044-13 §3.1 checks:
+ *  - roll centre: 3.95 m forward of mid-length, so still close to it along the ship (the old main deck spot was
+ *    6 m aft of mid-length). It is 5.6 m higher than the main deck, so roll moves the gimbal head more; the
+ *    measured head offsets and the MRU compensate in DP (PJ 0044-13 §7, offsets to the roll centre).
+ *  - thrusters: 21 m aft of BT2 and 38 m forward of the azimuths, clear of their wash.
+ *  - over-side equipment: starboard, opposite the SPRINT-Nav pole (port).
+ *  - lifting: the 2100 kg unit lift and the ≥ 500 kg lifting point over the weight basket are assumed to come
+ *    from the deck crane (not checked against a load chart; no padeye is modelled).
+ *  - access: open deck inboard and forward of the skid for the console doors and walk-round; 1.25 m clear of the
+ *    rescue boat. Recover the weight before launching the rescue boat (keeps the launch zone clear).
+ *  - cable to the bridge panel: about 25 m, inside the 100 m limit.
  */
-export const TAUTWIRE_Z = -6;
+export const TAUTWIRE_Z = 3.95;
 export const TAUTWIRE_EDGE_X = SHIP_SIDE_X - 0.1;
-export const TAUTWIRE_POS: [number, number, number] = [TAUTWIRE_EDGE_X - SMT_TW.footprintX.value / 2, DECK_Y, TAUTWIRE_Z];
+/** Upper (forecastle) deck at the skid; the hull side forward of FORECASTLE_Z rises to it. */
+export const TAUTWIRE_DECK_Y = LEVEL.upper;
+export const TAUTWIRE_POS: [number, number, number] = [TAUTWIRE_EDGE_X - SMT_TW.footprintX.value / 2, TAUTWIRE_DECK_Y, TAUTWIRE_Z];
 /** Gimbal head when deployed: 2510 mm outboard of the skid edge, 1059 mm above the skid base. */
-export const TAUTWIRE_TIP: [number, number, number] = [TAUTWIRE_EDGE_X + SMT_TW.reach.value, DECK_Y + SMT_TW.headHeight.value, TAUTWIRE_Z + SMT_TW.headLateral.value];
-/** Bulwark openings cut in the procedural hull for the equipment above. */
-export const BULWARK_GAPS: { side: 1 | -1; z0: number; z1: number }[] = [{ side: 1, z0: TAUTWIRE_Z - 1.3, z1: TAUTWIRE_Z + 1.3 }];
+export const TAUTWIRE_TIP: [number, number, number] = [TAUTWIRE_EDGE_X + SMT_TW.reach.value, TAUTWIRE_DECK_Y + SMT_TW.headHeight.value, TAUTWIRE_Z + SMT_TW.headLateral.value];
+/** Bulwark openings cut in the procedural hull for the equipment above (here the forecastle bulwark). */
+export const BULWARK_GAPS: { side: 1 | -1; z0: number; z1: number }[] = [{ side: 1, z0: TAUTWIRE_Z - 0.95, z1: TAUTWIRE_Z + 1.3 }];
 
 /** Over-the-side pole pivot: port side of the aft main deck (where the GA plan shows the SPRINT-Nav DP),
  *  axis 525 mm above the bulwark top, just outside the hull plating. */
 export const POLE_PIVOT: [number, number, number] = [-(SHIP_SIDE_X + 0.25), DECK_Y + BULWARK_H + POLE_8097.pivotAboveDeckEdge.value, -7];
-/** Openings in the crash barrier rail: the taut wire boom and the stowed pole. */
-export const CRASH_RAIL_GAPS: { side: 1 | -1; z0: number; z1: number }[] = [
-  ...BULWARK_GAPS,
-  { side: -1, z0: POLE_PIVOT[2] - POLE_8097.length.value - 0.6, z1: POLE_PIVOT[2] + 0.8 },
-];
+/** Openings in the crash barrier rail around the aft working deck: the stowed pole. */
+export const CRASH_RAIL_GAPS: { side: 1 | -1; z0: number; z1: number }[] = [{ side: -1, z0: POLE_PIVOT[2] - POLE_8097.length.value - 0.6, z1: POLE_PIVOT[2] + 0.8 }];
 
 /** Water depth in the scene (seabed plane, matching the HPR scene). */
 export const SCENE_SEABED_Y = -42;

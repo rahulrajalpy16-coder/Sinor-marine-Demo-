@@ -24,8 +24,9 @@ export type DPMode = 'STANDBY' | 'JOYSTICK' | 'AUTO_HEADING' | 'AUTO_POSITION';
 export type DPStatus = 'stopped' | 'running' | 'paused';
 export type ThrusterId = 'BT1' | 'BT2' | 'AZ1' | 'AZ2';
 export type RefId = 'GNSS1' | 'GNSS2' | 'HPR' | 'RADASCAN' | 'CYSCAN' | 'TAUTWIRE' | 'SPRINTNAV';
-/** Core references follow the DP class architecture; the others are fitted on every class and
- *  are selected into DP by the operator once the sensor is running (deployed, tracking, aligned). */
+/** Core references follow the DP class architecture; the others are fitted on every class. Every fitted
+ *  reference is connected to the DP and selected; DP uses it while the sensor is running (deployed, tracking,
+ *  aligned), and the operator can deselect it. */
 export const CORE_REFS: RefId[] = ['GNSS1', 'GNSS2', 'HPR'];
 export const OPERATOR_REFS: RefId[] = ['RADASCAN', 'CYSCAN', 'TAUTWIRE', 'SPRINTNAV'];
 export const REF_LABEL: Record<RefId, string> = {
@@ -233,7 +234,7 @@ export function initialDPState(dpClass: DPClass = 2): DPState {
       return {
         id,
         installed: op || lay.refs.includes(id),
-        enabled: !op && lay.refs.includes(id),
+        enabled: op || lay.refs.includes(id),
         fault: null,
         drift: [0, 0] as [number, number],
         rejected: false,

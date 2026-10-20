@@ -127,7 +127,7 @@ const segment = async (id, fn, pad = 0.7) => {
   if (left > 0) await wait(left);
 };
 
-await p.goto(base + '/?quality=low');
+await p.goto(base + '/?quality=low&start=stowed');
 await p.waitForFunction(() => !!window.__SINOR__, null, { timeout: 120000 * K });
 
 await segment('intro', async () => {

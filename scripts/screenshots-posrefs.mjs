@@ -9,7 +9,7 @@ p.on('pageerror', e => logs.push('pageerror: ' + e.message));
 p.on('console', m => { if (m.type() === 'error') logs.push(m.text()); });
 const focused = (id) => p.waitForFunction((i) => { const s = window.__SINOR__.state(); return s.selectedId === i && s.phase === 'focused'; }, id, { timeout: 30000 });
 const text = (tid, t) => p.waitForFunction(([x, y]) => document.querySelector(`[data-testid=${x}]`)?.textContent === y, [tid, t], { timeout: 90000 });
-await p.goto(base + '/?intro=0&quality=medium');
+await p.goto(base + '/?intro=0&quality=medium&start=stowed');
 await p.waitForFunction(() => !!window.__SINOR__, null, { timeout: 45000 }); await p.waitForTimeout(2000);
 
 await p.click('[data-testid=tree-radascan-001]'); await focused('radascan-001');

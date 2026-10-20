@@ -75,7 +75,9 @@ These values are needed to draw or simulate the system. The HMI and inspector la
 
   These are logical safeguards for the simulation, not Sonardyne's control logic.
 - **Layout in the mounting space:** the machine axis sits 0.55 m from the forward wall, the grating 4.3 m above the base plate, and the ladder on the aft wall. These were estimated from the mounting-space drawing.
-- **Other parts:** the gate valve handwheel's turns, the seachest door hinge side and the bolt pattern.
+- **Other parts:** the gate valve handwheel's turns and the bolt pattern.
+- **Seachest inspection door:** 0.40 m wide, in the starboard face of the seachest between the sealing-section flange and the gate valve stack, hinged on its aft edge. It folds back about 175° flat against the seachest, because the mounting space (0.2 to 0.27 m clearance at the sides) leaves no room to swing it open into. Size, hinge side and bolts are assumed.
+- **HPT 5000 proportions:** the outline follows UM-8142 (aluminium bronze housing bolted to the transducer face base plate with six bolts, black polyurethane acoustic face at the bottom, underwater connector in the top, adaptor flange 210 mm PCD with 10.5 mm holes and 155 mm ID, the 6G kit isolation flange ring, a white forward arrow and a machined groove as forward marks) inside the 322 × 225 mm envelope. The split of heights between flange, body, base plate and face, and the face dome, are assumed because no dimensioned drawing of the transceiver was supplied.
 - **Acoustic model:** sound speed 1,500 m/s, seabed transponder position and water depth.
 - **Not modelled:** electrical ratings of the 7950, its hydraulic power unit, the local and remote control panel hardware, and the cable routing (8-way AGP tail).
 
@@ -87,4 +89,6 @@ These values are needed to draw or simulate the system. The HMI and inspector la
   - Exploded view separates the seachest, sealing section and top section.
   - In X-ray and blueprint the pole turns translucent to show the main ram.
 - **HPR · HPT 5000 USBL** (`hpr-001`): the transceiver on the pole. It shows the same panel plus the acoustic readouts.
+- **HPT 5000 at rest:** retract the pole, close the gate valve and open the seachest door. The transceiver is then visible through the door, parked 50 mm above the closed valve, with its acoustic face, forward arrow and bolted bronze housing.
+- **Start state:** the app starts with the vessel on station (valve open, transceiver deployed, every position reference deployed and in use). Add `?start=stowed` to the URL to start with everything stowed and the valve closed.
 - **DP link:** the DP model's HPR reference only measures while the transceiver is fully deployed through an open valve. Otherwise the DP panel shows HPR "NOT DEPLOYED" and raises an alarm. DP1 (GNSS1 + HPR) is then left with a single reference.

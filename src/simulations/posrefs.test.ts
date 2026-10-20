@@ -3,6 +3,7 @@ import {
   applyPosRefCommand,
   initialPosRefState,
   KNOT,
+  onStationPosRefState,
   PosRefInterlockError,
   posRefReadiness,
   sprintNavAltitude,
@@ -18,6 +19,7 @@ import {
 } from './posrefs';
 import { applyDPCommand, initialDPState, stepDP, type DPState } from './dp';
 import { POLE_8097, SMT_TW, SPRINTNAV } from '../equipment/posrefData';
+import { hprReady, onStationDeploymentState } from './deployment';
 
 const still: VesselPose = { eta: [0, 0, 0], speed: 0 };
 const run = (s: PosRefState, seconds: number, pose = still) => {
@@ -99,6 +101,29 @@ describe('position reference sensors', () => {
   });
 });
 
+describe('vessel on station', () => {
+  it('starts with every reference running and ready, reached through the normal sequence', () => {
+    const s = onStationPosRefState();
+    expect(posRefReadiness(s, still)).toEqual({ RADASCAN: true, CYSCAN: true, TAUTWIRE: true, SPRINTNAV: true });
+    expect(s.tautwire.phase).toBe('on-bottom');
+    expect(s.pole).toMatchObject({ phase: 'deployed', locked: true });
+    expect(s.alarms).toEqual([]);
+  });
+  it('the HPR starts deployed through an open valve', () => {
+    const h = onStationDeploymentState();
+    expect(hprReady(h)).toBe(true);
+    expect(h.alarms).toEqual([]);
+  });
+  it('DP2 starts with all seven references connected, selected and in use', () => {
+    const ready = { HPR: true, ...posRefReadiness(onStationPosRefState(), still) };
+    let s = applyDPCommand(initialDPState(2), { type: 'start' });
+    for (let t = 0; t < 10; t += 0.05) s = stepDP(s, 0.05, { bt1: { available: true, forceN: 0 }, ready }).state;
+    expect(s.refs.filter((r) => r.installed && r.enabled && r.ready && !r.rejected).map((r) => r.id)).toEqual(['GNSS1', 'GNSS2', 'HPR', 'RADASCAN', 'CYSCAN', 'TAUTWIRE', 'SPRINTNAV']);
+    expect(s.alarms).not.toContain('REF_NOT_READY');
+    expect(s.alarms).not.toContain('HPR_NOT_DEPLOYED');
+  });
+});
+
 describe('DP with the added references', () => {
   const ALL = { RADASCAN: true, CYSCAN: true, TAUTWIRE: true, SPRINTNAV: true };
   const runDP = (s: DPState, seconds: number, ready: Partial<Record<string, boolean>>) => {
@@ -107,7 +132,9 @@ describe('DP with the added references', () => {
   };
 
   it('a selected reference that is not ready raises an alarm and is not used', () => {
-    let s = applyDPCommand(applyDPCommand(initialDPState(2), { type: 'ref-enable', id: 'TAUTWIRE', enabled: true }), { type: 'start' });
+    let s = initialDPState(2);
+    for (const id of ['RADASCAN', 'CYSCAN', 'SPRINTNAV'] as const) s = applyDPCommand(s, { type: 'ref-enable', id, enabled: false });
+    s = applyDPCommand(s, { type: 'start' });
     s = runDP(s, 5, {});
     expect(s.alarms).toContain('REF_NOT_READY');
     s = runDP(s, 5, { TAUTWIRE: true });
@@ -116,9 +143,7 @@ describe('DP with the added references', () => {
   });
 
   it('voting over seven references rejects a drifting taut wire', () => {
-    let s = initialDPState(2);
-    for (const id of ['RADASCAN', 'CYSCAN', 'TAUTWIRE', 'SPRINTNAV'] as const) s = applyDPCommand(s, { type: 'ref-enable', id, enabled: true });
-    s = runDP(applyDPCommand(s, { type: 'start' }), 120, ALL);
+    let s = runDP(applyDPCommand(initialDPState(2), { type: 'start' }), 120, ALL);
     s = runDP(applyDPCommand(s, { type: 'ref-fault', id: 'TAUTWIRE', fault: 'drift' }), 200, ALL);
     expect(s.refs.find((r) => r.id === 'TAUTWIRE')!.rejected).toBe(true);
     expect(s.refs.filter((r) => r.rejected).map((r) => r.id)).toEqual(['TAUTWIRE']);

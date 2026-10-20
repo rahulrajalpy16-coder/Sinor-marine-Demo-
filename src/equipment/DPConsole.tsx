@@ -5,17 +5,22 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { useEquipmentMaterials, useSelectable } from '../interactions/useSelectable';
 import { EqMesh } from './EqMesh';
+import { BridgeChair, drawIjsScreen } from './BridgeChair';
 import { useAppStore } from '../store/useAppStore';
 import { MODE_STYLES } from '../rendering/modes';
 import { qualityProfile, useQualityProfile } from '../rendering/quality';
 import { dpSystem } from '../simulations/dpController';
 import { useControllerState } from '../simulations/useController';
-import { classLayout, DEFAULT_DP_PARAMS, headingDeg, positionError, type DPState } from '../simulations/dp';
+import { classLayout, DEFAULT_DP_PARAMS, headingDeg, positionError, REF_LABEL, type DPState } from '../simulations/dp';
 
 const ID = 'dp-console-001';
 
 /** Aft-facing DP station on the bridge (operators look over the aft working deck). */
 export const DP_STATION: [number, number, number] = [0, LEVEL.bridge, WHEELHOUSE_AFT_Z + 0.95];
+/** DP cabinet (third controller, network switches, UPS) in the starboard aft corner of the wider wheelhouse. */
+export const DP_CABINET: [number, number, number] = [5.2, LEVEL.bridge, WHEELHOUSE_AFT_Z + 2.45];
+/** Operator station centres across the aft console gap: two side by side for DP2/DP3, one for DP1. */
+export const stationXs = (n: number) => (n === 1 ? [0] : [-0.62, 0.62]);
 /** DP3 backup station in a separate A60 compartment one deck below. */
 export const DP_BACKUP_ROOM = { min: [3.6, LEVEL.officers, 8.2] as const, max: [6.6, LEVEL.bridge - 0.15, 11.4] as const };
 
@@ -248,6 +253,31 @@ function drawDPScreen(ctx: CanvasRenderingContext2D, s: DPState, idx: number) {
     ctx.fillStyle = '#05220a';
     ctx.fillText(`${Math.round(f * 100)}%`, x + 4, 230);
   });
+  // Position references: every fitted reference, green when DP is using it.
+  ctx.fillStyle = '#1b1e22';
+  ctx.font = 'bold 10px sans-serif';
+  ctx.fillText('POSITION REFERENCES', 330, 270);
+  ctx.strokeStyle = '#4b6aa0';
+  ctx.beginPath();
+  ctx.moveTo(330, 276);
+  ctx.lineTo(600, 276);
+  ctx.stroke();
+  s.refs
+    .filter((r) => r.installed)
+    .forEach((r, i) => {
+      const x = 330 + (i % 4) * 68;
+      const y = 284 + Math.floor(i / 4) * 40;
+      const inUse = r.enabled && r.ready && !r.rejected && r.fault !== 'lost';
+      ctx.fillStyle = !r.enabled ? '#b9beb9' : inUse ? (r.fault === 'drift' ? '#b8a13a' : '#22c322') : '#d32f2f';
+      ctx.fillRect(x, y, 64, 34);
+      ctx.strokeStyle = '#0d3d0d';
+      ctx.strokeRect(x + 0.5, y + 0.5, 63, 33);
+      ctx.fillStyle = '#05220a';
+      ctx.font = 'bold 9px sans-serif';
+      ctx.fillText(REF_LABEL[r.id].toUpperCase().slice(0, 11), x + 3, y + 14);
+      ctx.font = '8px sans-serif';
+      ctx.fillText(!r.enabled ? 'DESEL' : inUse ? 'IN USE' : r.ready ? 'REJECTED' : 'NOT READY', x + 3, y + 28);
+    });
   // Status line.
   ctx.fillStyle = '#9da59d';
   ctx.fillRect(0, h - 22, w, 22);
@@ -312,7 +342,8 @@ export function DPConsole() {
     unit: { color: '#596470', metalness: 0.6, roughness: 0.35 },
     accent: { color: '#2a74b8', metalness: 0.3, roughness: 0.5 },
     breaker: { color: '#e9e9e4', metalness: 0.1, roughness: 0.6 },
-    chair: { color: '#22272c', metalness: 0.2, roughness: 0.7 },
+    upholstery: { color: '#1d2125', metalness: 0.05, roughness: 0.75 },
+    chairFrame: { color: '#8f979f', metalness: 0.7, roughness: 0.35 },
     cabinet: { color: '#2b3036', metalness: 0.4, roughness: 0.5 },
   });
   const explode = useAppStore((s) => MODE_STYLES[s.visualMode].explode && s.selectedId === ID);
@@ -379,11 +410,7 @@ export function DPConsole() {
       connPlate: new THREE.BoxGeometry(0.46, 0.09, 0.01),
       rackUnit: new THREE.BoxGeometry(0.44, 0.09, 0.38),
       dinRail: new THREE.BoxGeometry(0.44, 0.035, 0.02),
-      // Chair and DP cabinet.
-      seat: new THREE.BoxGeometry(0.52, 0.1, 0.5),
-      back: new THREE.BoxGeometry(0.5, 0.62, 0.08),
-      post: new THREE.CylinderGeometry(0.035, 0.045, 0.42, 12),
-      leg: new THREE.BoxGeometry(0.04, 0.03, 0.34),
+      // DP cabinet.
       cab: new THREE.BoxGeometry(0.6, 1.9, 0.6),
       cabDoor: new THREE.BoxGeometry(0.52, 1.7, 0.01),
       a60: new THREE.BoxGeometry(DP_BACKUP_ROOM.max[0] - DP_BACKUP_ROOM.min[0], DP_BACKUP_ROOM.max[1] - DP_BACKUP_ROOM.min[1], DP_BACKUP_ROOM.max[2] - DP_BACKUP_ROOM.min[2]),
@@ -401,6 +428,21 @@ export function DPConsole() {
     [],
   );
   const led = useMemo(() => new THREE.BoxGeometry(0.008, 0.003, 0.004), []);
+  const ijsMat = useMemo(() => {
+    if (typeof document === 'undefined') return new THREE.MeshBasicMaterial({ color: '#0d1418' });
+    const c = document.createElement('canvas');
+    c.width = 192;
+    c.height = 112;
+    const ctx = c.getContext('2d');
+    if (ctx) drawIjsScreen(ctx, 192, 112, 'STANDBY');
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
+  }, []);
+  useEffect(() => () => {
+    ijsMat.map?.dispose();
+    ijsMat.dispose();
+  }, [ijsMat]);
   useEffect(
     () => () => {
       Object.values(g).forEach((x) => x.dispose());
@@ -521,34 +563,28 @@ export function DPConsole() {
     </group>
   );
 
-  const xs = lay.operatorStations === 1 ? [0] : [-0.335, 0.335];
+  const xs = stationXs(lay.operatorStations);
+  const chairMats = { upholstery: mats.upholstery, frame: mats.chairFrame, panel: mats.panel, key: mats.key, grip: mats.bezel, ball: mats.ball };
   return (
     <group name={`equipment:${ID}`} {...handlers}>
       <group position={DP_STATION}>
         {xs.map((x, i) => (
           <group key={i} position={[x, 0, 0]} name={`dp-operator-station-${i + 1}`}>
             {pedestal(i, screenMats[i])}
+            {/* DP operator chair facing aft, on floor rails, IJS in the left armrest */}
+            <group position={[0, 0, DEPTH / 2 + 0.56]} rotation={[0, Math.PI, 0]}>
+              <BridgeChair variant="dp" mats={chairMats} outline={o} ijsScreen={ijsMat} name={`dp-chair-${i + 1}`} />
+            </group>
           </group>
         ))}
-        {/* Operator chair behind the station */}
-        <group position={[0, 0, 1.15]} name="dp-chair">
-          {Array.from({ length: 5 }, (_, k) => (
-            <group key={k} rotation={[0, (k * Math.PI * 2) / 5, 0]}>
-              <mesh geometry={g.leg} material={mats.rack} position={[0, 0.03, 0.16]} />
-            </group>
-          ))}
-          <EqMesh geometry={g.post} material={mats.rack} outline={o} position={[0, 0.25, 0]} />
-          <EqMesh geometry={g.seat} material={mats.chair} outline={o} position={[0, 0.5, 0]} />
-          <EqMesh geometry={g.back} material={mats.chair} outline={o} position={[0, 0.88, 0.24]} rotation={[-0.12, 0, 0]} />
-        </group>
-        {/* DP cabinet: third controller (DP2/3), network switches and UPS */}
-        {lay.controllers > 1 && (
-          <group position={[2.4, 0.95, -0.05]} name="dp-cabinet">
-            <EqMesh geometry={g.cab} material={mats.cabinet} outline={o} />
-            <mesh geometry={g.cabDoor} material={mats.body} position={[0, 0, 0.301]} />
-          </group>
-        )}
       </group>
+      {/* DP cabinet: third controller (DP2/3), network switches and UPS */}
+      {lay.controllers > 1 && (
+        <group position={[DP_CABINET[0], DP_CABINET[1] + 0.95, DP_CABINET[2]]} name="dp-cabinet">
+          <EqMesh geometry={g.cab} material={mats.cabinet} outline={o} />
+          <mesh geometry={g.cabDoor} material={mats.body} position={[0, 0, 0.301]} />
+        </group>
+      )}
       {lay.backupStation && (
         <group name="dp3-backup-a60-room">
           <mesh
@@ -563,6 +599,9 @@ export function DPConsole() {
           />
           <group position={[5.1, DP_BACKUP_ROOM.min[1], 9.4]} name="dp-operator-station-3-backup">
             {pedestal(2, screenMats[2])}
+            <group position={[0, 0, DEPTH / 2 + 0.56]} rotation={[0, Math.PI, 0]}>
+              <BridgeChair variant="dp" mats={chairMats} outline={o} ijsScreen={ijsMat} name="dp-chair-3-backup" />
+            </group>
           </group>
         </group>
       )}

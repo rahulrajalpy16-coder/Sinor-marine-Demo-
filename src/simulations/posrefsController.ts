@@ -1,6 +1,7 @@
 import { FixedStepper } from './fixedStep';
+import { startOnStation } from './startState';
 import type { SimulationController } from './controller';
-import { applyPosRefCommand, initialPosRefState, stepPosRefs, type PosRefCommand, type PosRefState, type VesselPose } from './posrefs';
+import { applyPosRefCommand, initialPosRefState, onStationPosRefState, stepPosRefs, type PosRefCommand, type PosRefState, type VesselPose } from './posrefs';
 
 /**
  * Holds the RadaScan, CyScan, taut wire and SPRINT-Nav operating state outside React.
@@ -9,7 +10,7 @@ import { applyPosRefCommand, initialPosRefState, stepPosRefs, type PosRefCommand
  */
 export class PosRefController implements SimulationController<PosRefState, PosRefCommand> {
   readonly id = 'position-references';
-  private state: PosRefState = initialPosRefState();
+  private state: PosRefState = startOnStation() ? onStationPosRefState() : initialPosRefState();
   private listeners = new Set<(s: PosRefState) => void>();
   private stepper = new FixedStepper(1 / 30, 240);
   private sinceNotify = 0;

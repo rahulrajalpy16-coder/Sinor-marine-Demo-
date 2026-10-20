@@ -28,6 +28,7 @@ import {
   SHIP_SIDE_X,
   SMT_TW,
   SPRINTNAV,
+  TAUTWIRE_DECK_Y,
   TAUTWIRE_EDGE_X,
   TAUTWIRE_Z,
 } from './posrefData';
@@ -276,7 +277,7 @@ export function tautWireHeadUH(t: number): [number, number] {
 /** Gimbal head position (vessel frame) for a boom position 0 (recovered) … 1 (deployed). */
 export function tautWireHead(t: number): [number, number, number] {
   const [u, h] = tautWireHeadUH(t);
-  return [TAUTWIRE_EDGE_X + u, DECK_Y + h, TAUTWIRE_Z + TW_HEAD_Z];
+  return [TAUTWIRE_EDGE_X + u, TAUTWIRE_DECK_Y + h, TAUTWIRE_Z + TW_HEAD_Z];
 }
 /** Wire hanging below the head with no payout: the weight sits in its basket when recovered. */
 export const tautWireHang = (t: number) => (1 - t) * (TW_RECOVERED_HEAD[1] - 0.12 - TW_BASKET_H - SMT_TW.weightHeight.value);
@@ -426,7 +427,7 @@ export function TautWireUnit() {
     [0, 0.28],
   ];
   return (
-    <group name={`equipment:${TW_ID}`} position={[TAUTWIRE_EDGE_X, DECK_Y, TAUTWIRE_Z]} {...handlers}>
+    <group name={`equipment:${TW_ID}`} position={[TAUTWIRE_EDGE_X, TAUTWIRE_DECK_Y, TAUTWIRE_Z]} {...handlers}>
       {/* Skid base: perimeter beams, cross members, lifting eyes and grating walkways */}
       {[-1, 1].map((k) => (
         <EqMesh key={`r${k}`} geometry={g.rail} material={mats.frame} outline={o} position={[-FX / 2, 0.075, k * (FZ / 2 - 0.07)]} name={k > 0 ? 'skid' : undefined} />

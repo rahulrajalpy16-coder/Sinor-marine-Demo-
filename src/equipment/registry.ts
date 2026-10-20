@@ -22,9 +22,11 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
     explodable: false,
     implemented: true,
     summary:
-      'Integrated bridge system on a dual redundant network. The forward console carries five multi-function workstations (X-band radar, ECDIS, conning, ECDIS, S-band radar); any application can run on any workstation. Overhead displays, steering stand with the Z-Thrust BT1 panel, navigator chairs and chart table complete the layout.',
+      'Integrated bridge system on a dual redundant network, laid out like a DP2 offshore vessel bridge. A wraparound forward console under the front windows carries five multi-function workstations (X-band radar, ECDIS, conning, ECDIS, S-band radar), the autopilot, thruster levers and the Z-Thrust BT1 panel, with GMDSS and alarm wings either side, two navigator chairs and an overhead repeater row. The aft console wings either side of the DP station carry the aft manoeuvring levers, deck CCTV and winch panels. Only the IBS, DP and Z-Thrust items are the supplied makers; the rest is generic bridge equipment.',
     specs: [
-      { label: 'Installation', value: 'Wheelhouse forward console, centreline; SOLAS V/22 view ahead, MSC/Circ.982 layout' },
+      { label: 'Installation', value: 'Forward wraparound console (centre + chamfered wings) and aft console wings; SOLAS V/22 view ahead, MSC/Circ.982 layout, console top 1.2 m' },
+      { label: 'Forward console', value: '5 × MFW, autopilot, AZ1/AZ2 + BT1/BT2 levers, Z-Thrust BT1 panel, GMDSS (port wing), alarms/BNWAS + CCTV (stbd wing)' },
+      { label: 'Aft console', value: 'Aft manoeuvring levers + thruster mimic (port), deck CCTV, winch and tugger controls (stbd), DP station in the centre' },
       { label: 'Workstations', value: '5 × MFW, 26" displays' },
       { label: 'Applications', value: 'ARPA radar, ECDIS, conning, ICAS, DP, cameras, thruster control' },
       { label: 'Network', value: 'Dual redundant Ethernet' },
@@ -35,21 +37,24 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
   },
   'dp-console-001': {
     short: 'DP Console',
-    target: [0, 14.0, 7.45],
-    camera: [0.7, 15.15, 10.8],
+    target: [0, 13.7, 7.3],
+    // From behind the DP chairs, high enough to see both operator stations over the headrests.
+    camera: [1.1, 15.75, 10.6],
     underwater: false,
     interior: true,
     explodable: true,
     implemented: true,
     summary:
-      'Aft-facing DP station on the bridge, overlooking the working deck. 26-inch pedestal operator stations hold the DP panel (joystick, trackball, mode keys), the display and a 19-inch rack with the DP control and operator computers. Class 2 has three voting controllers, two stations and a dual network; class 3 adds a backup station in a separate A60 room.',
+      'Aft-facing DP station on the bridge, overlooking the working deck. 26-inch pedestal operator stations hold the DP panel (joystick, trackball, mode keys) and the display; the 19-inch rack with the DP control and operator computers stands in a cabinet against the side wall. Each station has a DP operator chair on floor rails with armrest controls: the left armrest carries the independent joystick system (IJS), the right a trackball and keypad. All fitted position references are connected and in use when the vessel is on station. Class 2 has three voting controllers, two stations and a dual network; class 3 adds a backup station in a separate A60 room.',
     specs: [
       { label: 'Location', value: 'Bridge, aft-facing station with a view of the working deck and vessel side (IMO MSC.1/Circ.1580 §3.1.8); DP3 backup in an A-60 room below (§3.4.2.6)' },
       { label: 'Console', value: '26" pedestal, 653.5 W × 685.9 D × 1204.25 H mm, desk front 767 mm, cabinet 676 mm (MT drawing 5000-501092)' },
-      { label: 'Rack', value: 'MT computer, DP control + operator computers, PoE switch' },
+      { label: 'Rack', value: 'MT computer, DP control + operator computers, PoE switch (cabinet beside the station)' },
+      { label: 'Chairs', value: 'DP operator chairs on fore-and-aft rails; IJS joystick, keys and display in the left armrest, trackball + keypad + heading knob in the right' },
+      { label: 'IJS', value: 'Independent joystick system interfaced to the DP (Bridge Mate DP datasheet), own display and mode keys' },
       { label: 'Class options', value: 'DP1 · DP2 (default) · DP3' },
       { label: 'Thrusters', value: 'BT1 + BT2 (bow, P2 CPP), AZ1 + AZ2 (stern)' },
-      { label: 'References', value: 'DGPS 1/2 (SeaSTAR), HPR, RadaScan, CyScan, taut wire, SPRINT-Nav' },
+      { label: 'References', value: 'All connected and in use on station: DGPS 1/2 (SeaSTAR), HPR, RadaScan, CyScan, taut wire, SPRINT-Nav' },
       { label: 'Simulation', value: '3-DOF educational model, not certified' },
     ],
   },
@@ -101,8 +106,9 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
   'deployment-001': {
     short: 'HPR Hoist',
     // Machine stands on the bottom plating at frame +12 m; the camera is inside the hull, in the trunk space.
-    target: [0, -1.9, 11.6],
-    camera: [4.2, -1.0, 19.4],
+    target: [0, -2.9, 11.8],
+    // Looks at the starboard face, where the seachest inspection door opens on to the parked transceiver.
+    camera: [5.0, -2.2, 13.6],
     underwater: true,
     interior: true,
     interiorMaxDistance: 11,
@@ -189,15 +195,15 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
   },
   'tautwire-001': {
     short: 'Taut Wire',
-    target: [10.6, 2.9, -6],
-    camera: [5.2, 6.8, 0.2],
+    target: [10.4, 8.4, 4.1],
+    camera: [4.6, 12.4, -2.6],
     underwater: false,
     explodable: false,
     implemented: true,
     summary:
       'SMT Taut Wire 2.0, Z Range Mk2. A 400 kg depressor weight is lowered to the seabed by a constant-tension electric winch; the gimbal head on the cranked boom measures the wire angles across and along ship, which give the vessel offset from the weight. Usable within ±30°.',
     specs: [
-      { label: 'Installation', value: 'Starboard main deck, 6 m aft of midships at a bulwark opening: near the roll centre, clear of thrusters, opposite the pole, within crane reach (SMT manual PJ 0044-13 §3)' },
+      { label: 'Installation', value: 'Starboard upper (forecastle) deck, aft end, just aft of the rescue boat at a bulwark opening: 4 m from mid-length (near the roll centre), 21 m from BT2, opposite the pole, cable run to the bridge about 25 m (SMT manual PJ 0044-13 §3)' },
       { label: 'Water depth', value: '500 m (700 m cable on drum)' },
       { label: 'Depressor weight', value: '400 kg' },
       { label: 'Skid / height', value: '1700 × 1600 mm; 2085 mm stored, 2395 mm deploying' },
@@ -218,7 +224,7 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
     summary:
       'Sonardyne SPRINT-Nav DP: inertial sensors and a pressure sensor aided by a 375 kHz DVL locked on to the seabed, giving a GNSS-independent position reference in shallow water. It is lowered over the port side on a Sonardyne Type 8097 three-section pole, swung down from its stowed position along the deck edge by winch and held by a hydraulic lock welded to the hull.',
     specs: [
-      { label: 'Installation', value: 'Port aft main deck where the GA plan shows it: opposite the taut wire, 27 m forward of the azimuths' },
+      { label: 'Installation', value: 'Port aft main deck where the GA plan shows it: opposite side from the taut wire, 27 m forward of the azimuths' },
       { label: 'Station keeping', value: '< 3.2 m over 12 h (1DRMS), < 5.2 m R95' },
       { label: 'DVL', value: '375 kHz, bottom lock 0.4–200 m altitude' },
       { label: 'Heading / roll, pitch', value: '0.04° / 0.01°' },
