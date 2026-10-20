@@ -32,12 +32,12 @@ All values live in `src/vessels/vesselLayout.ts`. The plan was read at 1:175 wit
 
 | System | Where |
 | --- | --- |
-| IBS forward console, steering stand, chart table | Wheelhouse forward part, bridge deck 12.9 m |
+| IBS forward wraparound console, navigator chairs, chart table, aft console wings around the DP station | Wheelhouse forward part, bridge deck 12.9 m |
 | DP operator station (aft-facing) | Wheelhouse aft windows; DP3 backup station in an A60 room on the officers deck below |
 | RadaScan View, CyScan AS | Aft corners of the bridge deck on 1.1 m plinths, port and starboard (z 6.4 m), facing the working area astern |
 | Seastar GA830 antennas | Mast yardarm ends |
 | HPR (Type 7950 + HPT 5000) | Centreline at z 12 m, on the bottom plating (keel at the 4.8 m draught) |
-| Taut wire | Starboard main deck at z −6 m (near the roll centre), at a bulwark and rail opening |
+| Taut wire | Starboard upper (forecastle) deck aft end, z +3.95 m, just aft of the rescue boat, at a bulwark opening (position marked by Sinor Marine; guard rail along the forecastle deck's aft edge) |
 | SPRINT-Nav DP on the 8097 pole | Port aft main deck, pivot at z −7 m |
 
 ## Assumptions and not from the plan

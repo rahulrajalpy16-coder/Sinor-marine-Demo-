@@ -1,11 +1,12 @@
 import { FixedStepper } from './fixedStep';
 import type { SimulationController } from './controller';
-import { applyDeployCommand, initialDeploymentState, stepDeployment, type DeployCommand, type DeploymentState } from './deployment';
+import { applyDeployCommand, initialDeploymentState, onStationDeploymentState, stepDeployment, type DeployCommand, type DeploymentState } from './deployment';
+import { startOnStation } from './startState';
 
 /** Holds the Type 7950 deployment state outside React; UI subscribes, the scene reads every frame. */
 export class DeploymentController implements SimulationController<DeploymentState, DeployCommand> {
   readonly id = 'deployment-state-machine';
-  private state: DeploymentState = initialDeploymentState();
+  private state: DeploymentState = startOnStation() ? onStationDeploymentState() : initialDeploymentState();
   private listeners = new Set<(s: DeploymentState) => void>();
   private stepper = new FixedStepper(1 / 60, 240);
   private sinceNotify = 0;

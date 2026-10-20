@@ -487,7 +487,7 @@ function RedundancyPage({
             </Unit>
           ))}
       </Group>
-      <Group title="Position references">
+      <Group title={`Position references · ${refSummary(s)}`}>
         {s.refs
           .filter((r) => r.installed)
           .map((r) => (
@@ -517,13 +517,20 @@ function RedundancyPage({
   );
 }
 
+/** Connected = fitted and wired to the DP; in use = selected, measuring and accepted by the voting. */
+export function refSummary(s: DPState) {
+  const fitted = s.refs.filter((r) => r.installed);
+  const inUse = fitted.filter((r) => r.enabled && r.ready && !r.rejected && r.fault !== 'lost');
+  return `${fitted.length} connected, ${inUse.length} in use`;
+}
+
 function refStatus(r: RefState) {
   if (!r.enabled) return r.ready ? 'DESELECTED' : 'OFF · NOT READY';
   if (!r.ready) return r.id === 'HPR' ? 'NOT DEPLOYED' : 'NOT READY';
   if (r.fault === 'lost') return 'LOST';
   if (r.rejected) return 'REJECTED';
   if (r.fault === 'drift') return 'DRIFTING';
-  return 'OK';
+  return 'IN USE';
 }
 
 function EnvironmentPage({ s, send }: { s: DPState; send: Send }) {

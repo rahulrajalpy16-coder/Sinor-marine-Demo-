@@ -21,18 +21,21 @@ All sensors share one rule that the guides repeat: after mounting, **measure the
 | RadaScan View | **Moved** to the port aft corner of the bridge deck, on a 1.1 m plinth | Clear view to the responders astern; level with them; different level from the X-band radar; panel facing away from the operating area (94-0492-4-A) |
 | CyScan AS | **Moved** to the starboard aft corner of the bridge deck, on a 1.1 m plinth | Clear view to the targets; ≥ 5 m horizontally from S/X-band radars and VHF; ideally one deck below them; clear of exhausts; access cover to the bow (94-0559-C) |
 | Seastar GA830 antennas (2 × 9410-AUT) | Mast yardarm ends, 6 m apart | Open sky; ≥ 3 m from and out of the beam of radars and satcom transmitters (IMO SN/Circ.227 §2.3.1) |
-| SMT Taut Wire 2.0 Z Mk2 | **Moved** from z −14 m to z −6 m, starboard main deck, at a bulwark opening | Close to the roll centre; not above or near thrusters; opposite side from other over-side systems; within reach of a 2.1 t crane lift (PJ 0044-13 §3.1) |
+| SMT Taut Wire 2.0 Z Mk2 | **Moved** to the position marked by Sinor Marine: starboard upper (forecastle) deck, aft end, z +3.95 m, just aft of the rescue boat, at a bulwark opening | Close to the roll centre; not above or near thrusters; opposite side from other over-side systems; crane lift for the 2.1 t unit; access round the unit (PJ 0044-13 §3.1) |
 | SPRINT-Nav DP on 8097 pole | Port aft main deck, pivot z −7 m (GA plan) | Where the plan shows it; opposite the taut wire; far from the azimuths |
 
 ## Bridge systems
 
 ### IBS
-**Where:** forward console on the centreline of the wheelhouse.
-- The multi-function workstations face forward under the front windows.
-- The steering stand is on the centreline, behind the console.
-- The chart table is aft, to starboard.
+**Where:** a wraparound forward console under the front windows, and two aft console wings either side of the DP station, laid out as on a typical DP2 offshore vessel bridge.
+- **Forward centre section (7.2 m):** five multi-function workstations in the sloped display face, the autopilot with a small wheel at the conning position, the AZ1/AZ2 and BT1/BT2 levers and the Z-Thrust BT1 panel.
+- **Forward wings:** follow the chamfered front corners. Port: GMDSS, AIS and echo sounder. Starboard: alarm panel, BNWAS and forward CCTV.
+- **Two navigator chairs** behind the centre section, an overhead repeater row under the front windows, and the chart table to port.
+- **Aft wings:** port carries the aft manoeuvring levers and a thruster mimic, starboard the deck CCTV, winch page and tugger controls. Heading, wind and DP mode repeaters hang over the aft windows.
+- Console profile: top at 1.2 m, desk at about 0.79 m, kick recess for the seated operator.
+- Only the Bridge Mate IBS, the MT DP stations and the Z-Thrust panel are named makers. The rest is generic bridge equipment.
 
-**Why:** the conning position needs the view ahead. SOLAS V/22 sets the visibility requirements and MSC/Circ.982 is the ergonomic layout guideline. The Bridge Mate IBS datasheet gives the console arrangement.
+**Why:** the conning position needs the view ahead. SOLAS V/22 sets the visibility requirements; MSC/Circ.982 is the ergonomic layout guideline (consoles low enough to see over, work stations grouped around the conning position). On a DP vessel the aft console faces the working deck (MSC.1/Circ.1580 §3.1.8). The Bridge Mate IBS datasheet gives the workstation arrangement.
 
 **Procedure** (standard, not from a supplied manual):
 1. Land and bolt the console sections to the deck foundations.
@@ -42,7 +45,11 @@ All sensors share one rule that the guides repeat: after mounting, **measure the
 5. Run the harbour acceptance test, then the sea trials with class.
 
 ### DP operator station
-**Where:** aft-facing, at the wheelhouse aft windows over the working deck.
+**Where:** aft-facing, at the wheelhouse aft windows over the working deck, in the gap between the aft console wings.
+- Each operator station has a DP operator chair on fore-and-aft floor rails. The left armrest carries the independent joystick system (IJS: joystick, mode keys and its own display), the right a trackball, keypad and heading knob.
+- The 19" rack cabinet stands against the starboard side wall, beside the station.
+
+**IJS:** DP vessels carry an independent joystick as a manual backup to the DP, which class rules generally require. The Bridge Mate DP datasheet says an independent joystick system can be interfaced to it. Putting it in the chair armrest, as on many DP vessel bridges, lets the operator take over without leaving the seat.
 
 **DP3 backup:** a separate station in its own room one deck below, behind an A-60 division.
 
@@ -147,18 +154,15 @@ Here each antenna is about 3.5 m from the radar centres, between the S-band and 
 6. Check the position with a static comparison.
 
 ### SMT Taut Wire 2.0, Z Range Mk2
-**Where:** starboard main deck at z −6 m, with the skid's outboard edge 0.1 m inside the ship side at a bulwark and crash-rail opening.
+**Where:** starboard upper (forecastle) deck at its aft end, z +3.95 m, just aft of the rescue boat. The skid's outboard edge is 0.1 m inside the ship side at a 2.25 m bulwark opening. This is the position Sinor Marine marked on 2026-10-20; a 1.1 m guard rail now runs along the aft edge of the forecastle deck.
 
-**Why** (installation manual PJ 0044-13 §3.1):
-- It works best close to the vessel's roll centre. It was moved from z −14 m to the clear deck nearest midships, aft of the accommodation front.
-- It must not be above or close to the thrusters, because thruster wash disturbs the wire angle. Here it is 31 m from BT2 and 28 m from the azimuths.
-- It goes on the opposite side from ROV or over-side systems, to avoid entanglement. The SPRINT-Nav pole is to port.
-- It must be near a crane that can lift 2,100 kg. The main deck crane is 14.5 m away.
-- It needs a lifting point of at least 500 kg over the weight basket for weight changes.
-- It needs space to open the console doors and walk around the unit.
-- It must be within 100 m of cable from the bridge panel.
-
-The along-ship position is a judgement; the plan does not show a taut wire.
+**Why** (installation manual PJ 0044-13 §3.1), checked at the marked position:
+- **Roll centre:** it works best close to the vessel's roll centre. It is 3.95 m forward of mid-length, so still close along the ship. It is 5.6 m higher than the main deck, so roll moves the gimbal head more; the measured head offsets to the roll centre and the MRU compensate for this in DP (§7).
+- **Thrusters:** it must not be above or close to the thrusters, because thruster wash disturbs the wire angle. It is 21 m aft of BT2 and 38 m forward of the azimuths.
+- **Over-side systems:** it goes on the opposite side from ROV or over-side systems, to avoid entanglement. The SPRINT-Nav pole is to port.
+- **Lifting:** it must be near a crane that can lift 2,100 kg, and a lifting point of at least 500 kg over the weight basket is needed for weight changes. Both are assumed to come from the deck crane; this was not checked against a load chart and no padeye is modelled.
+- **Access:** there is open deck inboard and forward of the skid for the console doors and the walk-round, and 1.25 m clear of the rescue boat. Recover the weight before launching the rescue boat so the launch zone stays clear.
+- **Cable:** about 25 m to the bridge panel, inside the 100 m limit.
 
 **Procedure** (PJ 0044-13 §5 to §7):
 1. Prepare the deck seating or skid base, then weld and paint it. Prepare both supplies: 380–460 VAC 3-phase on a 43 A Type D breaker, and a UPS 220–250 V on a 6 A Type C breaker.
@@ -192,7 +196,7 @@ The along-ship position is a judgement; the plan does not show a taut wire.
 | --- | --- | --- |
 | RadaScan View | Compass deck z +19.4 m, port, 0.6 m plinth | Bridge deck aft corner z +6.4 m, port, 1.1 m plinth |
 | CyScan AS | Compass deck z +19.4 m, starboard, 0.4 m plinth | Bridge deck aft corner z +6.4 m, starboard, 1.1 m plinth |
-| Taut wire | Starboard main deck z −14 m | Starboard main deck z −6 m |
+| Taut wire | Starboard main deck z −14 m, then z −6 m | Starboard upper (forecastle) deck aft end, z +3.95 m, aft of the rescue boat (position marked by Sinor Marine) |
 | Taut wire model | Simple skid, A-frame and straight arm | Rebuilt to the unit in the SMT manual (see below) |
 | Every system | — | An "Installation" row in its details panel stating the location and the rule |
 

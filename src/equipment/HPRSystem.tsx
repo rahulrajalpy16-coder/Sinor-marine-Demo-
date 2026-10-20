@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { useEquipmentMaterials, useSelectable } from '../interactions/useSelectable';
 import { EqMesh } from './EqMesh';
 import { useAppStore } from '../store/useAppStore';
@@ -37,6 +38,57 @@ const W = {
 const SPACE = { w: T7950.mountingSpace.width.value, d: T7950.mountingSpace.depth.value, h: T7950.mountingSpace.height.value };
 const FWD = T7950.axisFromForwardWall.value;
 const SPACE_Z: [number, number] = [FWD - SPACE.w, FWD];
+/**
+ * Inspection door on the seachest's starboard face. The component drawing shows a bolted cover over most of the
+ * face; its size, bolt count and hinge side are not dimensioned (assumed). The opening runs from just above the
+ * adaptor flange, so the parked transceiver (face 50 mm above the gate) is in view when the door is open.
+ */
+const DOOR = { y0: T7950.gateStackTop.value + 0.06, y1: T7950.seachestTop.value - 0.12, w: 0.4, get h() { return this.y1 - this.y0; }, get y() { return (this.y0 + this.y1) / 2; } };
+const DOOR_OPEN_RAD = -Math.PI * 0.97;
+const DOOR_BOLTS: [number, number][] = (() => {
+  const out: [number, number][] = [];
+  const [hy, hz] = [DOOR.h / 2 + 0.02, DOOR.w / 2 + 0.02];
+  for (let k = 0; k <= 6; k++) out.push([-hy + (2 * hy * k) / 6, -hz], [-hy + (2 * hy * k) / 6, hz]);
+  for (let k = 1; k < 3; k++) out.push([-hy, -hz + (2 * hz * k) / 3], [hy, -hz + (2 * hz * k) / 3]);
+  return out;
+})();
+
+/** Seachest walls (open box) from y = 0 up, with the door opening cut in the +x face. */
+function seachestShell(h: number) {
+  const w = W.chest;
+  const t = 0.02;
+  const parts: THREE.BufferGeometry[] = [];
+  const box = (sx: number, sy: number, sz: number, x: number, y: number, z: number) => parts.push(new THREE.BoxGeometry(sx, sy, sz).translate(x, y, z).toNonIndexed());
+  box(t, h, w, -w / 2 + t / 2, h / 2, 0);
+  box(w - 2 * t, h, t, 0, h / 2, -w / 2 + t / 2);
+  box(w - 2 * t, h, t, 0, h / 2, w / 2 - t / 2);
+  // Starboard face around the opening (y measured from the chest base at the gate stack top).
+  const o0 = DOOR.y0 - T7950.gateStackTop.value - 0.04;
+  const o1 = DOOR.y1 - T7950.gateStackTop.value - 0.04;
+  box(t, o0, w, w / 2 - t / 2, o0 / 2, 0);
+  box(t, h - o1, w, w / 2 - t / 2, (h + o1) / 2, 0);
+  const side = (w - DOOR.w) / 2;
+  box(t, o1 - o0, side, w / 2 - t / 2, (o0 + o1) / 2, -w / 2 + side / 2);
+  box(t, o1 - o0, side, w / 2 - t / 2, (o0 + o1) / 2, w / 2 - side / 2);
+  const g = mergeGeometries(parts)!;
+  parts.forEach((p) => p.dispose());
+  return g;
+}
+
+/** Raised frame round the door opening, against which the cover bolts down. */
+function doorFrame() {
+  const parts: THREE.BufferGeometry[] = [];
+  const t = 0.03;
+  const [h, w] = [DOOR.h, DOOR.w];
+  parts.push(new THREE.BoxGeometry(0.02, t, w + 2 * t).translate(0.01, h / 2 + t / 2, 0).toNonIndexed());
+  parts.push(new THREE.BoxGeometry(0.02, t, w + 2 * t).translate(0.01, -h / 2 - t / 2, 0).toNonIndexed());
+  parts.push(new THREE.BoxGeometry(0.02, h, t).translate(0.01, 0, w / 2 + t / 2).toNonIndexed());
+  parts.push(new THREE.BoxGeometry(0.02, h, t).translate(0.01, 0, -w / 2 - t / 2).toNonIndexed());
+  const g = mergeGeometries(parts)!;
+  parts.forEach((p) => p.dispose());
+  return g;
+}
+
 // Explode: stack sections apart along the axis (gate valve stays on the hull).
 const EXPLODE = { chest: 0.45, seal: 0.9, top: 1.5 };
 
@@ -62,6 +114,7 @@ export function Type7950Machine() {
     valve: { color: '#c0261d', metalness: 0.45, roughness: 0.45 },
     flange: { color: '#6d747b', metalness: 0.8, roughness: 0.3 },
     chest: { color: '#a7adb3', metalness: 0.6, roughness: 0.45 },
+    primer: { color: '#c3c7c9', metalness: 0.1, roughness: 0.75 },
     ram: { color: '#d7dde2', metalness: 0.95, roughness: 0.12 },
     ladder: { color: '#c9b37a', metalness: 0.5, roughness: 0.5 },
     plate: { color: '#5b636b', metalness: 0.6, roughness: 0.6 },
@@ -100,10 +153,14 @@ export function Type7950Machine() {
       spoke: new THREE.BoxGeometry(W.wheel, 0.02, 0.02),
       gate: new THREE.BoxGeometry(0.38, 0.03, 0.4),
       adaptor: new THREE.CylinderGeometry(W.flange / 2 - 0.03, W.flange / 2 - 0.03, 0.06, radial),
-      chest: new THREE.BoxGeometry(W.chest, chestH - 0.08, W.chest),
+      chest: seachestShell(chestH - 0.08),
+      chestInside: new THREE.BoxGeometry(W.chest - 0.05, chestH - 0.1, W.chest - 0.05).scale(-1, 1, 1),
+      bore: new THREE.CircleGeometry(0.17, radial).rotateX(-Math.PI / 2),
       chestFlange: new THREE.BoxGeometry(W.chest + 0.08, 0.04, W.chest + 0.08),
-      door: new THREE.BoxGeometry(0.02, chestH * 0.55, W.chest * 0.7),
-      bolt: new THREE.SphereGeometry(0.012, 6, 4),
+      door: new THREE.BoxGeometry(0.022, DOOR.h + 0.08, DOOR.w + 0.08),
+      doorFrame: doorFrame(),
+      bolt: new THREE.CylinderGeometry(0.011, 0.011, 0.014, 6).rotateZ(Math.PI / 2),
+      doorHandle: new THREE.TorusGeometry(0.045, 0.008, 6, 12, Math.PI).rotateY(Math.PI / 2),
       seal: new THREE.BoxGeometry(W.seal, sealH - 0.08, W.seal),
       sealFlange: new THREE.BoxGeometry(W.seal + 0.07, 0.04, W.seal + 0.07),
       topBase: new THREE.BoxGeometry(W.seal + 0.1, 0.06, W.top),
@@ -153,7 +210,8 @@ export function Type7950Machine() {
     // Gate slides into the bonnet (aft, -z) as the valve opens; the handwheel turns with it.
     if (gate.current) gate.current.position.z = -s.valveOpen * 0.42;
     if (wheel.current) wheel.current.rotation.z = s.valveOpen * Math.PI * 8;
-    if (door.current) door.current.rotation.y = smooth(door.current.rotation.y, s.doorOpen ? -1.6 : 0, dt, reduced);
+    // The door folds right back along the starboard face (the mounting space leaves no room to swing it into).
+    if (door.current) door.current.rotation.y = smooth(door.current.rotation.y, s.doorOpen ? DOOR_OPEN_RAD : 0, dt, reduced);
   });
 
   const chestMid = (D.gateTop + D.chestTop) / 2;
@@ -204,19 +262,24 @@ export function Type7950Machine() {
         <EqMesh geometry={g.adaptor} material={mats.flange} outline={o} position={[0, D.gateTop - 0.03, 0]} name="adaptor-flange" />
       </group>
 
-      {/* Seachest with inspection door (hinged on its aft edge, on the starboard face) */}
+      {/* Seachest: a hollow service section with a bolted inspection door on its starboard face (hinged on the aft
+          edge, folding back along the face). With the transceiver parked and the gate valve closed, the open door shows the HPT 5000 inside. */}
       <group ref={chest} name="seachest">
         <EqMesh geometry={g.chestFlange} material={mats.flange} outline={o} position={[0, D.gateTop + 0.02, 0]} />
-        <EqMesh geometry={g.chest} material={mats.chest} outline={o} position={[0, chestMid, 0]} />
+        <EqMesh geometry={g.chest} material={mats.chest} outline={o} position={[0, D.gateTop + 0.04, 0]} />
+        <mesh geometry={g.chestInside} material={mats.primer} position={[0, chestMid, 0]} name="seachest-interior" />
+        <mesh geometry={g.bore} material={mats.pole} position={[0, D.gateTop + 0.053, 0]} name="valve-bore" />
+        <EqMesh geometry={g.doorFrame} material={mats.flange} outline={o} position={[W.chest / 2, DOOR.y, 0]} name="door-frame" />
         <EqMesh geometry={g.chestFlange} material={mats.flange} outline={o} position={[0, D.chestTop - 0.02, 0]} />
-        <group ref={door} position={[W.chest / 2 + 0.012, chestMid, -W.chest * 0.35]}>
-          <group position={[0, 0, W.chest * 0.35]}>
-            <EqMesh geometry={g.door} material={mats.frame} outline={o} name="inspection-door" />
-            {[-1, 1].flatMap((sy) =>
-              [-1, 0, 1].map((sz) => (
-                <mesh key={`${sy}${sz}`} geometry={g.bolt} material={mats.flange} position={[0.012, sy * 0.25, sz * 0.17]} />
-              )),
-            )}
+        <group ref={door} position={[W.chest / 2 + 0.024, DOOR.y, -DOOR.w / 2 - 0.04]}>
+          <group position={[0.011, 0, DOOR.w / 2 + 0.04]}>
+            <EqMesh geometry={g.door} material={mats.chest} outline={o} name="inspection-door" />
+            {DOOR_BOLTS.map(([y, z], k) => (
+              <mesh key={k} geometry={g.bolt} material={mats.flange} position={[0.016, y, z]} />
+            ))}
+            {[-1, 1].map((k) => (
+              <mesh key={k} geometry={g.doorHandle} material={mats.flange} position={[0.012, k * DOOR.h * 0.3, 0]} />
+            ))}
           </group>
         </group>
       </group>
@@ -245,35 +308,69 @@ export function Type7950Machine() {
 }
 
 /**
- * Sonardyne HPT 5000 USBL transceiver (8142-000-01): 322 × 225 mm aluminium bronze housing,
- * black acoustic transducer face at the bottom, connector at the top, white forward arrow,
- * on the 6G installation kit's isolation flange at the end of the 7950 pole.
+ * Sonardyne HPT 5000 USBL transceiver (8142-000-01), drawn from the UM-8142 description inside the manual's
+ * 322 × 225 mm envelope (§3.3, §4.3.1, §4.5): an aluminium bronze housing slid over the electronics chassis and
+ * secured to the metal base plate of the transducer face assembly with six bolts; the black polyurethane acoustic
+ * face at the bottom; the underwater connector in the top; the mounting flange (210 mm PCD, 155 mm bore on the
+ * adaptor side) bolted through the 6G kit's isolation flange ring to the end of the 7950 pole; a white
+ * forward-pointing arrow on the transducer and a machined groove as the second forward mark.
+ * The split of the 322 mm between flange, housing, base plate and face, and the bolt count on the flange, are
+ * not dimensioned in the supplied documents (assumed proportions).
  */
+export const HPT_PARTS = { flange: 0.022, body: 0.19, base: 0.015, face: 0.095, bodyR: 0.095 } as const;
+
+/** Black transducer section: straight side, rounded lower edge, shallow dome (hemispherical-coverage array). */
+function transducerProfile(R: number, h: number) {
+  const pts: THREE.Vector2[] = [new THREE.Vector2(0.001, 0), new THREE.Vector2(R, 0), new THREE.Vector2(R, -h * 0.55)];
+  const rc = 0.022;
+  for (let k = 1; k <= 6; k++) {
+    const a = (k / 6) * (Math.PI / 2);
+    pts.push(new THREE.Vector2(R - rc + rc * Math.cos(a), -h * 0.55 - rc * Math.sin(a)));
+  }
+  const y0 = -h * 0.55 - rc;
+  for (let k = 1; k <= 8; k++) {
+    const t = k / 8;
+    pts.push(new THREE.Vector2(Math.max(0.001, (R - rc) * (1 - t)), y0 - (h + y0) * (1 - (1 - t) * (1 - t))));
+  }
+  return pts;
+}
+
 export function HPT5000Transceiver() {
   const handlers = useSelectable(HPT);
   const { mats, visual } = useEquipmentMaterials(HPT, {
     bronze: { color: '#b98d4b', metalness: 0.85, roughness: 0.3 },
-    face: { color: '#121518', metalness: 0.1, roughness: 0.8 },
+    bronzeDark: { color: '#8d6a36', metalness: 0.8, roughness: 0.4 },
+    face: { color: '#15181b', metalness: 0.05, roughness: 0.55 },
     isolator: { color: '#e7e2d6', metalness: 0.1, roughness: 0.7 },
+    bolt: { color: '#c9ccce', metalness: 0.9, roughness: 0.3 },
     connector: { color: '#2b2f33', metalness: 0.6, roughness: 0.4 },
   });
   const o = visual.outline;
   const radial = useQualityProfile().radialSegments;
   const explodeTop = useExploded(MACHINE);
   const reduced = useAppStore((s) => s.reducedMotion);
-  const L = HPT5000.length.value;
   const R = HPT5000.diameter.value / 2;
-  const g = useMemo(
-    () => ({
+  const P = HPT_PARTS;
+  const g = useMemo(() => {
+    const ring = (r: number, n: number, y: number, src: THREE.BufferGeometry) =>
+      mergeGeometries(Array.from({ length: n }, (_, k) => src.clone().translate(r * Math.cos(((k + 0.5) * 2 * Math.PI) / n), y, r * Math.sin(((k + 0.5) * 2 * Math.PI) / n)).toNonIndexed()))!;
+    const head = new THREE.CylinderGeometry(0.008, 0.008, 0.008, 6);
+    return {
       isolator: new THREE.CylinderGeometry(W.pole / 2 + 0.01, W.pole / 2 + 0.01, 0.03, radial),
-      body: new THREE.CylinderGeometry(R, R, L - 0.07, radial),
-      face: new THREE.CylinderGeometry(R, R * 0.96, 0.07, radial),
-      connector: new THREE.CylinderGeometry(0.025, 0.025, 0.06, 10),
-      arrow: new THREE.ConeGeometry(0.03, 0.07, 3).rotateX(Math.PI / 2),
-    }),
-    [radial, L, R],
-  );
-  const arrowMat = useMemo(() => new THREE.MeshBasicMaterial({ color: '#ffffff' }), []);
+      flange: new THREE.CylinderGeometry(R, R, P.flange, radial),
+      flangeBolts: ring(0.105, 8, -P.flange - 0.004, head),
+      body: new THREE.CylinderGeometry(P.bodyR, P.bodyR, P.body, radial),
+      groove: new THREE.BoxGeometry(0.004, P.body * 0.9, 0.006),
+      base: new THREE.CylinderGeometry(R, R, P.base, radial),
+      baseBolts: ring(0.104, 6, 0.004, head),
+      face: new THREE.LatheGeometry(transducerProfile(R, P.face), radial),
+      connector: new THREE.CylinderGeometry(0.03, 0.03, 0.05, 12),
+      arrow: new THREE.ShapeGeometry(
+        new THREE.Shape([new THREE.Vector2(-0.012, -0.02), new THREE.Vector2(0.012, -0.02), new THREE.Vector2(0.012, 0.005), new THREE.Vector2(0.026, 0.005), new THREE.Vector2(0, 0.032), new THREE.Vector2(-0.026, 0.005), new THREE.Vector2(-0.012, 0.005)]),
+      ),
+    };
+  }, [radial, R, P]);
+  const arrowMat = useMemo(() => new THREE.MeshBasicMaterial({ color: '#ffffff', side: THREE.DoubleSide }), []);
   useEffect(
     () => () => {
       Object.values(g).forEach((x) => x.dispose());
@@ -288,15 +385,25 @@ export function HPT5000Transceiver() {
     exY.current = smooth(exY.current, explodeTop ? EXPLODE.top : 0, dt, reduced);
     if (grp.current) grp.current.position.y = HPR_DATUM_Y + transceiverY(s.travel).flange + exY.current;
   });
+  const yBody = -P.flange;
+  const yBase = yBody - P.body;
+  const yFace = yBase - P.base;
   return (
     <group name={`equipment:${HPT}`} {...handlers}>
       <group ref={grp} position={[HPR_AXIS.x, HPR_DATUM_Y + transceiverY(0).flange, HPR_AXIS.z]}>
-        <EqMesh geometry={g.isolator} material={mats.isolator} outline={o} position={[0, -0.015, 0]} name="isolation-flange" />
-        <EqMesh geometry={g.body} material={mats.bronze} outline={o} position={[0, -0.03 - (L - 0.07) / 2, 0]} name="hpt-housing" />
-        <EqMesh geometry={g.face} material={mats.face} outline={o} position={[0, -0.03 - (L - 0.07) - 0.035, 0]} name="transducer-face" />
-        <mesh geometry={g.connector} material={mats.connector} position={[R * 0.55, -0.06, 0]} rotation={[0, 0, Math.PI / 2]} />
-        {/* White forward-pointing arrow (manual §4.3.1: points to the bow) */}
-        <mesh geometry={g.arrow} material={arrowMat} position={[0, -0.12, R + 0.002]} />
+        {/* 6G kit isolation flange ring between the pole and the transceiver flange; connector in the top, inside the pole */}
+        <EqMesh geometry={g.isolator} material={mats.isolator} outline={o} position={[0, 0.015, 0]} name="isolation-flange" />
+        <mesh geometry={g.connector} material={mats.connector} position={[0, 0.03, 0]} name="underwater-connector" />
+        <EqMesh geometry={g.flange} material={mats.bronze} outline={o} position={[0, -P.flange / 2, 0]} name="mounting-flange" />
+        <mesh geometry={g.flangeBolts} material={mats.bolt} />
+        <EqMesh geometry={g.body} material={mats.bronze} outline={o} position={[0, yBody - P.body / 2, 0]} name="hpt-housing" />
+        {/* Machined groove: forward reference when the label is missing (§4.5) */}
+        <mesh geometry={g.groove} material={mats.bronzeDark} position={[0, yBody - P.body / 2, P.bodyR + 0.001]} rotation={[0, Math.PI / 2, 0]} />
+        <EqMesh geometry={g.base} material={mats.bronzeDark} outline={o} position={[0, yBase - P.base / 2, 0]} name="transducer-base-plate" />
+        <mesh geometry={g.baseBolts} material={mats.bolt} position={[0, yBase, 0]} />
+        <EqMesh geometry={g.face} material={mats.face} outline={o} position={[0, yFace, 0]} name="transducer-face" />
+        {/* White forward arrow on the black transducer face, pointing to the bow (§4.3.1) */}
+        <mesh geometry={g.arrow} material={arrowMat} position={[0, yFace - P.face - 0.002, 0]} rotation={[Math.PI / 2, 0, 0]} name="forward-arrow" />
       </group>
       <AcousticSignals />
     </group>

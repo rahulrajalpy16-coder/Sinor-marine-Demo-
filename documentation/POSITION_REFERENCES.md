@@ -92,10 +92,10 @@ Only those documents are used for each unit. Nothing is carried over from the or
 | SMT winch speed, warning angle | 0.5 m/s; 20° |
 | SMT alarm codes in `$PCPTW` | 00 / 01 / 02 (the manual gives the field, not the codes) |
 | SMT position noise in the 42 m scene | 0.3 m (the accuracy table starts at 100 m) |
-| Bulwark opening at the taut wire | 2.6 m, so the boom can pass the deck edge |
+| Bulwark opening at the taut wire | 2.25 m, so the boom can pass the deck edge |
 | 8097 pole swing / lock time | 90 s / 5 s |
 | SPRINT-Nav DVL beam angle; housing colour split | 30°; from the datasheet photo |
-| Placements on the vessel | RadaScan View and CyScan AS at the aft corners of the bridge deck on 1.1 m plinths, antennas on the yardarm ends, taut wire on the starboard main deck at −6 m, pole on the port side at −7 m (port aft main deck, as on the GA plan). Reasons in [INSTALLATION_GUIDE.md](INSTALLATION_GUIDE.md) |
+| Placements on the vessel | RadaScan View and CyScan AS at the aft corners of the bridge deck on 1.1 m plinths, antennas on the yardarm ends, taut wire on the starboard upper (forecastle) deck aft end at +3.95 m, just aft of the rescue boat, pole on the port side at −7 m (port aft main deck, as on the GA plan). Reasons in [INSTALLATION_GUIDE.md](INSTALLATION_GUIDE.md) |
 | Fixed platform, responder and target | 110 m astern of the starting position; a scene prop |
 | Water depth | 42 m (the existing scene seabed) |
 

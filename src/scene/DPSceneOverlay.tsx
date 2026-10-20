@@ -7,7 +7,7 @@ import { dpSystem } from '../simulations/dpController';
 import { useControllerState } from '../simulations/useController';
 import { classLayout, DEFAULT_DP_PARAMS } from '../simulations/dp';
 import { useAppStore } from '../store/useAppStore';
-import { DP_BACKUP_ROOM, DP_STATION } from '../equipment/DPConsole';
+import { DP_BACKUP_ROOM, DP_CABINET } from '../equipment/DPConsole';
 import { TunnelPortals, usePortalOrder, useTunnelOpenings } from '../equipment/tunnelPortal';
 
 /** Setpoint marker on the sea surface (scene frame, not moving with the vessel). */
@@ -95,7 +95,7 @@ export function DPNetworkOverlay() {
   const dp = useControllerState(dpSystem);
   if (!on) return null;
   const lay = classLayout(dp.dpClass);
-  const hub: V3 = [DP_STATION[0] + 2.4, DP_STATION[1] + 2.2, DP_STATION[2]];
+  const hub: V3 = [DP_CABINET[0], DP_CABINET[1] + 2.2, DP_CABINET[2]];
   const nets = dp.networks.filter((n) => n.installed);
   const route = (to: V3, off: number): V3[] => [
     [hub[0] + off, hub[1], hub[2]],

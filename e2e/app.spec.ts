@@ -239,7 +239,7 @@ test('DP system: station keeping, BT1 handover, DP1 controller failure loses pos
 });
 
 test('HPR: Type 7950 interlocks, deployment of the HPT 5000, and the deployed transceiver as a DP reference', async ({ page }) => {
-  await boot(page, '?intro=0&quality=low');
+  await boot(page, '?intro=0&quality=low&start=stowed');
   await page.addStyleTag({ content: '[data-testid^="hotspot-"]{display:none!important}' });
   await page.getByTestId('tree-deployment-001').click();
   await waitFocused(page, 'deployment-001');
@@ -284,7 +284,7 @@ test('HPR: Type 7950 interlocks, deployment of the HPT 5000, and the deployed tr
 });
 
 test('position references: RadaScan, CyScan, DGPS, taut wire and SPRINT-Nav feed DP once running', async ({ page }) => {
-  await boot(page, '?intro=0&quality=low');
+  await boot(page, '?intro=0&quality=low&start=stowed');
   await page.addStyleTag({ content: '[data-testid^="hotspot-"]{display:none!important}' });
   const ref = async (id: string) => (await page.evaluate(() => window.__SINOR__!.dp())).refs.find((r) => r.id === id)!;
 
@@ -295,12 +295,10 @@ test('position references: RadaScan, CyScan, DGPS, taut wire and SPRINT-Nav feed
   await expect(page.getByTestId('radascan-hmi-status')).toHaveText('TRACKING', { timeout: 30_000 });
   await expect(page.getByTestId('radascan-range')).toHaveText(/^\d+\.\d m$/);
   await expect(page.getByTestId('radascan-ppi')).toBeVisible();
-  await page.getByTestId('radascan-dp-select').click();
   await page.getByTestId('tree-cyscan-001').click();
   await waitFocused(page, 'cyscan-001');
   await page.getByTestId('cyscan-start').click();
   await expect(page.getByTestId('cyscan-hmi-status')).toHaveText('TRACKING', { timeout: 30_000 });
-  await page.getByTestId('cyscan-dp-select').click();
   // Fog blinds the laser, not the radar.
   await page.getByTestId('cyscan-fog').click();
   await expect(page.getByTestId('cyscan-hmi-status')).toHaveText('NO TARGET');
@@ -322,7 +320,6 @@ test('position references: RadaScan, CyScan, DGPS, taut wire and SPRINT-Nav feed
   await expect(page.getByTestId('tautwire-hmi-status')).toHaveText('ON BOTTOM · TENSIONED', { timeout: 60_000 });
   await expect(page.getByTestId('tw-angle')).toHaveText(/°$/);
   await expect(page.getByTestId('tw-nmea')).toHaveText(/^\$PCPTW,-?\d{3}\.\d{2},-?\d{3}\.\d{2},A,00,\d{3}\.\d\*[0-9A-F]{2}$/);
-  await page.getByTestId('tautwire-dp-select').click();
 
   // SPRINT-Nav: deploy the pole, power and align, then select into DP.
   await page.getByTestId('tree-sprintnav-001').click();
@@ -332,7 +329,6 @@ test('position references: RadaScan, CyScan, DGPS, taut wire and SPRINT-Nav feed
   await page.getByTestId('pole-deploy').click();
   await expect(page.getByTestId('sprintnav-hmi-status')).toHaveText('REFERENCE OK', { timeout: 60_000 });
   await expect(page.getByTestId('pole-angle')).toHaveText(/90° · LOCKED/);
-  await page.getByTestId('sprintnav-dp-select').click();
 
   // DP: all selected references ready; a drifting taut wire is voted out.
   await page.getByTestId('tree-dp-console-001').click();
@@ -340,10 +336,32 @@ test('position references: RadaScan, CyScan, DGPS, taut wire and SPRINT-Nav feed
   for (const id of ['GNSS1', 'GNSS2', 'RADASCAN', 'CYSCAN', 'TAUTWIRE', 'SPRINTNAV']) await expect.poll(async () => (await ref(id)).ready && (await ref(id)).enabled).toBe(true);
   await page.getByTestId('dp-start').click();
   await page.getByTestId('dp-tab-redundancy').click();
-  await expect(page.getByTestId('dp-ref-TAUTWIRE')).toContainText('OK');
+  await expect(page.getByTestId('dp-ref-TAUTWIRE')).toContainText('IN USE');
   await page.getByTestId('dp-drift-TAUTWIRE').click();
   await expect.poll(async () => (await ref('TAUTWIRE')).rejected, { timeout: 60_000 }).toBe(true);
   await expect(page.getByTestId('dp-ref-TAUTWIRE')).toContainText('REJECTED');
+  expect(errors.filter((e) => !/404|Failed to load resource/.test(e))).toEqual([]);
+});
+
+test('the vessel starts on station: every position reference connected and in use by DP', async ({ page }) => {
+  await boot(page, '?intro=0&quality=low');
+  await page.getByTestId('tree-dp-console-001').click();
+  await waitFocused(page, 'dp-console-001');
+  await page.getByTestId('dp-start').click();
+  await page.getByTestId('dp-tab-redundancy').click();
+  for (const id of ['GNSS1', 'GNSS2', 'HPR', 'RADASCAN', 'CYSCAN', 'TAUTWIRE', 'SPRINTNAV']) await expect(page.getByTestId(`dp-ref-${id}`)).toContainText('IN USE');
+  await expect(page.getByText('Position references · 7 connected, 7 in use')).toBeVisible();
+  // Retracting the HPR for service: parked with the valve closed, the seachest door opens on to the HPT 5000.
+  await page.getByTestId('tree-deployment-001').click();
+  await waitFocused(page, 'deployment-001');
+  await expect(page.getByTestId('hpr-status')).toHaveText('DEPLOYED');
+  await page.getByTestId('hpr-speed').selectOption('20');
+  await page.getByTestId('hpr-retract').click();
+  await expect(page.getByTestId('hpr-status')).toHaveText('READY TO DEPLOY', { timeout: 60_000 });
+  await page.getByTestId('hpr-valve-close').click();
+  await expect(page.getByTestId('hpr-status')).toHaveText('PARKED', { timeout: 30_000 });
+  await page.getByTestId('hpr-door').click();
+  await expect(page.getByTestId('hpr-status')).toHaveText('DOOR OPEN');
   expect(errors.filter((e) => !/404|Failed to load resource/.test(e))).toEqual([]);
 });
 

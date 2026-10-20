@@ -78,6 +78,15 @@ export const initialDeploymentState = (): DeploymentState => ({
   time: 0,
 });
 
+/** HPR ready for DP: gate valve opened and the HPT 5000 lowered to its working depth (normal sequence, remote control). */
+export function onStationDeploymentState(): DeploymentState {
+  let s = applyDeployCommand(initialDeploymentState(), { type: 'open-valve' });
+  for (let i = 0; i < 10000 && s.valve !== 'open'; i++) s = stepDeployment(s, 0.05);
+  s = applyDeployCommand(s, { type: 'deploy' });
+  for (let i = 0; i < 100000 && s.motion !== 'idle'; i++) s = stepDeployment(s, 0.05);
+  return { ...s, time: 0 };
+}
+
 const EPS = 1e-6;
 export const isParked = (s: DeploymentState) => s.travel <= EPS && s.motion === 'idle';
 export const isDeployed = (s: DeploymentState) => s.travel >= STROKE - EPS;

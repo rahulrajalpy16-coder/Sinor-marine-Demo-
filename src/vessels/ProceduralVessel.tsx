@@ -347,6 +347,9 @@ function AftDeck() {
     }
     rails.push(railing([[-(halfBreadth(-37.8, 1) - 0.25), -37.8], [-3, -37.8]], d, CRASH_RAIL_H));
     rails.push(railing([[3, -37.8], [halfBreadth(-37.8, 1) - 0.25, -37.8]], d, CRASH_RAIL_H));
+    // 1.1 m guard rail along the aft edge of the upper (forecastle) deck, above the drop to the working deck.
+    const fw = halfBreadth(FORECASTLE_Z, 1) - 0.1;
+    rails.push(railing([[-fw, FORECASTLE_Z + 0.08], [fw, FORECASTLE_Z + 0.08]], LEVEL.upper));
     return {
       pedestal: new THREE.CylinderGeometry(1.1, 1.3, 4.6, 16),
       house: new THREE.BoxGeometry(2.6, 2.2, 3.2),
