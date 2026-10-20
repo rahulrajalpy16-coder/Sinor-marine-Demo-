@@ -45,7 +45,7 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
       'Aft-facing DP station on the bridge, overlooking the working deck. 26-inch pedestal operator stations hold the DP panel (joystick, trackball, mode keys), the display and a 19-inch rack with the DP control and operator computers. Class 2 has three voting controllers, two stations and a dual network; class 3 adds a backup station in a separate A60 room.',
     specs: [
       { label: 'Location', value: 'Bridge, aft-facing station with a view of the working deck and vessel side (IMO MSC.1/Circ.1580 §3.1.8); DP3 backup in an A-60 room below (§3.4.2.6)' },
-      { label: 'Console', value: '26" pedestal, 654 × 1206 mm (drawing 5000-501092)' },
+      { label: 'Console', value: '26" pedestal, 653.5 W × 685.9 D × 1204.25 H mm, desk front 767 mm, cabinet 676 mm (MT drawing 5000-501092)' },
       { label: 'Rack', value: 'MT computer, DP control + operator computers, PoE switch' },
       { label: 'Class options', value: 'DP1 · DP2 (default) · DP3' },
       { label: 'Thrusters', value: 'BT1 + BT2 (bow, P2 CPP), AZ1 + AZ2 (stern)' },

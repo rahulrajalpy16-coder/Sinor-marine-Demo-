@@ -144,3 +144,12 @@ describe('visual modes', () => {
     expect(equipmentVisual('hpr-001', base).outline).toBe(true);
   });
 });
+
+describe('realistic mode', () => {
+  it('draws the selection in its true colours, with no cyan tint or outline', () => {
+    const s = { selectedId: 'dp-console-001', hoveredId: null, visualMode: 'realistic' as const };
+    expect(equipmentVisual('dp-console-001', s)).toEqual({ glow: 0, ghost: false, outline: false });
+    expect(equipmentVisual('hpr-001', { ...s, hoveredId: 'hpr-001' }).outline).toBe(true);
+    expect(equipmentVisual('hpr-001', { ...s, hoveredId: 'hpr-001' }).glow).toBe(0);
+  });
+});

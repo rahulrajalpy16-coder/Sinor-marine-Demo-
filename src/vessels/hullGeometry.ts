@@ -82,6 +82,20 @@ export function sectionPoint(z: number, t: number): [number, number] {
   return [halfBreadth(z, h) * s, y];
 }
 
+/** Hull half-breadth at exactly (z, y), interpolated along the section (0 above the deck or below the keel). */
+export function hullHalfWidthExact(z: number, y: number): number {
+  let prev = sectionPoint(z, 0);
+  for (let i = 1; i <= 400; i++) {
+    const p = sectionPoint(z, i / 400);
+    if ((prev[1] - y) * (p[1] - y) <= 0 && p[1] !== prev[1]) {
+      const t = (y - prev[1]) / (p[1] - prev[1]);
+      return prev[0] + (p[0] - prev[0]) * t;
+    }
+    prev = p;
+  }
+  return 0;
+}
+
 /** Hull half-width at a given (z, y) — used to size the bow thruster tunnel. */
 export function hullHalfWidthAt(z: number, y: number): number {
   let best = 0;

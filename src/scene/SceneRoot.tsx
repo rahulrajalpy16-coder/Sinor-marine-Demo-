@@ -16,9 +16,33 @@ import { DPSetpointMarker } from './DPSceneOverlay';
 import { PositionReferenceWorld } from '../equipment/PositionReferences';
 import { OVERVIEW_POSE } from '../camera/cameraMachine';
 import { useQualityProfile } from '../rendering/quality';
+import { REALISTIC_ENV } from '../rendering/modes';
+import { useAppStore } from '../store/useAppStore';
+import { RealisticEnvironment } from './RealisticEnvironment';
+
+/** Holographic stage lighting, or a warm sun and sky fill in Realistic mode (the sky map adds reflections). */
+function SceneLights() {
+  const realistic = useAppStore((s) => s.visualMode === 'realistic');
+  const sun = REALISTIC_ENV.sunDir.map((v) => v * 120) as [number, number, number];
+  return realistic ? (
+    <>
+      <hemisphereLight args={['#cfe0ee', '#3a4a52', 0.55]} />
+      <directionalLight position={sun} intensity={2.2} color="#fff3e2" />
+      <directionalLight position={[-50, 30, -60]} intensity={0.45} color="#dfe8f0" />
+    </>
+  ) : (
+    <>
+      <hemisphereLight args={['#9cc8e8', '#02060c', 0.65]} />
+      <directionalLight position={[60, 80, 40]} intensity={2.2} color="#e8f2ff" />
+      <directionalLight position={[-50, 30, -60]} intensity={0.7} color="#5fd6ff" />
+      <ambientLight intensity={0.15} />
+    </>
+  );
+}
 
 export function SceneRoot({ onError }: { onError?: (e: unknown) => void }) {
   const profile = useQualityProfile();
+  const realistic = useAppStore((s) => s.visualMode === 'realistic');
   const [lo, hi] = profile.dpr;
   // Start at the top of the preset's pixel-ratio range; the monitor steps down if frames drop.
   const [dpr, setDpr] = useState(hi);
@@ -46,10 +70,8 @@ export function SceneRoot({ onError }: { onError?: (e: unknown) => void }) {
         onFallback={() => setDpr(lo)}
       />
       <Suspense fallback={null}>
-        <hemisphereLight args={['#9cc8e8', '#02060c', 0.65]} />
-        <directionalLight position={[60, 80, 40]} intensity={2.2} color="#e8f2ff" />
-        <directionalLight position={[-50, 30, -60]} intensity={0.7} color="#5fd6ff" />
-        <ambientLight intensity={0.15} />
+        <SceneLights />
+        <RealisticEnvironment />
         <Ocean />
         <VesselMotion>
           <VesselWithEquipment />
@@ -63,8 +85,8 @@ export function SceneRoot({ onError }: { onError?: (e: unknown) => void }) {
         <TestBridge />
         {profile.postprocessing && (
           <EffectComposer multisampling={profile.multisampling}>
-            <Bloom intensity={profile.bloomIntensity} luminanceThreshold={0.62} luminanceSmoothing={0.2} mipmapBlur />
-            <Vignette eskil={false} offset={0.25} darkness={0.7} />
+            <Bloom intensity={profile.bloomIntensity * (realistic ? REALISTIC_ENV.bloomScale : 1)} luminanceThreshold={realistic ? 0.85 : 0.62} luminanceSmoothing={0.2} mipmapBlur />
+            <Vignette eskil={false} offset={0.25} darkness={realistic ? 0.35 : 0.7} />
           </EffectComposer>
         )}
       </Suspense>

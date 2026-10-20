@@ -48,11 +48,11 @@ export const MODE_STYLES: Record<VisualMode, ModeStyle> = {
     lineOpacity: 0,
     holoFill: 0,
     oceanOpacity: 0.94,
-    gridStrength: 0.08,
+    gridStrength: 0,
     isolateSelection: false,
     explode: false,
     requiresExplodable: false,
-    description: 'Physically based materials only.',
+    description: 'Physically based materials in daylight: true colours, sky reflections, no grid or hologram.',
   },
   blueprint: {
     label: 'Blueprint',
@@ -115,3 +115,16 @@ export const MODE_STYLES: Record<VisualMode, ModeStyle> = {
 export function isModeAvailable(mode: VisualMode, selectedExplodable: boolean): boolean {
   return !MODE_STYLES[mode].requiresExplodable || selectedExplodable;
 }
+
+/** Daylight palette for Realistic mode (sky, sea, sun, underwater). The other modes keep the dark stage. */
+export const REALISTIC_ENV = {
+  zenith: '#3f6f97',
+  horizon: '#b9cbd6',
+  seaFar: '#5f7f90',
+  sunDir: [0.55, 0.62, 0.45] as [number, number, number],
+  underwater: '#0f4656',
+  seaDeep: '#0a2a3c',
+  seaShallow: '#2b6a80',
+  envIntensity: 0.85,
+  bloomScale: 0.25,
+};

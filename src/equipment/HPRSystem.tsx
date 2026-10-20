@@ -170,7 +170,7 @@ export function Type7950Machine() {
         geometry={g.envelope}
         material={lineMats.envelope}
         position={[0, D.hull + SPACE.h / 2, (SPACE_Z[0] + SPACE_Z[1]) / 2]}
-        visible={selected || mode === 'xray' || mode === 'blueprint'}
+        visible={(selected && mode !== 'realistic') || mode === 'xray' || mode === 'blueprint'}
       />
       <EqMesh geometry={g.base} material={mats.plate} outline={false} position={[0, D.hull + 0.015, (SPACE_Z[0] + SPACE_Z[1]) / 2]} />
       <group name="ladder" position={[0, D.hull + 0.1 + (SPACE.h - 0.2) / 2, ladderZ]}>
