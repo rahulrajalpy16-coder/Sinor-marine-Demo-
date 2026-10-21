@@ -2,8 +2,8 @@
  * DP position reference systems added alongside the HPR, matched to the documents Rahul supplied
  * on 2026-10-14 (see SOURCES): Guidance Marine RadaScan View and CyScan AS, Fugro Seastar 9410-AUT
  * DGNSS receivers, SMT Taut Wire 2.0 (Z Range Mk2), and Sonardyne SPRINT-Nav DP on a Sonardyne
- * Type 8097 modular over-the-side pole. No SPRINT-Nav document was supplied, so it stays on the
- * public Sonardyne datasheet.
+ * Type 8097 modular over-the-side pole. SPRINT-Nav DP follows the 8388 datasheet with its outline
+ * drawing (specifications dated 01/2026), supplied on 2026-10-21.
  *
  * Every value is tagged:
  *  - 'datasheet' stated in the document named in `doc`
@@ -38,7 +38,7 @@ export const SOURCES = {
   seastar: 'Fugro Seastar 9410-AUT GNSS receiver datasheet, EUAF/MAI/092023',
   smt: 'SMT Taut Wire Z Range Mk2 system specification AD 0004-10 (SMT Z Mk2.pdf)',
   smtManual: 'SMT Taut Wire 2.0 Installation Manual PJ 0044-13, drawings SMT-TW-MD-20/21/28',
-  sprintnav: 'Sonardyne SPRINT-Nav DP datasheet 8388, 09/2026 (supplied)',
+  sprintnav: 'Sonardyne SPRINT-Nav DP datasheet 8388 with outline drawing, specifications 01/2026 (supplied)',
   pole8097: 'Sonardyne Deployment Pole modular over-the-side datasheet, Type 8097, 03/2023',
 } as const;
 
@@ -150,27 +150,35 @@ export const SMT_TW = {
   accuracy: asm(0.3, 'Position noise 0.3 m (1σ) in the 42 m scene; the datasheet table starts at 100 m'),
 };
 
-/** Sonardyne SPRINT-Nav DP (INS + DVL). Public datasheet; no document supplied. */
+/** Sonardyne SPRINT-Nav DP (INS + DVL + pressure sensor in one titanium housing), datasheet 8388 and its drawing. */
 export const SPRINTNAV = {
-  diameter: ds(0.225, 'sprintnav', '225 × 346 mm excluding deployment pole mount'),
-  height: ds(0.346, 'sprintnav', '225 × 346 mm excluding deployment pole mount'),
-  weight: ds('23.9 kg air / 13.1 kg water', 'sprintnav'),
+  diameter: ds(0.225, 'sprintnav', 'Ø225 mm (drawing; 225 × 346 mm excluding deployment pole mount)'),
+  height: ds(0.346, 'sprintnav', '346 mm overall including the connector (drawing)'),
+  bodyLength: ds(0.298, 'sprintnav', '298 mm from the mounting flange face to the DVL end (drawing)'),
+  boltHoles: ds('12 × M8 × 24.0 deep, plus 3 dowel holes Ø6.0 × 8.0 deep, in the top flange', 'sprintnav'),
+  weight: ds('23.9 kg air / 13.1 kg water (estimated)', 'sprintnav'),
   depthRating: ds(100, 'sprintnav', 'Depth rating 100 m'),
-  dvl: ds('375 kHz DVL / ADCP, up to 20 Hz (DVL), fully water-blocked endcap', 'sprintnav'),
-  adcp: ds('Current profiling 0.4–120 m (optional upgrade)', 'sprintnav'),
-  altitudeMin: ds(0.4, 'sprintnav', 'Altitude 0.4–200 m in optimal conditions'),
-  altitudeMax: ds(200, 'sprintnav', 'Altitude 0.4–200 m in optimal conditions'),
-  stationKeeping: ds(3.2, 'sprintnav', 'DVL-aided station keeping < 3.2 m over 12 h (1DRMS), < 5.2 m R95'),
-  heading: ds('0.04° (GNSS + DVL) / 0.05° secant latitude', 'sprintnav'),
+  dvl: ds('375 kHz DVL, beam-level aiding, fully water-blocked transducers', 'sprintnav'),
+  adcp: ds('ADCP profiling 0.4–120 m, up to ±8.4 m/s ±0.4 %, 255 cells, 1 Hz', 'sprintnav'),
+  adcpRange: ds(120, 'sprintnav', 'ADCP profiling range 0.4–120 m'),
+  altitudeMin: ds(0.4, 'sprintnav', 'Altitude min/max, standard: 0.4/200 m'),
+  altitudeMax: ds(200, 'sprintnav', 'Altitude min/max, standard: 0.4/200 m'),
+  stationKeeping: ds(2, 'sprintnav', 'DVL aided station keeping < 2 m over 24 hours (CEP50)'),
+  straightLine: ds('0.12 % of distance travelled (DVL aided, CEP50)', 'sprintnav'),
+  dynamic: ds('0.04 % of distance travelled (DVL aided, CEP50)', 'sprintnav'),
+  gnssAided: ds('Precision up to 7× better with GNSS aiding', 'sprintnav'),
+  heading: ds('0.05° secant latitude (1DRMS)', 'sprintnav'),
+  headingDeg: ds(0.05, 'sprintnav', 'INS/AHRS heading 0.05° secant latitude (1DRMS)'),
   rollPitch: ds('0.01° (1DRMS)', 'sprintnav'),
   power: ds('24 V dc ±10 %, 18 W nominal, 30 W max', 'sprintnav'),
-  comms: ds('1 × RS422, web UI, TCP/UDP; 2 PPS triggers', 'sprintnav'),
+  comms: ds('1 × RS422, web UI, TCP/UDP; 2 PPS triggers from GNSS', 'sprintnav'),
   battery: ds('Li-ion backup, 5 min', 'sprintnav'),
-  unaided: ds('1.2 m after 60 s, 1 nm after 45 min without aiding', 'sprintnav'),
-  heave: ds('5 cm', 'sprintnav'),
+  logging: ds('> 1 week of onboard data logging', 'sprintnav'),
+  unaided: ds('1.2 m in 60 s', 'sprintnav'),
   operating: ds('−5 to +50 °C', 'sprintnav'),
   material: ds('Titanium', 'sprintnav'),
-  alignSeconds: ds(600, 'sprintnav', 'Initialisation 10 min'),
+  alignSeconds: ds(600, 'sprintnav', '10-minute initialisation from GNSS'),
+  dvlBeamDeg: asm(30, 'DVL beam angle from vertical; not stated, drawn at 30°'),
   noise: asm(0.05, 'Short-term position noise 0.05 m (1σ)'),
 };
 

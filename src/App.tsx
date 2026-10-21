@@ -1,9 +1,10 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { TopBar } from './components/TopBar';
 import { BottomBar } from './components/BottomBar';
 import { SystemsPanel } from './components/shell/SystemsPanel';
 import { InspectorDock } from './components/shell/InspectorDock';
 import { IntroOverlay } from './components/IntroOverlay';
+import { GuideOverlay } from './components/GuideOverlay';
 import { SceneErrorBoundary, hasWebGL } from './components/SceneErrorBoundary';
 import { useAppStore } from './store/useAppStore';
 import { initialQuality } from './rendering/quality';
@@ -15,6 +16,25 @@ export default function App() {
   const [webgl] = useState(() => hasWebGL());
   const layout = useDevice((s) => s.layout);
   const orientation = useDevice((s) => s.orientation);
+  const [guide, setGuide] = useState(false);
+  const introActive = useAppStore((s) => s.introActive);
+  const introPlayed = useRef(false);
+
+  // First visit: the welcome guide opens once the opening flight ends (not when the intro is skipped by URL).
+  useEffect(() => {
+    if (introActive) introPlayed.current = true;
+    else if (introPlayed.current) {
+      introPlayed.current = false;
+      let seen = true;
+      try {
+        seen = localStorage.getItem('sinor-guide-seen') === '1';
+        localStorage.setItem('sinor-guide-seen', '1');
+      } catch {
+        seen = true;
+      }
+      if (!seen) setGuide(true);
+    }
+  }, [introActive]);
 
   useEffect(() => installViewportListeners(), []);
 
@@ -43,7 +63,7 @@ export default function App() {
           </Suspense>
         ) : (
           <div role="alert" className="absolute inset-0 flex items-center justify-center p-6 text-center text-mute">
-            WebGL is not available in this browser. Use the system explorer to browse equipment details.
+            WebGL is not available in this browser. Use the Systems list to read about each system.
           </div>
         )}
       </SceneErrorBoundary>
@@ -52,7 +72,7 @@ export default function App() {
       {/* One shell for every device: only the containers change with the layout class. */}
       {/* Above the scene indicators (z 0–20) so panels always cover them; clicks still pass through empty areas. */}
       <div className="pointer-events-none absolute inset-0 z-[25] flex flex-col" data-layout={layout} data-testid="app-shell">
-        <TopBar layout={layout} />
+        <TopBar layout={layout} onGuide={() => setGuide(true)} />
         <div className={`relative flex min-h-0 flex-1 gap-3 ${layout === 'desktop' ? 'p-3' : 'safe-x'}`}>
           <SystemsPanel layout={layout} />
           <div className="flex-1" />
@@ -61,6 +81,7 @@ export default function App() {
         <BottomBar />
       </div>
       <IntroOverlay />
+      <GuideOverlay open={guide} onClose={() => setGuide(false)} />
     </div>
   );
 }
@@ -68,7 +89,7 @@ export default function App() {
 function Loading() {
   return (
     <div role="status" className="absolute inset-0 flex items-center justify-center font-mono text-xs uppercase tracking-[0.3em] text-cyan">
-      Loading vessel…
+      Bringing the vessel to you…
     </div>
   );
 }

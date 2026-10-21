@@ -9,8 +9,8 @@ export function IntroOverlay() {
   return (
     <div className="pointer-events-none absolute inset-x-0 top-20 flex flex-col items-center gap-3 text-center">
       <p className="font-mono text-xs uppercase tracking-[0.4em] text-cyan">Sinor Marine</p>
-      <h1 className="text-2xl font-light tracking-wide text-ink md:text-4xl">Offshore DP support vessel</h1>
-      <p className="text-xs text-mute">Representative concept · procedurally generated</p>
+      <h1 className="text-2xl font-light tracking-wide text-ink md:text-4xl">Vessel Systems Simulator</h1>
+      <p className="text-sm text-ink/80">We bring the vessel to you</p>
       <button
         type="button"
         data-testid="skip-intro"

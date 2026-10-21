@@ -1,8 +1,8 @@
-# Sinor Marine · Digital Universe (Phase 1 slice)
+# Sinor Marine · Vessel Systems Simulator
 
-Interactive 3D offshore DP support vessel in the browser: a hybrid realistic and holographic hull, five working visual modes plus an exploded view, three selectable systems with camera focus and inspector, a working bow tunnel thruster demonstration, and return to overview.
+*We bring the vessel to you.* An interactive 3D DP2 offshore support vessel in the browser: pick any system on board, learn how it works, and operate its simulator yourself. Ten systems (integrated bridge, DP, HPR with the Type 7950, bow thruster and five position references) each have an Operate panel, a How it works lesson with a short exercise (`src/equipment/learn.ts`), specifications, and a welcome Guide that lists them all. The HPT 5000 and SPRINT-Nav DP have close-up views.
 
-The vessel, its equipment placement and every number shown are a **representative concept**: procedurally generated, illustrative, not certified and not OEM-verified. The spec this was built from is in `spec/` (CLAUDE.md, docs, prompts); the config JSON is in `src/data/`.
+Maker-specific items follow the documents supplied for them (sources are listed under each panel's Data sources and in `documentation/`). The vessel itself is generic, and the simulators are for training and demonstration, not certified equipment. The spec this was built from is in `spec/` (CLAUDE.md, docs, prompts); the config JSON is in `src/data/`.
 
 ## Run
 

@@ -70,6 +70,7 @@ export class DPController implements SimulationController<DPState, DPCommand> {
       const out = stepDP(this.state, DP_STEP, {
         bt1: { available, forceN: bt.thrustKN * 1000 },
         ready: readiness(),
+        sprintnavAided: posRefs.getState().sprintnav.gnssAiding,
       });
       this.state = out.state;
       if (bt.station === 'DP') {

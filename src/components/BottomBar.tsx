@@ -55,7 +55,7 @@ export function BottomBar() {
         Camera <span data-testid="camera-mode" className="text-cyan-light">{CAMERA_LABEL[cameraMode]}</span>
       </span>
       <span className="ml-auto hidden font-mono text-[11px] text-mute lg:inline">
-        L {d.length} m · B {d.beam} m · D {d.depth} m · Representative concept, not certified
+        {vessel.name} · {vessel.type} · L {d.length} m · B {d.beam} m · D {d.depth} m
       </span>
       <span data-testid="input-hint" className="hidden text-[11px] text-mute xl:inline">
         {coarse

@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "note": "Illustrative, not OEM-verified; model paths are planned assets with procedural fallback.",
+  "note": "Select a system to fly to it, learn how it works and operate it.",
   "equipment": [
     {
       "id": "ibs-001",

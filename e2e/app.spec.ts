@@ -329,6 +329,11 @@ test('position references: RadaScan, CyScan, DGPS, taut wire and SPRINT-Nav feed
   await page.getByTestId('pole-deploy').click();
   await expect(page.getByTestId('sprintnav-hmi-status')).toHaveText('REFERENCE OK', { timeout: 60_000 });
   await expect(page.getByTestId('pole-angle')).toHaveText(/90° · LOCKED/);
+  // Initialised from GNSS; disabling GNSS aiding makes it independent of GNSS.
+  await expect(page.getByTestId('sn-mode')).toHaveText('GNSS AIDED');
+  await page.getByTestId('sprintnav-gnss').click();
+  await expect(page.getByTestId('sn-mode')).toHaveText('INDEPENDENT');
+  await expect(page.getByTestId('sn-plot')).toHaveAttribute('aria-label', 'Positioning: Independent from GNSS');
 
   // DP: all selected references ready; a drifting taut wire is voted out.
   await page.getByTestId('tree-dp-console-001').click();
@@ -404,4 +409,29 @@ test.describe('mobile', () => {
     const canvas = await page.locator('canvas').first().boundingBox();
     expect(canvas!.width).toBeLessThanOrEqual(390);
   });
+});
+
+test('every system teaches how it works, and the small units have a close-up view', async ({ page }) => {
+  await boot(page, '?intro=0&quality=low');
+  await page.getByTestId('guide-open').click();
+  await expect(page.getByTestId('guide')).toBeVisible();
+  await page.getByTestId('guide-sprintnav-001').click();
+  await expect(page.getByTestId('guide')).toHaveCount(0);
+  await waitFocused(page, 'sprintnav-001');
+  await page.getByTestId('tab-learn').click();
+  await expect(page.getByTestId('lesson')).toContainText('independent of GNSS');
+  await page.getByTestId('action-inspect').click();
+  await expect(page.getByTestId('specs')).toContainText('< 2 m over 24 h');
+  const far = await page.evaluate(() => window.__SINOR__!.camera().position);
+  await page.getByTestId('action-closeup').click();
+  await expect.poll(async () => (await state(page)).visualMode).toBe('realistic');
+  await expect.poll(async () => (await state(page)).cameraMoving).toBe(false);
+  const near = await page.evaluate(() => window.__SINOR__!.camera().position);
+  expect(Math.hypot(...near.map((v, i) => v - far[i]))).toBeGreaterThan(5);
+  for (const id of ['ibs-001', 'dp-console-001', 'hpr-001', 'deployment-001', 'bow-thruster-001', 'radascan-001', 'cyscan-001', 'dgps-001', 'tautwire-001']) {
+    await page.getByTestId(`tree-${id}`).click();
+    await page.getByTestId('tab-learn').click();
+    await expect(page.getByTestId('lesson')).toContainText('Try it yourself');
+  }
+  expect(errors).toEqual([]);
 });

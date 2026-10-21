@@ -7,6 +7,7 @@ import {
   PosRefInterlockError,
   posRefReadiness,
   sprintNavAltitude,
+  sprintNavMode,
   stepPosRefs,
   tautWireAngle,
   tautWireAxes,
@@ -90,6 +91,19 @@ describe('position reference sensors', () => {
     expect(run(s, 0.2, fast).alarms).toContain('POLE_OVERSPEED');
   });
 
+  it('SPRINT-Nav initialises from GNSS before GNSS aiding can be disabled for independent mode', () => {
+    let s = cmd(initialPosRefState(), { type: 'sprintnav-power', on: true });
+    expect(sprintNavMode(s)).toBe('INITIALISING');
+    expect(() => cmd(s, { type: 'sprintnav-gnss', on: false })).toThrow(PosRefInterlockError);
+    s = run(s, SPRINTNAV.alignSeconds.value + 1);
+    expect(sprintNavMode(s)).toBe('GNSS AIDED');
+    s = cmd(s, { type: 'sprintnav-gnss', on: false });
+    expect(sprintNavMode(s)).toBe('INDEPENDENT');
+    // Power cycling loses the alignment and the next start uses GNSS again.
+    s = cmd(cmd(s, { type: 'sprintnav-power', on: false }), { type: 'sprintnav-power', on: true });
+    expect(s.sprintnav).toEqual({ power: true, align: 0, gnssAiding: true });
+  });
+
   it('blocks deploying the pole above 5 kn', () => {
     expect(() => cmd(initialPosRefState(), { type: 'pole-deploy' }, { eta: [0, 0, 0], speed: 5.5 * KNOT })).toThrow(PosRefInterlockError);
   });
@@ -107,6 +121,7 @@ describe('vessel on station', () => {
     expect(posRefReadiness(s, still)).toEqual({ RADASCAN: true, CYSCAN: true, TAUTWIRE: true, SPRINTNAV: true });
     expect(s.tautwire.phase).toBe('on-bottom');
     expect(s.pole).toMatchObject({ phase: 'deployed', locked: true });
+    expect(sprintNavMode(s)).toBe('INDEPENDENT');
     expect(s.alarms).toEqual([]);
   });
   it('the HPR starts deployed through an open valve', () => {

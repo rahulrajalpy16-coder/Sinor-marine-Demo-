@@ -186,3 +186,19 @@ describe('DP commands', () => {
     expect(s.wind.speedKn).toBe(33);
   });
 });
+
+describe('SPRINT-Nav DP drift', () => {
+  const refsReady = { RADASCAN: true, CYSCAN: true, TAUTWIRE: true, SPRINTNAV: true };
+  const step = (s: DPState, seconds: number, aided: boolean) => {
+    for (let t = 0; t < seconds; t += 1) s = stepDP(s, 1, { bt1: { available: true, forceN: 0 }, ready: refsReady, sprintnavAided: aided }).state;
+    return s;
+  };
+  const drift = (s: DPState) => Math.hypot(...s.refs.find((r) => r.id === 'SPRINTNAV')!.drift);
+  it('grows slowly in independent mode (< 2 m over 24 h) and is pulled back by GNSS aiding', () => {
+    const s0 = applyDPCommand(initialDPState(2), { type: 'start' });
+    const independent = step(s0, 3600, false);
+    expect(drift(independent)).toBeGreaterThan(0.05);
+    expect(drift(independent)).toBeLessThan(2 / 24 + 1e-6);
+    expect(drift(step(independent, 600, true))).toBeLessThan(drift(independent) * 0.01);
+  });
+});

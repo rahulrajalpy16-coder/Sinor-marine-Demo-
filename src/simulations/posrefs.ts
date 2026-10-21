@@ -56,7 +56,11 @@ export interface PosRefState {
     locked: boolean;
     lockTimer: number;
   };
-  sprintnav: { power: boolean; align: number };
+  /**
+   * SPRINT-Nav DP initialises its position from GNSS (10 min). The DPO then disables GNSS aiding, so the unit
+   * navigates on its own sensors (INS, DVL, pressure) as a reference independent of GNSS (datasheet 8388).
+   */
+  sprintnav: { power: boolean; align: number; gnssAiding: boolean };
   alarms: PosRefAlarm[];
   time: number;
 }
@@ -72,6 +76,7 @@ export type PosRefCommand =
   | { type: 'pole-recover' }
   | { type: 'pole-stop' }
   | { type: 'sprintnav-power'; on: boolean }
+  | { type: 'sprintnav-gnss'; on: boolean }
   | { type: 'reset' };
 
 /** Vessel pose from DP: [north, east, heading rad], plus speed over ground in m/s. */
@@ -90,14 +95,14 @@ export const initialPosRefState = (): PosRefState => ({
   fog: false,
   tautwire: { phase: 'stowed', payout: 0, anchor: null },
   pole: { phase: 'stowed', angleDeg: 0, locked: false, lockTimer: 0 },
-  sprintnav: { power: false, align: 0 },
+  sprintnav: { power: false, align: 0, gnssAiding: true },
   alarms: [],
   time: 0,
 });
 
 /**
  * The vessel on station with its DP references set up: RadaScan and CyScan tracking, the taut wire weight on the
- * bottom, the pole deployed and locked with SPRINT-Nav aligned. Reached by running the normal operator sequence
+ * bottom, the pole deployed and locked with SPRINT-Nav initialised and switched to independent mode. Reached by running the normal operator sequence
  * from the stowed state at the given pose, so every interlock and timing still applies.
  */
 export function onStationPosRefState(pose: VesselPose = { eta: [0, 0, 0], speed: 0 }): PosRefState {
@@ -106,6 +111,7 @@ export function onStationPosRefState(pose: VesselPose = { eta: [0, 0, 0], speed:
   for (const c of cmds) s = applyPosRefCommand(s, c, pose);
   const ready = (x: PosRefState) => Object.values(posRefReadiness(x, pose)).every(Boolean);
   for (let i = 0; i < 100000 && !ready(s); i++) s = stepPosRefs(s, 0.1, pose);
+  s = applyPosRefCommand(s, { type: 'sprintnav-gnss', on: false }, pose);
   return { ...s, time: 0 };
 }
 
@@ -242,6 +248,14 @@ export function tautWireStatus(s: PosRefState, eta: readonly [number, number, nu
   return { stowed: 'STOWED', lowering: 'LOWERING', hoisting: 'HOISTING', stopped: 'STOPPED' }[t.phase];
 }
 
+/** SPRINT-Nav navigation mode, as its web UI reports it. */
+export function sprintNavMode(s: PosRefState): 'OFF' | 'INITIALISING' | 'GNSS AIDED' | 'INDEPENDENT' {
+  const n = s.sprintnav;
+  if (!n.power) return 'OFF';
+  if (n.align < 1) return 'INITIALISING';
+  return n.gnssAiding ? 'GNSS AIDED' : 'INDEPENDENT';
+}
+
 export function poleStatus(s: PosRefState) {
   return { stowed: 'STOWED', deploying: 'SWINGING OUT', locking: 'LOCKING', deployed: 'DEPLOYED · LOCKED', recovering: 'RECOVERING', stopped: 'STOPPED' }[s.pole.phase];
 }
@@ -279,7 +293,11 @@ export function applyPosRefCommand(s: PosRefState, cmd: PosRefCommand, pose: Ves
       if (s.pole.phase !== 'deploying' && s.pole.phase !== 'recovering') return s;
       return { ...s, pole: { ...s.pole, phase: 'stopped' } };
     case 'sprintnav-power':
-      return { ...s, sprintnav: { power: cmd.on, align: cmd.on ? s.sprintnav.align : 0 } };
+      // Powering down loses the alignment; the next start initialises from GNSS again.
+      return { ...s, sprintnav: { power: cmd.on, align: cmd.on ? s.sprintnav.align : 0, gnssAiding: cmd.on ? s.sprintnav.gnssAiding : true } };
+    case 'sprintnav-gnss':
+      if (!cmd.on && (!s.sprintnav.power || s.sprintnav.align < 1)) block('SPRINT-Nav initialises from GNSS: wait until initialisation is complete');
+      return { ...s, sprintnav: { ...s.sprintnav, gnssAiding: cmd.on } };
     case 'reset':
       return initialPosRefState();
   }
@@ -346,7 +364,7 @@ export function stepPosRefs(prev: PosRefState, dt: number, pose: VesselPose): Po
   s.pole = pole;
 
   // SPRINT-Nav INS alignment while powered.
-  s.sprintnav = prev.sprintnav.power ? { power: true, align: Math.min(1, prev.sprintnav.align + dt / SPRINTNAV.alignSeconds.value) } : prev.sprintnav;
+  s.sprintnav = prev.sprintnav.power ? { ...prev.sprintnav, align: Math.min(1, prev.sprintnav.align + dt / SPRINTNAV.alignSeconds.value) } : prev.sprintnav;
 
   const angle = tautWireAngle(s, pose.eta).angleDeg;
   let alarms = prev.alarms;

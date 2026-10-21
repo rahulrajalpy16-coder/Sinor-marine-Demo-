@@ -1,7 +1,7 @@
 {
   "id": "sinor-osv-concept-001",
   "name": "Sinor Offshore Explorer",
-  "type": "representative offshore DP support vessel",
+  "type": "DP2 offshore support vessel",
   "certified": false,
   "dimensionsMeters": {
     "length": 78,

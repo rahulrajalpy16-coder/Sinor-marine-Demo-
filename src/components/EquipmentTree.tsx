@@ -1,6 +1,7 @@
 import { CATEGORY_LABELS, equipment } from '../equipment/registry';
 import { useAppStore } from '../store/useAppStore';
 import { currentCameraPose } from '../interactions/poseRegistry';
+import { LESSONS } from '../equipment/learn';
 
 /** Accessible, non-3D system explorer. Uses the same select action as clicking a mesh. */
 export function EquipmentTree({ onPicked }: { onPicked?: () => void }) {
@@ -11,8 +12,8 @@ export function EquipmentTree({ onPicked }: { onPicked?: () => void }) {
   const categories = [...new Set(equipment.map((e) => e.category))];
 
   return (
-    <nav aria-label="System explorer" className="flex flex-col gap-3">
-      <h2 className="font-mono text-[11px] uppercase tracking-[0.25em] text-cyan">System explorer</h2>
+    <nav aria-label="Systems on board" className="flex flex-col gap-3">
+      <h2 className="font-mono text-[11px] uppercase tracking-[0.25em] text-cyan">Systems on board</h2>
       {categories.map((cat) => (
         <section key={cat} aria-label={CATEGORY_LABELS[cat] ?? cat}>
           <h3 className="mb-1 text-[11px] uppercase tracking-wider text-mute">{CATEGORY_LABELS[cat] ?? cat}</h3>
@@ -47,8 +48,10 @@ export function EquipmentTree({ onPicked }: { onPicked?: () => void }) {
                               : 'cursor-not-allowed border-white/5 text-mute/60'
                       }`}
                     >
-                      <span>{e.name}</span>
-                      {!ok && <span className="font-mono text-[10px] uppercase text-mute/70">Planned</span>}
+                      <span className="flex flex-col">
+                        <span>{e.name}</span>
+                        {LESSONS[e.id] && <span className="text-[11px] text-mute">{LESSONS[e.id].tag}</span>}
+                      </span>
                       {ok && <span className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-cyan-light' : 'bg-cyan/50'}`} aria-hidden />}
                     </button>
                   </li>

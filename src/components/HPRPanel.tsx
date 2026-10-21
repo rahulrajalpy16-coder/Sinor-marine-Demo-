@@ -17,6 +17,7 @@ import { useControllerState } from '../simulations/useController';
 import { DATUM_TO_HULL, HPT5000, HPT5000_REPEATABILITY, POLE_LENGTH, STROKE, T7950, transceiverY } from '../equipment/hprData';
 import { useAppStore } from '../store/useAppStore';
 import { HmiBtn, Readout, Status, Toggle } from './ThrusterPanel';
+import { DataNote } from './DataNote';
 
 /**
  * Type 7950 deployment control and HPT 5000 status. Shown for both the machine and the transceiver.
@@ -49,7 +50,7 @@ export function HPRPanel() {
     : !ready
       ? 'Unavailable (not deployed)'
       : dp.status !== 'running'
-        ? 'Ready (DP sim stopped)'
+        ? 'Ready (DP not running)'
         : hprRef.fault === 'lost'
           ? 'Lost'
           : hprRef.rejected
@@ -172,13 +173,13 @@ export function HPRPanel() {
         <Readout label="Repeatability" value={ready ? `±${(HPT5000_REPEATABILITY * range * 100).toFixed(1)} cm` : '—'} />
         <Readout label="Sound speed" value={`${ASSUMED_SOUND_SPEED} m/s`} />
       </dl>
-      <p className="text-[9px] leading-snug text-[#7f93a3]">
-        Verified from your documents: dimensions on the 7950 drawings ({T7950.overall.value * 1000} mm standard length, {T7950.deployedExtension.value * 1000} mm
+      <DataNote>
+        From the maker's documents: dimensions on the 7950 drawings ({T7950.overall.value * 1000} mm standard length, {T7950.deployedExtension.value * 1000} mm
         extension, {T7950.mountingSpace.height.value} × {T7950.mountingSpace.width.value} × {T7950.mountingSpace.depth.value} m space) and HPT 5000{' '}
-        {HPT5000.type} data from UM-8142 §12.1.3. Not in the documents, so illustrative here: pole speed {ASSUMED_POLE_SPEED} m/s, valve stroke{' '}
-        {ASSUMED_VALVE_SECONDS} s, the parked position, the interlocks, sound speed and the seabed transponder. Ranges are geometric (r = c·t/2); signals show
-        only when deployed. Not connected to real equipment.
-      </p>
+        {HPT5000.type} data from UM-8142 §12.1.3; HPT 5000 outline drawing ({HPT5000.length.value * 1000} mm, Ø{HPT5000.diameter.value * 1000} mm,{' '}
+        {HPT5000.flangeHoles.value}). Simulation settings not given in the documents: pole speed {ASSUMED_POLE_SPEED} m/s, valve stroke {ASSUMED_VALVE_SECONDS} s,
+        the parked position, the interlocks, sound speed and the seabed transponder. Ranges are geometric (r = c·t/2); signals show only when deployed.
+      </DataNote>
     </section>
   );
 

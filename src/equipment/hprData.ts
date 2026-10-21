@@ -5,6 +5,7 @@
  * Every value is tagged with where it comes from:
  *  - 'drawing'  dimensioned on the supplied 7950 drawings (mounting space, standard length)
  *  - 'manual'   UM-8142 Issue C1, the HPT user manual (section 12.1.3 unless noted)
+ *  - 'outline'  the HPT 5000 outline drawing supplied on 2026-10-21 (322 mm, Ø225 mm, 12 × M8 on Ø210.6)
  *  - 'scaled'   measured off the standard-length drawing at its own scale (≈ 7.65 mm per pixel,
  *               checked against the manual's 225 mm transceiver diameter, which scales to 214 mm)
  *  - 'assumed'  not in the supplied documents; needed to draw or simulate, shown as unverified in the UI
@@ -13,7 +14,7 @@
  * drawing (top of the hull penetrator), which sits 150 mm above the hull plating.
  */
 
-export type Source = 'drawing' | 'manual' | 'scaled' | 'assumed';
+export type Source = 'drawing' | 'manual' | 'outline' | 'scaled' | 'assumed';
 export interface Sourced<T> {
   value: T;
   source: Source;
@@ -75,8 +76,11 @@ export const HPT5000 = {
   operatingTemp: v('-5 to 40 °C', 'manual'),
   storageTemp: v('-20 to 45 °C', 'manual'),
   construction: v('Aluminium bronze', 'manual'),
-  length: v(0.322, 'manual', '322 mm'),
-  diameter: v(0.225, 'manual', '225 mm'),
+  length: v(0.322, 'outline', '322 mm, top flange face to the bottom of the transducer guard (connector extra)'),
+  diameter: v(0.225, 'outline', 'Ø225 mm'),
+  flangeHoles: v('12 × M8 on Ø210.6 mm pitch', 'outline'),
+  boltPcd: v(0.2106, 'outline', 'Ø210.6 mm pitch circle'),
+  finish: v('Dark navy body with the Sonardyne HPT band and a Forward mark, bronze flange face, black slotted transducer guard', 'outline'),
   weight: v('26.7 kg in air / 15.3 kg in water', 'manual'),
   installKit: v('6G Transceiver Installation Kit 641-0197 (fixings, O-rings, isolation flange)', 'manual', 'section 4.4.2.1'),
 } as const;
