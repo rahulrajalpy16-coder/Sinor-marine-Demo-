@@ -7,7 +7,7 @@ import { bowThruster } from '../simulations/controller';
 import { dpSystem } from '../simulations/dpController';
 import { hprDeployment } from '../simulations/deploymentController';
 import { posRefs } from '../simulations/posrefsController';
-import { toScene } from './vesselTransform';
+import { toScene, vesselMatrix } from './vesselTransform';
 
 declare global {
   interface Window {
@@ -20,13 +20,15 @@ declare global {
       hpr: () => ReturnType<typeof hprDeployment.getState>;
       posrefs: () => ReturnType<typeof posRefs.getState>;
       camera: () => { position: number[] };
+      /** Places the camera at a vessel-frame pose at once (the exhibition video's cinematic shots). */
+      setCamera: (position: [number, number, number], target: [number, number, number], fov?: number) => void;
     };
   }
 }
 
-/** Read-only diagnostics used by the browser tests and for manual debugging. */
+/** Diagnostics used by the browser tests and for manual debugging, plus a camera hook for the video capture. */
 export function TestBridge() {
-  const { camera, gl, size } = useThree();
+  const { camera, gl, size, controls } = useThree();
   useEffect(() => {
     window.__SINOR__ = {
       project: (id) => {
@@ -59,10 +61,26 @@ export function TestBridge() {
       hpr: () => hprDeployment.getState(),
       posrefs: () => posRefs.getState(),
       camera: () => ({ position: camera.position.toArray() }),
+      setCamera: (position, target, fov) => {
+        const m = vesselMatrix();
+        if (fov && camera instanceof THREE.PerspectiveCamera && camera.fov !== fov) {
+          camera.fov = fov;
+          camera.updateProjectionMatrix();
+        }
+        camera.position.copy(new THREE.Vector3(...position).applyMatrix4(m));
+        const orbit = controls as unknown as { target: THREE.Vector3; update: () => void } | null;
+        const t = new THREE.Vector3(...target).applyMatrix4(m);
+        if (orbit) {
+          // Free framing, as during a camera flight; the next flight restores the orbit limits.
+          Object.assign(orbit, { minDistance: 0.1, maxDistance: 1000, minPolarAngle: 0, maxPolarAngle: Math.PI });
+          orbit.target.copy(t);
+          orbit.update();
+        } else camera.lookAt(t);
+      },
     };
     return () => {
       delete window.__SINOR__;
     };
-  }, [camera, gl, size]);
+  }, [camera, gl, size, controls]);
   return null;
 }

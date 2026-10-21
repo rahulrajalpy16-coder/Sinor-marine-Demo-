@@ -1,8 +1,11 @@
-"""Original background music for the demo video, synthesised with numpy (no samples, no licensing).
+"""Original background music for the advertisement, synthesised with numpy (no samples, no licensing).
 
 Uplifting corporate ambient at 96 BPM: I-V-vi-IV in C with warm pads, a plucked arpeggio, soft bass and
-light drums, an 8-bar intro and a fading outro. Usage: python3 music.py <seconds> <out.wav>
+light drums. Optional cues (JSON) shape it to the edit: {"drums": s, "hits": [s, ...], "end": s} gives the
+time the beat comes in (with a riser before it), cinematic impacts, and where the band stops and lets the
+last chord ring. Usage: python3 music.py <seconds> <out.wav> [cues.json]
 """
+import json
 import sys
 import wave
 
@@ -14,6 +17,9 @@ BEAT = 60 / BPM
 BAR = 4 * BEAT
 total = float(sys.argv[1])
 out = sys.argv[2]
+cues = json.load(open(sys.argv[3])) if len(sys.argv) > 3 else {}
+DRUMS = cues.get("drums", 4 * 4 * 60 / BPM)
+END = cues.get("end", total - 4)
 n = int(total * SR) + SR
 L = np.zeros(n)
 R = np.zeros(n)
@@ -76,24 +82,60 @@ def hat(rng):
 
 rng = np.random.default_rng(7)
 K = kick()
+
+
+def impact():
+    """Cinematic hit: a deep pitch-dropping boom with a burst of filtered noise."""
+    t = np.arange(int(3.0 * SR)) / SR
+    ph = 2 * np.pi * np.cumsum(38 + 70 * np.exp(-t * 7)) / SR
+    boom = np.sin(ph) * np.exp(-t * 1.6)
+    noise = rng.standard_normal(len(t))
+    noise = np.convolve(noise, np.ones(24) / 24, mode="same") * np.exp(-t * 5)
+    return boom + 0.6 * noise
+
+
+def riser(dur):
+    """Rising filtered-noise sweep into the beat."""
+    t = np.arange(int(dur * SR)) / SR
+    noise = rng.standard_normal(len(t))
+    out_ = np.zeros_like(noise)
+    for w in (32, 12, 5):  # progressively brighter bands, crossfaded over the sweep
+        band = np.convolve(noise, np.ones(w) / w, mode="same")
+        k = {32: 1 - t / dur, 12: 1 - np.abs(2 * t / dur - 1), 5: t / dur}[w]
+        out_ += band * np.clip(k, 0, 1)
+    return out_ * (t / dur) ** 2
+
+
 bars = int(total / BAR) + 1
-intro, outro = 4, 4
 for b in range(bars):
     t0 = b * BAR
+    if t0 > END + BAR:
+        break
     notes, root = CHORDS[b % 4]
-    part = "intro" if b < intro else "outro" if b >= bars - outro else "main"
+    last = t0 >= END  # the final chord rings out
+    beat = DRUMS <= t0 < END
     for k, m in enumerate(notes[:3]):
-        add(pad(midi(m), BAR + 1.0), t0, 0.045, pan=(k - 1) * 0.5)
+        add(pad(midi(m), (BAR * 3 if last else BAR) + 1.0), t0, 0.05 if last else 0.045, pan=(k - 1) * 0.5)
     add(pad(midi(notes[3] + 12), BAR + 1.0), t0, 0.012, pan=0.2)
-    if part != "intro" or b >= 2:
+    if last:
+        add(bass(midi(root - 12), BAR * 2), t0, 0.12)
+        break
+    if t0 >= 2 * BAR:
         seq = [notes[0], notes[1], notes[2], notes[3], notes[2] + 12, notes[3], notes[1] + 12, notes[2]]
         for s8 in range(8):
-            add(pluck(midi(seq[s8] + 12)), t0 + s8 * BEAT / 2, 0.05 if part == "main" else 0.035, pan=0.45 if s8 % 2 else -0.45)
-    if part == "main":
+            add(pluck(midi(seq[s8] + 12)), t0 + s8 * BEAT / 2, 0.05 if beat else 0.032, pan=0.45 if s8 % 2 else -0.45)
+    if beat:
         for q in range(4):
             add(bass(midi(root - 12), BEAT * 0.95), t0 + q * BEAT, 0.16)
             add(K, t0 + q * BEAT, 0.22)
             add(hat(rng), t0 + q * BEAT + BEAT / 2, 0.035, pan=0.3)
+    elif t0 >= 2 * BAR:
+        add(bass(midi(root - 12), BAR * 0.98), t0, 0.07)  # a soft pulse before the beat
+if "drums" in cues:
+    r = riser(BAR)
+    add(r, max(0, DRUMS - BAR), 0.05)
+for h in cues.get("hits", []):
+    add(impact(), h, 0.32)
 
 # Stereo delay / room: a few decaying echoes.
 for d, g in ((0.375, 0.28), (0.75, 0.16), (1.125, 0.09)):
@@ -103,7 +145,7 @@ for d, g in ((0.375, 0.28), (0.75, 0.16), (1.125, 0.09)):
 
 mix = np.stack([L, R], axis=1)[: int(total * SR)]
 fade = int(4 * SR)
-mix[:SR] *= np.linspace(0, 1, SR)[:, None]
+mix[: SR // 4] *= np.linspace(0, 1, SR // 4)[:, None]
 mix[-fade:] *= np.linspace(1, 0, fade)[:, None]
 mix /= np.max(np.abs(mix)) / 0.8
 with wave.open(out, "wb") as w:
