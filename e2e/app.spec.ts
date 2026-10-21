@@ -340,6 +340,8 @@ test('position references: RadaScan, CyScan, DGPS, taut wire and SPRINT-Nav feed
   await waitFocused(page, 'dp-console-001');
   for (const id of ['GNSS1', 'GNSS2', 'RADASCAN', 'CYSCAN', 'TAUTWIRE', 'SPRINTNAV']) await expect.poll(async () => (await ref(id)).ready && (await ref(id)).enabled).toBe(true);
   await page.getByTestId('dp-start').click();
+  // Faster simulated time so the drifting wire leaves the vote within the test, even on a software renderer.
+  await page.getByTestId('dp-speed').selectOption('20');
   await page.getByTestId('dp-tab-redundancy').click();
   await expect(page.getByTestId('dp-ref-TAUTWIRE')).toContainText('IN USE');
   await page.getByTestId('dp-drift-TAUTWIRE').click();
