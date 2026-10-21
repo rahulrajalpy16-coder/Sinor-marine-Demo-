@@ -1,13 +1,19 @@
 // Renders the advertisement's branded graphics at 1920×1080: the animated opener (frames), chapter cards,
-// the tagline, the devices backdrop and bezels, and the end card with a QR code to the live simulator.
-// Usage: node overlays.mjs <narration.json> <outDir> <qr.png> <url>
+// the tagline, the devices backdrop and bezels, and the end card. The film presents the simulator as an exclusive
+// Sinor Marine initiative. With a logo (PNG or SVG, ideally on a transparent background, light for the dark
+// backdrops) it replaces the text wordmark. Usage: node overlays.mjs <narration.json> <outDir> [logo]
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync } from 'node:fs';
 
-const [, , narrationFile, out, qrFile, url] = process.argv;
+const [, , narrationFile, out, logoFile] = process.argv;
 const segments = JSON.parse(readFileSync(narrationFile, 'utf8'));
 mkdirSync(`${out}/opener`, { recursive: true });
-const qr = `data:image/png;base64,${readFileSync(qrFile).toString('base64')}`;
+const logo = logoFile
+  ? `data:image/${logoFile.endsWith('.svg') ? 'svg+xml' : 'png'};base64,${readFileSync(logoFile).toString('base64')}`
+  : null;
+/** The brand mark: the logo when supplied, otherwise the spaced wordmark. */
+const mark = (h) => (logo ? `<img src="${logo}" style="height:${h}px;max-width:${h * 5}px;object-fit:contain">` : `<div class="kick">SINOR MARINE</div>`);
+const devices = segments.find((x) => x.id === 'devices');
 const browser = await chromium.launch({
   executablePath: process.env.PW_CHROMIUM || '/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell',
 });
@@ -35,8 +41,9 @@ const style = `
     background:radial-gradient(ellipse 55% 40% at 50% 50%,rgba(2,8,19,.62) 0%,rgba(2,8,19,.25) 60%,rgba(2,8,19,0) 100%)}
   .tag .t{font:300 86px Inter;letter-spacing:-.01em;margin-top:22px;text-shadow:0 8px 50px rgba(0,0,0,.65)}
   .tag .rule{width:520px;margin-top:26px}
-  .dev .h{position:absolute;top:84px;left:0;right:0;text-align:center}
-  .dev .h .t{font:600 50px Inter;margin-top:14px}
+  .dev .h{position:absolute;top:96px;left:0;right:0;text-align:center}
+  .dev .h .t{font:600 50px Inter}
+  .dev .corner{position:absolute;left:56px;top:40px}
   .laptop{position:absolute;left:150px;top:262px;width:1120px;height:630px;border-radius:14px 14px 0 0;
     box-shadow:0 0 0 18px #0d1720,0 0 0 20px #2a3a48,0 40px 90px rgba(0,0,0,.7)}
   .base{position:absolute;left:90px;top:910px;width:1240px;height:26px;border-radius:0 0 22px 22px;background:linear-gradient(180deg,#3a4a58,#1a242d)}
@@ -45,16 +52,14 @@ const style = `
     box-shadow:0 0 0 14px #0d1720,0 0 0 16px #33485a,0 40px 90px rgba(0,0,0,.7)}
   .phone:after{content:'';position:absolute;left:115px;top:12px;width:100px;height:26px;border-radius:14px;background:#0d1720}
   .end{position:absolute;inset:0}
-  .end .brand{position:absolute;left:0;right:0;top:250px;text-align:center}
-  .end .t{font:300 92px Inter;letter-spacing:-.01em;margin-top:26px}
+  .end .brand{position:absolute;left:0;right:0;top:150px;text-align:center}
+  .end .t{font:300 84px Inter;letter-spacing:-.01em;margin-top:30px}
   .end .s{font:400 30px Inter;color:#a8c4d4;margin-top:16px}
-  .end .rule{width:560px;margin:34px auto 0}
-  .end .try{position:absolute;left:50%;top:690px;transform:translateX(-50%);display:flex;align-items:center;gap:34px;
-    padding:22px 34px;border:1px solid rgba(0,217,255,.4);border-radius:6px;background:rgba(2,8,19,.6)}
-  .end .try img{width:168px;height:168px;border-radius:6px;background:#fff;padding:8px}
-  .end .try .l{font:600 30px Inter}
-  .end .try .u{font:500 21px 'JetBrains Mono',monospace;color:#9fe9ff;margin-top:12px}
-  .end .try .d{font:400 19px Inter;color:#a8c4d4;margin-top:10px}
+  .end .rule{width:560px;margin:28px auto 0}
+  .end .excl{position:absolute;left:50%;top:770px;transform:translateX(-50%);text-align:center;white-space:nowrap;
+    padding:24px 56px;border:1px solid rgba(0,217,255,.4);border-radius:6px;background:rgba(2,8,19,.6)}
+  .end .excl .k2{font:600 20px 'JetBrains Mono',monospace;letter-spacing:.42em;color:#00D9FF;padding-left:.42em}
+  .end .excl .l{font:500 32px Inter;margin-top:12px}
   .end .f{position:absolute;bottom:40px;left:0;right:0;text-align:center;font:400 16px Inter;color:#5f7f92}
 `;
 const shot = async (name, html, transparent = true) => {
@@ -70,17 +75,16 @@ for (const [i, c] of chapters.entries()) {
     <div class="t">${c.title}</div><div class="s">${c.subtitle}</div><div class="rule"></div></div>`);
 }
 
-await shot('tagline', `<div class="tag"><div class="kick">SINOR MARINE</div><div class="t">We bring the vessel to you</div><div class="rule"></div></div>`);
+await shot('tagline', `<div class="tag">${mark(130)}<div class="t">We bring the vessel to you</div><div class="rule"></div></div>`);
 
-await shot('devices-bg', `<div class="navy"></div><div class="grid"></div><div class="dev"><div class="h"><div class="kick">SINOR MARINE</div>
-  <div class="t">Anywhere, on any screen</div></div></div>`, false);
+await shot('devices-bg', `<div class="navy"></div><div class="grid"></div><div class="dev">${logo ? `<div class="corner">${mark(84)}</div>` : ''}<div class="h">${logo ? '' : mark(56)}
+  <div class="t">${devices.title}</div><div class="s" style="font:400 26px Inter;color:#a8c4d4;margin-top:8px">${devices.subtitle}</div></div></div>`, false);
 await shot('devices-frames', `<div class="laptop"></div><div class="base"></div><div class="notch"></div><div class="phone"></div>`);
 
 await shot('endcard', `<div class="navy"></div><div class="grid"></div><div class="end">
-  <div class="brand"><div class="kick">SINOR MARINE</div><div class="t">We bring the vessel to you</div>
+  <div class="brand">${mark(220)}<div class="t">We bring the vessel to you</div>
   <div class="s">Vessel Systems Simulator</div><div class="rule"></div></div>
-  <div class="try"><img src="${qr}"><div><div class="l">Try the simulator now</div><div class="u">${url.replace(/^https?:\/\//, '').replace(/\/$/, '')}</div>
-  <div class="d">Runs in any web browser · desktop, tablet and phone</div></div></div>
+  <div class="excl"><div class="k2">AN EXCLUSIVE SINOR MARINE INITIATIVE</div><div class="l">Step aboard and explore every system</div></div>
   <div class="f">Sinor Marine system simulation for training and demonstration. Not connected to live vessel systems.</div></div>`, false);
 
 // Opener: 5 s, driven frame by frame (no CSS clock), so every frame is exact.
@@ -90,11 +94,12 @@ await page.setContent(`<html><head><style>${style}
   #name{font:200 120px Inter;letter-spacing:.32em;padding-left:.32em;margin-top:6px}
   #r{height:2px;margin-top:30px}
   #sub{font:400 30px Inter;color:#a8c4d4;margin-top:26px;letter-spacing:.06em}
+  #ex{font:600 18px 'JetBrains Mono',monospace;letter-spacing:.4em;padding-left:.4em;color:#00D9FF;margin-top:22px}
   #glow{position:absolute;left:50%;top:50%;width:1400px;height:500px;transform:translate(-50%,-50%);
     background:radial-gradient(ellipse at center,rgba(0,217,255,.22),rgba(0,217,255,0) 65%)}
   </style></head><body><div class="navy"></div><div class="grid" id="g"></div><div id="glow"></div>
-  <div id="w"><div id="k">PRESENTS</div><div id="name">SINOR MARINE</div><div id="r" class="rule"></div>
-  <div id="sub">Vessel Systems Simulator</div></div></body></html>`);
+  <div id="w"><div id="k">PRESENTS</div><div id="name">${logo ? `<img src="${logo}" style="height:200px;max-width:1100px;object-fit:contain">` : 'SINOR MARINE'}</div>
+  <div id="r" class="rule"></div><div id="sub">Vessel Systems Simulator</div><div id="ex">AN EXCLUSIVE SINOR MARINE INITIATIVE</div></div></body></html>`);
 await page.evaluate(() => document.fonts.ready);
 const FRAMES = 150;
 for (let f = 0; f < FRAMES; f++) {
@@ -109,6 +114,7 @@ for (let f = 0; f < FRAMES; f++) {
     $('r').style.width = `${760 * e((t - 0.9) / 1.3)}px`;
     $('sub').style.opacity = e((t - 1.8) / 0.9);
     $('sub').style.transform = `translateY(${14 * (1 - e((t - 1.8) / 0.9))}px)`;
+    $('ex').style.opacity = e((t - 2.6) / 0.9);
     $('glow').style.opacity = 0.4 + 0.6 * e(t / 2.5);
     $('g').style.opacity = 0.18 * e(t / 1.5);
     $('g').style.backgroundPosition = `0 ${t * 12}px`;

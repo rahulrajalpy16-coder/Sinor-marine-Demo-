@@ -2,7 +2,9 @@
 graphics (overlays.mjs), the voice-over and captions (voice.py) and synthesised music (music.py).
 
 Edit: animated opener > cinematic hero shots (tagline) > simulator walkthrough (chapter cards) > devices
-scene (desktop + phone) > end card with QR code. Burned-in subtitles follow the voice-over sentence by
+scene (desktop + phone) > end card. With STOCK=<dir> (prepared 1080p30 clips: logo.mp4, twin.mp4, network.mp4)
+the logo reveal replaces the opener, the digital-twin clip leads into the hero shots and the systems-network
+clip leads into the walkthrough. Burned-in subtitles follow the voice-over sentence by
 sentence, so the advert also works on a muted exhibition screen. Output: 1080p30 H.264 + AAC, fast start.
 
 Usage: python3 assemble.py <captureDir> <voDir> <overlayDir> <narration.json> <music.py> <out.mp4>
@@ -37,7 +39,23 @@ def frames_clip(name, pattern, start_frame, n_frames, vf="scale=1920:1080:flags=
 # ---- Clips -------------------------------------------------------------------------------------------
 clips = []  # (name, path, duration, transition_in)
 OPENER = 5.0
-clips.append(("opener", frames_clip("opener", f"{ov}/opener/f%06d.png", 0, int(OPENER * FPS)), OPENER, 0.0))
+stock = os.environ.get("STOCK")
+
+
+def stock_clip(name, sec, slow=1.0):
+    """The first `sec` seconds (after slowing by `slow`) of a prepared stock clip."""
+    path = f"{work}/{name}.mp4"
+    run(["-i", f"{stock}/{name}.mp4", "-an", "-vf", f"setpts={slow}*PTS,fps={FPS},setsar=1,format=yuv420p", "-t", str(sec),
+         "-c:v", "libx264", "-preset", "medium", "-crf", "12", path])
+    return path
+
+
+if stock:
+    OPENER = 7.5
+    clips.append(("opener", stock_clip("logo", OPENER), OPENER, 0.0))
+    clips.append(("twin", stock_clip("twin", 10.0), 10.0, 0.8))
+else:
+    clips.append(("opener", frames_clip("opener", f"{ov}/opener/f%06d.png", 0, int(OPENER * FPS)), OPENER, 0.0))
 
 h = tl["hero"]
 marks = ["h1", "h1b", "h2", "h3"]
@@ -45,6 +63,8 @@ bounds = [round(h[m] * FPS) for m in marks] + [h["frames"]]
 for i, m in enumerate(marks):
     n = bounds[i + 1] - bounds[i]
     clips.append((m, frames_clip(m, f"{cap}/hero/f%06d.jpg", bounds[i], n), n / FPS, [0.8, 0.4, 0.5, 0.5][i]))
+if stock:
+    clips.append(("network", stock_clip("network", 11.5, 1.15), 11.5, 0.8))
 
 # The walkthrough's frames, with optional extras from the environment:
 #   APP_JOIN=dpall  - the separately captured last part replaces the app frames from its mark on
@@ -114,6 +134,8 @@ TOTAL = t
 # ---- Voice-over placement ----------------------------------------------------------------------------
 vo_at = {
     "hero1": start["h1"] + 0.5,
+    "intro": start.get("twin", 0) + 0.8,
+    "initiative": start.get("network", 0) + 0.6,
     "hero2": start["h2"] + 0.2,
     "hero3": start["h3"] + 0.3,
     "devices": start["devices"] + 0.6,
@@ -121,7 +143,7 @@ vo_at = {
 }
 for k in ("platform", "modes", "learn", "thruster", "dp", "hpr", "relative", "absolute", "sprintnav", "dpall"):
     vo_at[k] = start["app"] + a[k] + 0.35
-order = [k for k in segs if k in vo_at]
+order = [k for k in segs if k in vo_at and (k != "intro" or "twin" in start) and (k != "initiative" or "network" in start)]
 
 # ---- Subtitles (ASS) ---------------------------------------------------------------------------------
 def ts(x):
@@ -163,7 +185,7 @@ open(f"{work}/subs.ass", "w").write("\n".join(ass) + "\n")
 # ---- Overlays ----------------------------------------------------------------------------------------
 overlays = []  # (png, start, stop, fade_in, fade_out)
 tag0 = vo_at["hero3"] + caps["hero3"][1][0] - 0.2
-overlays.append(("tagline", tag0, start["app"] + 0.5, 0.6, 0.6))
+overlays.append(("tagline", tag0, start.get("network", start["app"]) + 0.5, 0.6, 0.6))
 app_ids = ["modes", "learn", "thruster", "dp", "hpr", "relative", "absolute", "sprintnav", "dpall"]
 for i, k in enumerate(app_ids):
     s0 = start["app"] + a[k] + 0.15
@@ -172,7 +194,8 @@ for i, k in enumerate(app_ids):
 
 # ---- Music -------------------------------------------------------------------------------------------
 music = f"{work}/music.wav"
-cues = {"drums": start["app"] + 0.1, "hits": [0.35, start["app"] + 0.1, start["endcard"] + 0.2], "end": start["endcard"] + 0.4}
+hits = [0.35, start["app"] + 0.1, start["endcard"] + 0.2] + ([2.0, start["network"] + 0.3] if stock else [])
+cues = {"drums": start["app"] + 0.1, "hits": sorted(hits), "end": start["endcard"] + 0.4}
 json.dump(cues, open(f"{work}/cues.json", "w"))
 subprocess.run([sys.executable, music_py, f"{TOTAL + 1:.2f}", music, f"{work}/cues.json"], check=True)
 
