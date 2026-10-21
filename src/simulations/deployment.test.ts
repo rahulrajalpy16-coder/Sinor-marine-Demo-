@@ -45,7 +45,8 @@ describe('Type 7950 geometry from the drawings', () => {
   it('keeps every unverified value labelled', () => {
     expect(T7950.parkClearance.source).toBe('assumed');
     expect(T7950.poleDiameter.source).toBe('scaled');
-    expect(HPT5000.length.source).toBe('manual');
+    expect(HPT5000.length.source).toBe('outline');
+    expect(HPT5000.boltPcd.value).toBeCloseTo(0.2106, 4);
   });
 });
 

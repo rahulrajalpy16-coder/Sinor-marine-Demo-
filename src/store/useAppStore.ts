@@ -48,6 +48,8 @@ export interface AppState {
   startSimulating: () => void;
   stopSimulating: () => void;
   returnToPrevious: () => void;
+  /** Fly to a vessel-frame pose while keeping the current selection (close-up views). */
+  viewPose: (pose: CameraPose) => void;
   resetToOverview: () => void;
   cameraEvent: (ev: CameraEvent) => void;
   setCameraMoving: (v: boolean) => void;
@@ -149,6 +151,12 @@ export const createAppStore = () =>
       const s = get();
       if (s.phase !== 'simulating') return;
       set({ phase: 'inspecting', cameraMode: nextCameraMode(s.cameraMode, { type: 'END_SIMULATION' }) });
+    },
+
+    viewPose: (pose) => {
+      const s = get();
+      if (!s.selectedId) return;
+      set({ cameraRequest: { seq: s.cameraRequest.seq + 1, kind: 'focus', pose } });
     },
 
     returnToPrevious: () => {

@@ -70,6 +70,8 @@ export interface EquipmentPlacement {
   interior?: boolean;
   /** Override the interior orbit's maximum distance (tall spaces such as the 6.1 m HPR trunk). */
   interiorMaxDistance?: number;
+  /** Closest orbit distance for a small underwater unit, so it can be inspected up close (default 6 m). */
+  closeUpDistance?: number;
   /** Assembly supports the exploded visual mode. */
   explodable: boolean;
   /** Phase-1 slice: the system is modelled and selectable in the scene. */

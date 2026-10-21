@@ -434,8 +434,10 @@ export const REF_NOISE: Record<RefId, number> = {
   TAUTWIRE: SMT_TW.accuracy.value,
   SPRINTNAV: SPRINTNAV.noise.value,
 };
-// SPRINT-Nav DP is DVL-aided inertial: its error grows slowly. Datasheet: < 3.2 m over 12 h (1DRMS).
-const SPRINTNAV_DRIFT_RATE = SPRINTNAV.stationKeeping.value / (12 * 3600);
+// SPRINT-Nav DP is DVL-aided inertial: in independent mode its error grows slowly. Datasheet: < 2 m over 24 h
+// (CEP50). With GNSS aiding on, GNSS holds the error down, so the drift decays (time constant 60 s, illustrative).
+const SPRINTNAV_DRIFT_RATE = SPRINTNAV.stationKeeping.value / (24 * 3600);
+const SPRINTNAV_AIDED_TAU = 60;
 const DRIFT_RATE = 0.08; // m/s for a drifting reference
 const REJECT_M = 3;
 
@@ -444,6 +446,7 @@ export function processReferences(
   s: DPState,
   dt: number,
   readiness: Partial<Record<RefId, boolean>> | boolean = {},
+  sprintnavAided = false,
 ): { refs: RefState[]; fix: [number, number] | null; deviation: boolean } {
   const ready: Partial<Record<RefId, boolean>> = typeof readiness === 'boolean' ? { HPR: readiness } : readiness;
   const noiseState = { seed: s.seed };
@@ -452,7 +455,12 @@ export function processReferences(
     if (rd !== undefined && r.ready !== rd) r = { ...r, ready: rd };
     if (!r.installed) return r;
     let drift: [number, number] = r.fault === 'drift' ? [r.drift[0] + DRIFT_RATE * dt * 0.8, r.drift[1] + DRIFT_RATE * dt * 0.6] : r.drift;
-    if (r.id === 'SPRINTNAV' && r.ready) drift = [drift[0] + SPRINTNAV_DRIFT_RATE * dt * 0.6, drift[1] - SPRINTNAV_DRIFT_RATE * dt * 0.8];
+    if (r.id === 'SPRINTNAV' && r.ready && r.fault !== 'drift') {
+      if (sprintnavAided) {
+        const k = Math.exp(-dt / SPRINTNAV_AIDED_TAU);
+        drift = [drift[0] * k, drift[1] * k];
+      } else drift = [drift[0] + SPRINTNAV_DRIFT_RATE * dt * 0.6, drift[1] - SPRINTNAV_DRIFT_RATE * dt * 0.8];
+    }
     const n = REF_NOISE[r.id];
     const meas: [number, number] = [s.eta[0] + drift[0] + n * rand(noiseState), s.eta[1] + drift[1] + n * rand(noiseState)];
     return { ...r, drift, meas };
@@ -489,6 +497,8 @@ export interface DPStepInput {
   hpr?: { ready: boolean };
   /** Readiness of the other references (RadaScan, CyScan, taut wire, SPRINT-Nav). Unlisted keep their state. */
   ready?: Partial<Record<RefId, boolean>>;
+  /** SPRINT-Nav DP still has GNSS aiding enabled (not independent of GNSS). */
+  sprintnavAided?: boolean;
 }
 
 export interface DPStepOutput {
@@ -520,7 +530,7 @@ export function stepDP(prev: DPState, dt: number, input: DPStepInput, p: DPParam
   const joystickLost = s.mode === 'JOYSTICK' && !integrity.ok;
 
   // Position references and estimate.
-  const refsOut = processReferences(s, dt, { HPR: input.hpr?.ready ?? true, ...input.ready });
+  const refsOut = processReferences(s, dt, { HPR: input.hpr?.ready ?? true, ...input.ready }, input.sprintnavAided);
   s.refs = refsOut.refs;
   if (refsOut.fix) {
     const k = Math.min(1, dt / 4);

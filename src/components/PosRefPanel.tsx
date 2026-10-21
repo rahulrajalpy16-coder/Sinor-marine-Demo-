@@ -11,6 +11,7 @@ import {
   radascanRange,
   sprintNavAltitude,
   sprintNavDepth,
+  sprintNavMode,
   cyscanMaxRange,
   tautWireAngle,
   tautWireAxes,
@@ -24,6 +25,7 @@ import {
 import { REF_LABEL, type RefId } from '../simulations/dp';
 import { CYSCAN, POLE_8097, RADASCAN, SEASTAR, SMT_TW, SPRINTNAV } from '../equipment/posrefData';
 import { HmiBtn, Readout, Status, Toggle } from './ThrusterPanel';
+import { DataNote } from './DataNote';
 
 function usePosRefs() {
   const s = useControllerState(posRefs);
@@ -63,7 +65,7 @@ function DpRef({ id, testid }: { id: RefId; testid: string }) {
     : !r.ready
       ? 'Selected, not ready'
       : dp.status !== 'running'
-        ? 'Selected, ready (DP sim stopped)'
+        ? 'Selected, ready (DP not running)'
         : r.fault === 'lost'
           ? 'Lost'
           : r.rejected
@@ -119,9 +121,6 @@ function ErrorLine({ error, testid }: { error: string | null; testid: string }) 
   );
 }
 
-function Note({ children }: { children: ReactNode }) {
-  return <p className="text-[9px] leading-snug text-[#7f93a3]">{children}</p>;
-}
 
 /** RadaScan View style radar picture: range rings, own ship, the coded responder and the platform echo (illustrative). */
 function RadarView({ on, tracking, range, bearing }: { on: boolean; tracking: boolean; range: number; bearing: number }) {
@@ -220,11 +219,11 @@ export function RadaScanPanel() {
       <RadarView on={on} tracking={ready.RADASCAN} range={rb.range} bearing={rb.bearing} />
       <DpRef id="RADASCAN" testid="radascan" />
       <Alarms list={s.alarms.filter((a) => a === 'RADASCAN_NO_TARGET')} testid="radascan-alarms" />
-      <Note>
+      <DataNote>
         RadaScan View brochure: combined position reference and navigation radar for the 500 m zone, range and bearing to coded responders, works through rain,
-        fog, steam and dust, −25 to +55 °C. Sensor Ø500 × 410 mm (installer’s guide). Not stated, so illustrative: maximum range, lock-on time{' '}
+        fog, steam and dust, −25 to +55 °C. Sensor Ø500 × 410 mm (installer’s guide). Simulation settings not given in the documents: maximum range, lock-on time{' '}
         {RADASCAN.acquireSeconds.value} s, position noise {RADASCAN.accuracy.value} m, the platform and its radar echo.
-      </Note>
+      </DataNote>
     </Shell>
   );
 }
@@ -252,11 +251,11 @@ export function CyScanPanel() {
       </dl>
       <DpRef id="CYSCAN" testid="cyscan" />
       <Alarms list={s.alarms.filter((a) => a === 'CYSCAN_NO_TARGET')} testid="cyscan-alarms" />
-      <Note>
+      <DataNote>
         CyScan AS leaflet: 10–2,500 m with prisms, about 10–300 m with the 1.9 m cylindrical target used here (installer’s guide; the leaflet says 400 m); beam 12° × 0.13°; ±20° gimbal; 30 targets detectable,
-        9 trackable; sensor base 405 × 327 mm plus the 80 mm access cover facing forward, 563 mm high, 4 × M8 on 190 × 360 mm, 28 kg. Not stated, so illustrative: lock-on time {CYSCAN.acquireSeconds.value} s and the {CYSCAN.fogRangeM.value} m
+        9 trackable; sensor base 405 × 327 mm plus the 80 mm access cover facing forward, 563 mm high, 4 × M8 on 190 × 360 mm, 28 kg. Simulation settings not given in the documents: lock-on time {CYSCAN.acquireSeconds.value} s and the {CYSCAN.fogRangeM.value} m
         range in fog (lasers lose range in fog and spray; the radar does not).
-      </Note>
+      </DataNote>
     </Shell>
   );
 }
@@ -292,11 +291,11 @@ export function DGPSPanel() {
           </div>
         );
       })}
-      <Note>
+      <DataNote>
         Seastar 9410-AUT datasheet: 672 channels, G4 &lt; 10 cm horizontal / &lt; 15 cm vertical (95 %), L-band or NTRIP corrections through one antenna, 24 V DC 6 W,
-        270 × 140 × 70 mm. Antenna: Trimble GA830, Ø149 × 99 mm, 0.82 kg, 5/8" pole mount (Trimble datasheet); its colours are drawn from the photo. The display text is a mock-up. DGPS 2 is fitted from
+        270 × 140 × 70 mm. Antenna: Trimble GA830, Ø149 × 99 mm, 0.82 kg, 5/8" pole mount (Trimble datasheet); its colours are drawn from the photo. The receiver display is a representation. DGPS 2 is fitted from
         DP2. Losing corrections removes that receiver from DP voting.
-      </Note>
+      </DataNote>
     </Shell>
   );
 }
@@ -330,49 +329,142 @@ export function TautWirePanel() {
       <DpRef id="TAUTWIRE" testid="tautwire" />
       <ErrorLine error={error} testid="tw-error" />
       <Alarms list={s.alarms.filter((a) => a.startsWith('TW_'))} testid="tw-alarms" />
-      <Note>
+      <DataNote>
         SMT Z Range Mk2 and manual PJ 0044-13: 500 m depth (700 m cable), 400 kg weight, 1700 × 1600 mm skid, 2085 mm stored, 2395 mm max while deploying, head
-        2510 mm outboard and 1059 mm up when deployed, ±30° range, $PCPTW output. Not stated, so illustrative: winch speed {SMT_TW.winchSpeed.value} m/s,{' '}
+        2510 mm outboard and 1059 mm up when deployed, ±30° range, $PCPTW output. Simulation settings not given in the documents: winch speed {SMT_TW.winchSpeed.value} m/s,{' '}
         {SMT_TW.angleWarnDeg.value}° warning, alarm codes in the NMEA line, the bell size, and the boom path between the two drawn poses. Move the vessel in DP to see
         the angles change.
-      </Note>
+      </DataNote>
     </Shell>
   );
 }
 
+/**
+ * Positioning view in the style of the SPRINT-Nav web UI (datasheet 8388): mode banner, compass rose with range
+ * rings, the INS position against the last GNSS fix it was started from, and the heading and position quality.
+ */
+function SprintNavPlot({ mode, drift }: { mode: ReturnType<typeof sprintNavMode>; drift: [number, number] }) {
+  const cx = 90;
+  const cy = 102;
+  const R = 58;
+  const maxM = 2;
+  const err = Math.hypot(drift[0], drift[1]);
+  const k = Math.min(1, maxM / Math.max(err, 1e-6));
+  const x = cx + (drift[1] * k * R) / maxM;
+  const y = cy - (drift[0] * k * R) / maxM;
+  const live = mode === 'GNSS AIDED' || mode === 'INDEPENDENT';
+  const banner = { OFF: 'Off', INITIALISING: 'Initialising from GNSS', 'GNSS AIDED': 'GNSS aided', INDEPENDENT: 'Independent from GNSS' }[mode];
+  return (
+    <svg data-testid="sn-plot" viewBox="0 0 180 186" className="mx-auto h-48 w-[11.6rem]" role="img" aria-label={`Positioning: ${banner}`}>
+      <rect x={0} y={0} width={180} height={186} rx={4} fill="#160f3a" />
+      <text x={cx} y={15} textAnchor="middle" fontSize={11} fontWeight={600} fill={live ? '#3fd16b' : '#f2c14e'}>
+        Positioning
+      </text>
+      <text x={cx} y={28} textAnchor="middle" fontSize={8.5} fill="#e6e1ff">
+        {banner}
+      </text>
+      {[0.5, 1, 2].map((r) => (
+        <g key={r}>
+          <circle cx={cx} cy={cy} r={(r / maxM) * R} fill="none" stroke="#8b7fd6" strokeOpacity={0.5} strokeWidth={0.7} strokeDasharray={r === 2 ? undefined : '2 2'} />
+          <text x={cx + (r / maxM) * R * 0.71 + 2} y={cy - (r / maxM) * R * 0.71} fontSize={7} fill="#b6abf5">
+            {r} m
+          </text>
+        </g>
+      ))}
+      {['N', 'E', 'S', 'W'].map((l, i) => {
+        const a = (i * Math.PI) / 2;
+        return (
+          <text key={l} x={cx + Math.sin(a) * (R + 8)} y={cy - Math.cos(a) * (R + 8) + 3} textAnchor="middle" fontSize={8.5} fill="#e6e1ff">
+            {l}
+          </text>
+        );
+      })}
+      {/* Last used GNSS fix (where the unit was when GNSS aiding was disabled) */}
+      <circle cx={cx} cy={cy} r={3} fill="none" stroke="#3fd16b" strokeWidth={1.2} />
+      {live && (
+        <g>
+          <line x1={cx} y1={cy} x2={x} y2={y} stroke="#ffffff" strokeOpacity={0.5} strokeWidth={0.6} />
+          <circle cx={x} cy={y} r={2.6} fill="#ffffff" />
+          <line x1={x - 6} y1={y} x2={x + 6} y2={y} stroke="#ffffff" strokeWidth={0.7} />
+          <line x1={x} y1={y - 6} x2={x} y2={y + 6} stroke="#ffffff" strokeWidth={0.7} />
+        </g>
+      )}
+      <g fontSize={7.5} fill="#e6e1ff">
+        <circle cx={14} cy={177} r={2.5} fill="#ffffff" />
+        <text x={20} y={180}>INS</text>
+        <circle cx={48} cy={177} r={2.5} fill="none" stroke="#3fd16b" strokeWidth={1.2} />
+        <text x={54} y={180}>Last used GNSS</text>
+      </g>
+    </svg>
+  );
+}
+
 export function SprintNavPanel() {
-  const { s, send, error, pose, ready } = usePosRefs();
+  const { s, dp, send, error, pose, ready } = usePosRefs();
   const p = s.pole;
   const sn = s.sprintnav;
+  const mode = sprintNavMode(s);
   const alt = sprintNavAltitude(p.angleDeg);
   const inWater = p.phase === 'deployed';
   const moving = p.phase === 'deploying' || p.phase === 'recovering';
+  const ref = dp.refs.find((r) => r.id === 'SPRINTNAV');
+  const drift: [number, number] = ref ? ref.drift : [0, 0];
+  const err = Math.hypot(drift[0], drift[1]);
+  const aligned = sn.power && sn.align >= 1;
+  const bottomLock = inWater && alt >= SPRINTNAV.altitudeMin.value && alt <= SPRINTNAV.altitudeMax.value;
+  const profile = Math.min(SPRINTNAV.adcpRange.value, Math.max(0, alt));
   return (
     <Shell title="SPRINT-NAV DP · 8097 POLE" status={ready.SPRINTNAV ? 'REFERENCE OK' : poleStatus(s)} ok={ready.SPRINTNAV} testid="sprintnav-hmi">
       <div className="flex flex-wrap items-center gap-1 text-[10px]">
         <HmiBtn testid="pole-deploy" label="DEPLOY POLE" tone="go" disabled={p.phase === 'deployed' || p.phase === 'deploying' || p.phase === 'locking'} onClick={() => send({ type: 'pole-deploy' })} />
         <HmiBtn testid="pole-recover" label="RECOVER POLE" disabled={p.phase === 'stowed' || p.phase === 'recovering'} onClick={() => send({ type: 'pole-recover' })} />
         <HmiBtn testid="pole-stop" label="STOP" disabled={!moving} onClick={() => send({ type: 'pole-stop' })} />
+      </div>
+      <div className="flex flex-wrap items-center gap-1 text-[10px]">
         <Toggle testid="sprintnav-power" label={sn.power ? 'SPRINT-NAV ON' : 'SPRINT-NAV OFF'} active={sn.power} onClick={() => send({ type: 'sprintnav-power', on: !sn.power })} />
+        <Toggle
+          testid="sprintnav-gnss"
+          label={sn.gnssAiding ? 'GNSS AIDING ON' : 'GNSS AIDING OFF'}
+          active={sn.power && sn.gnssAiding}
+          onClick={() => send({ type: 'sprintnav-gnss', on: !sn.gnssAiding })}
+        />
         <SimSpeed testid="sn-speed" />
+      </div>
+      <div className="grid grid-cols-1 items-center gap-2 min-[420px]:grid-cols-[auto_1fr]">
+        <SprintNavPlot mode={mode} drift={drift} />
+        <dl className="grid grid-cols-2 gap-1 font-mono text-[11px]">
+          <Readout label="Mode" value={mode} testid="sn-mode" />
+          <Readout label="Initialisation" value={sn.power ? `${Math.round(sn.align * 100)} %` : 'OFF'} testid="sn-align" />
+          <Readout label="Heading quality" value={aligned ? `${SPRINTNAV.headingDeg.value.toFixed(3)}°` : '—'} />
+          <Readout label="Drift from GNSS" value={aligned && !sn.gnssAiding ? `${err.toFixed(2)} m` : aligned ? 'GNSS held' : '—'} testid="sn-drift" />
+          <Readout label="DVL" value={!sn.power ? 'OFF' : bottomLock ? 'Bottom tracking' : inWater ? 'No bottom' : 'In air'} testid="sn-dvl" />
+          <Readout label="Vertical aiding" value={sn.power ? (inWater ? 'Pressure sensor' : 'In air') : 'OFF'} />
+        </dl>
       </div>
       <dl className="grid grid-cols-2 gap-1 font-mono text-[11px]">
         <Readout label="Pole angle" value={`${p.angleDeg.toFixed(0)}° ${p.locked ? '· LOCKED' : ''}`} testid="pole-angle" />
-        <Readout label="INS alignment" value={sn.power ? `${Math.round(sn.align * 100)} %` : 'OFF'} testid="sn-align" />
         <Readout label="DVL altitude" value={inWater ? `${alt.toFixed(1)} m` : '—'} testid="sn-altitude" />
         <Readout label="Unit depth" value={inWater ? `${sprintNavDepth(p.angleDeg).toFixed(1)} m (rated ${SPRINTNAV.depthRating.value} m)` : 'On deck'} />
-        <Readout label="Bottom lock" value={inWater && alt <= SPRINTNAV.altitudeMax.value ? 'YES' : 'NO'} />
+        <Readout label="Bottom lock" value={sn.power && bottomLock ? 'YES' : 'NO'} />
+        <Readout
+          label="Current (ADCP)"
+          value={sn.power && inWater ? `${dp.current.speedKn.toFixed(1)} kn → ${dp.current.toDeg.toFixed(0)}° · 0–${profile.toFixed(0)} m` : '—'}
+          testid="sn-adcp"
+        />
         <Readout label="Vessel speed" value={`${(pose.speed / KNOT).toFixed(1)} kn (max ${POLE_8097.maxSpeedKn.value})`} />
       </dl>
       <DpRef id="SPRINTNAV" testid="sprintnav" />
       <ErrorLine error={error} testid="sn-error" />
       <Alarms list={s.alarms.filter((a) => a === 'POLE_OVERSPEED')} testid="sn-alarms" />
-      <Note>
-        Datasheet: SPRINT-Nav DP {SPRINTNAV.diameter.value * 1000} × {SPRINTNAV.height.value * 1000} mm titanium, 100 m rating, 375 kHz DVL, altitude 0.4–200 m, 10-minute initialisation, 5 min battery, 1 × RS422, station
-        keeping &lt; 3.2 m over 12 h (modelled as a slow drift). Type 8097 pole datasheet: 9190 mm pivot to end, joints at 3110
-        and 6170 mm, strakes, 1,000 kg, axis 525 mm above the deck edge, hull lock 2415 mm below it, 5 kn. Illustrative: pole diameter (scaled), swing{' '}
-        {POLE_8097.swingSeconds.value} s, lock {POLE_8097.lockSeconds.value} s, DVL beam angle.
-      </Note>
+      <DataNote>
+        SPRINT-Nav DP datasheet 8388 (specifications 01/2026) and drawing: Ø{SPRINTNAV.diameter.value * 1000} × {SPRINTNAV.height.value * 1000} mm titanium
+        ({SPRINTNAV.bodyLength.value * 1000} mm body), {SPRINTNAV.boltHoles.value.toLowerCase()}; 100 m rating; 375 kHz DVL, altitude 0.4–200 m; ADCP 0.4–120 m;
+        10-minute initialisation from GNSS, then GNSS aiding disabled for independent mode; station keeping &lt; 2 m over 24 h (CEP50), drawn as a slow drift;
+        heading 0.05°; 5 min battery; 1 × RS422. Type 8097 pole datasheet: 9190 mm pivot to end, joints at 3110 and 6170 mm, strakes, 1,000 kg, axis 525 mm
+        above the deck edge, hull lock 2415 mm below it, 5 kn. Simulation settings not given in the documents: pole diameter (scaled), swing{' '}
+        {POLE_8097.swingSeconds.value} s, lock {POLE_8097.lockSeconds.value} s, DVL beam angle {SPRINTNAV.dvlBeamDeg.value}°, and how fast GNSS aiding pulls
+        the drift back. The current shown is the DP simulator's current, which is uniform with depth.
+      </DataNote>
     </Shell>
   );
 }

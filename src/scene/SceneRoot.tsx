@@ -10,6 +10,7 @@ import { ModeController } from './ModeController';
 import { SimulationDriver } from './SimulationDriver';
 import { TestBridge } from './TestBridge';
 import { CameraRig } from '../camera/CameraRig';
+import { SheetViewOffset } from '../camera/SheetViewOffset';
 import { VesselWithEquipment } from '../vessels/VesselWithEquipment';
 import { VesselMotion } from './VesselMotion';
 import { DPSetpointMarker } from './DPSceneOverlay';
@@ -62,7 +63,7 @@ export function SceneRoot({ onError }: { onError?: (e: unknown) => void }) {
         scene.fog = new THREE.Fog(design.colors.background, 160, 560);
       }}
       onError={onError as never}
-      aria-label="Interactive 3D view of the representative offshore vessel"
+      aria-label="Interactive 3D view of the Sinor Marine offshore support vessel"
     >
       <PerformanceMonitor
         flipflops={3}
@@ -82,6 +83,7 @@ export function SceneRoot({ onError }: { onError?: (e: unknown) => void }) {
         <ModeController />
         <SimulationDriver />
         <CameraRig />
+        <SheetViewOffset />
         <TestBridge />
         {profile.postprocessing && (
           <EffectComposer multisampling={profile.multisampling}>

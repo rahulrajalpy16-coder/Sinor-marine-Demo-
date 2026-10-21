@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useEquipmentMaterials, useSelectable } from '../interactions/useSelectable';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { EqMesh } from './EqMesh';
+import { makeBandTexture } from './makerLabel';
 import { useAppStore } from '../store/useAppStore';
 import { useQualityProfile } from '../rendering/quality';
 import { CYAN } from '../rendering/materials';
@@ -38,10 +40,16 @@ const CYSCAN_ID = 'cyscan-001';
 const DGPS_ID = 'dgps-001';
 const TW_ID = 'tautwire-001';
 const SN_ID = 'sprintnav-001';
-// SPRINT-Nav housing split along its 346 mm length, scaled off the datasheet photo.
-const SN_CAP = 0.07;
-const SN_FLANGE = 0.03;
-const SN_BAND = SPRINTNAV.height.value - SN_CAP - SN_FLANGE - 0.06;
+// SPRINT-Nav DP housing, measured off the datasheet drawing (346 mm overall, 298 mm flange face to DVL end, Ø225).
+// Radius and distance below the top flange face, mm. The connector stands proud of the flange (346 − 298 = 48 mm).
+const SN_PROFILE: [number, number][] = [
+  [0, 0], [104, 0], [112.5, 3], [112.5, 27], [107, 31], [101, 33], [101, 52], [106, 54], [106, 148], [107.5, 150],
+  [107.5, 162], [104, 164], [104, 167], [107.5, 169], [107.5, 181], [104, 183], [104, 186], [107.5, 188],
+  [107.5, 208], [111, 211], [111, 224], [104, 228], [104, 240], [100, 244], [100, 262], [50, 290], [44, 298], [0, 298],
+];
+/** Navy maker's band around the upper body (drawing and photo), mm below the flange face. */
+const SN_BAND: [number, number] = [56, 146];
+const SN_CONNECTOR = SPRINTNAV.height.value - SPRINTNAV.bodyLength.value;
 
 function useDisposeAll(g: Record<string, { dispose(): void }>) {
   useEffect(() => () => Object.values(g).forEach((x) => x.dispose()), [g]);
@@ -531,10 +539,31 @@ export function SprintNavPole() {
     strake: { color: '#234a99', metalness: 0.45, roughness: 0.5 },
     mount: { color: '#2a55b0', metalness: 0.45, roughness: 0.5 },
     adapter: { color: '#c62828', metalness: 0.4, roughness: 0.45 },
-    ti: { color: '#b9bec2', metalness: 0.85, roughness: 0.25 },
-    dvl: { color: '#202428', metalness: 0.4, roughness: 0.5 },
-    navy: { color: '#1d2b4a', metalness: 0.35, roughness: 0.45 },
+    ti: { color: '#c3c8cc', metalness: 0.9, roughness: 0.22 },
+    dvl: { color: '#141619', metalness: 0.1, roughness: 0.6 },
+    band: { color: '#ffffff', metalness: 0.25, roughness: 0.45 },
+    bolt: { color: '#d4d7da', metalness: 0.9, roughness: 0.3 },
+    boot: { color: '#1b1d20', metalness: 0.2, roughness: 0.7 },
   });
+  // Maker's band as on the datasheet photo: white Sonardyne and SPRINT-Nav on dark navy, facing outboard (u = 0.75).
+  const bandTex = useMemo(
+    () =>
+      makeBandTexture({
+        width: 2048,
+        height: 272,
+        background: '#1d1f45',
+        texts: [
+          { text: 'Sonardyne', x: 0.75, y: 0.3, size: 0.17, weight: 500 },
+          { text: 'SPRINT-Nav', x: 0.75, y: 0.62, size: 0.3, weight: 700 },
+        ],
+      }),
+    [],
+  );
+  useEffect(() => {
+    mats.band.map = bandTex;
+    mats.band.needsUpdate = true;
+    return () => bandTex?.dispose();
+  }, [mats.band, bandTex]);
   const radial = useQualityProfile().radialSegments;
   const L = POLE_8097.length.value;
   const D = POLE_8097.diameter.value;
@@ -556,12 +585,22 @@ export function SprintNavPole() {
       lockPlate: new THREE.BoxGeometry(0.12, 0.6, 0.8),
       lockArm: new THREE.BoxGeometry(0.4, 0.14, 0.14),
       jaw: new THREE.BoxGeometry(0.08, 0.4, 0.26),
-      cap: new THREE.CylinderGeometry(SPRINTNAV.diameter.value / 2, SPRINTNAV.diameter.value / 2, SN_CAP, radial).rotateX(Math.PI / 2),
-      body: new THREE.CylinderGeometry(SPRINTNAV.diameter.value / 2 - 0.006, SPRINTNAV.diameter.value / 2 - 0.006, SN_BAND, radial).rotateX(Math.PI / 2),
-      snFlange: new THREE.CylinderGeometry(SPRINTNAV.diameter.value / 2 + 0.006, SPRINTNAV.diameter.value / 2 + 0.006, SN_FLANGE, radial).rotateX(Math.PI / 2),
-      connector: new THREE.CylinderGeometry(0.014, 0.014, 0.03, 8).rotateX(Math.PI / 2),
-      dvlHead: new THREE.CylinderGeometry(SPRINTNAV.diameter.value / 2, SPRINTNAV.diameter.value / 2 - 0.02, 0.06, radial).rotateX(Math.PI / 2),
-      transducer: new THREE.CylinderGeometry(0.03, 0.03, 0.02, 12).rotateX(Math.PI / 2),
+      housing: new THREE.LatheGeometry(
+        [...SN_PROFILE].reverse().map(([r, t]) => new THREE.Vector2(r / 1000, -t / 1000)), // bottom to top: faces point outwards
+        radial,
+      ).rotateX(Math.PI / 2),
+      band: new THREE.CylinderGeometry(0.1078, 0.1078, (SN_BAND[1] - SN_BAND[0]) / 1000, radial, 1, true).rotateX(Math.PI / 2),
+      // Pole mount spool and its ring, bolted to the 12 × M8 holes in the top flange (mount not part of the 346 mm).
+      spool: new THREE.CylinderGeometry(0.07, 0.07, SN_CONNECTOR - 0.012, radial).rotateX(Math.PI / 2),
+      mountRing: new THREE.CylinderGeometry(0.1125, 0.1125, 0.012, radial).rotateX(Math.PI / 2),
+      bolts: mergeGeometries(
+        Array.from({ length: 12 }, (_, k) => {
+          const a = ((k + 0.5) * 2 * Math.PI) / 12;
+          return new THREE.CylinderGeometry(0.0065, 0.0065, 0.008, 6).rotateX(Math.PI / 2).translate(0.1 * Math.cos(a), 0.1 * Math.sin(a), 0.004).toNonIndexed();
+        }),
+      )!,
+      // DVL/ADCP transducers set into the 30° chamfer of the end cap, each fully water-blocked (drawing: dark faces).
+      transducer: new THREE.CylinderGeometry(0.025, 0.025, 0.008, Math.max(16, radial)),
       adaptor: new THREE.CylinderGeometry(D / 2 + 0.07, D / 2 + 0.07, 0.14, radial).rotateX(Math.PI / 2),
     }),
     [D, radial, pivotY, railTop],
@@ -573,11 +612,11 @@ export function SprintNavPole() {
   const reduced = useAppStore((s) => s.reducedMotion);
   const angle = useRef(0);
   const beamGeo = useMemo(() => {
-    // Four illustrative Janus beams from the DVL face to the seabed (beam angle not stated; 30° drawn).
+    // Four Janus beams from the transducers to the seabed, on the diagonals the transducers face.
     const pts: THREE.Vector3[] = [];
     const h = 40;
-    const t = Math.tan((30 * Math.PI) / 180) * h;
-    for (const [x, z] of [[t, 0], [-t, 0], [0, t], [0, -t]] as const) pts.push(new THREE.Vector3(0, 0, 0), new THREE.Vector3(x, -h, z));
+    const t = (Math.tan((SPRINTNAV.dvlBeamDeg.value * Math.PI) / 180) * h) / Math.SQRT2;
+    for (const [x, z] of [[t, t], [-t, t], [t, -t], [-t, -t]] as const) pts.push(new THREE.Vector3(0, 0, 0), new THREE.Vector3(x, -h, z));
     return new THREE.BufferGeometry().setFromPoints(pts);
   }, []);
   const beamMat = useMemo(() => new THREE.LineDashedMaterial({ color: CYAN, dashSize: 0.7, gapSize: 0.5, transparent: true, opacity: 0.7, toneMapped: false }), []);
@@ -651,27 +690,32 @@ export function SprintNavPole() {
           })}
           <group position={[0, 0, -L]} name="sprint-nav-dp">
             <EqMesh geometry={g.adaptor} material={mats.adapter} outline={o} position={[0, 0, 0.07]} name="transceiver-adapter" />
-            {/* Datasheet photo: titanium top cap with connectors, dark navy body band, titanium flange, DVL endcap with four angled transducers. */}
-            <EqMesh geometry={g.cap} material={mats.ti} outline={o} position={[0, 0, -SN_CAP / 2]} name="titanium-top-cap" />
-            {[0.05, -0.05].map((x) => (
-              <mesh key={x} geometry={g.connector} material={mats.ti} position={[x, 0.07, 0.015]} name="connector" />
-            ))}
-            <EqMesh geometry={g.body} material={mats.navy} outline={o} position={[0, 0, -SN_CAP - SN_BAND / 2]} name="sprint-nav-housing" />
-            <EqMesh geometry={g.snFlange} material={mats.ti} outline={o} position={[0, 0, -SN_CAP - SN_BAND - SN_FLANGE / 2]} name="bottom-flange" />
-            <EqMesh geometry={g.dvlHead} material={mats.dvl} outline={o} position={[0, 0, -SPRINTNAV.height.value + 0.03]} name="dvl-endcap" />
-            {[0, 1, 2, 3].map((k) => {
-              const a = (k * Math.PI) / 2 + Math.PI / 4;
-              return (
-                <mesh
-                  key={k}
-                  geometry={g.transducer}
-                  material={mats.ti}
-                  position={[Math.cos(a) * 0.065, Math.sin(a) * 0.065, -SPRINTNAV.height.value - 0.002]}
-                  rotation={[-Math.sin(a) * 0.5, Math.cos(a) * 0.5, 0]}
-                  name="dvl-transducer"
-                />
-              );
-            })}
+            {/* Pole mount spool with its ring bolted to the top flange; the 346 mm unit hangs below it, DVL end down. */}
+            <EqMesh geometry={g.spool} material={mats.mount} outline={o} position={[0, 0, -(SN_CONNECTOR - 0.012) / 2]} name="pole-mount" />
+            <EqMesh geometry={g.mountRing} material={mats.mount} outline={o} position={[0, 0, -SN_CONNECTOR + 0.006]} />
+            <mesh geometry={g.bolts} material={mats.bolt} position={[0, 0, -SN_CONNECTOR + 0.012]} name="m8-bolts" />
+            <group position={[0, 0, -SN_CONNECTOR]}>
+              {/* Titanium housing from the drawing: top flange, neck, ribbed lower body, lip, then the DVL end cap. */}
+              <EqMesh geometry={g.housing} material={mats.ti} outline={o} name="sprint-nav-housing" />
+              <mesh geometry={g.band} material={mats.band} position={[0, 0, -(SN_BAND[0] + SN_BAND[1]) / 2000]} name="sprint-nav-band" />
+              {[0, 1, 2, 3].map((k) => {
+                const a = (k * Math.PI) / 2 + Math.PI / 4;
+                const beam = (SPRINTNAV.dvlBeamDeg.value * Math.PI) / 180;
+                const n = new THREE.Vector3(Math.cos(a) * Math.sin(beam), Math.sin(a) * Math.sin(beam), -Math.cos(beam));
+                const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
+                return (
+                  <mesh
+                    key={k}
+                    geometry={g.transducer}
+                    material={mats.dvl}
+                    // Centred on the chamfer (r 75 mm, 276 mm down), set in so the face stands 2 mm proud.
+                    position={[Math.cos(a) * 0.075 - n.x * 0.002, Math.sin(a) * 0.075 - n.y * 0.002, -0.2765 - n.z * 0.002]}
+                    quaternion={q}
+                    name="dvl-transducer"
+                  />
+                );
+              })}
+            </group>
           </group>
         </group>
       </group>

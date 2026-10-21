@@ -4,6 +4,7 @@ import { bowThruster } from '../simulations/controller';
 import { useControllerState } from '../simulations/useController';
 import { ALARM_TEXT, clampCommand, DEFAULT_THRUSTER_PARAMS as P, maxPitchForLimit, unacknowledged, type ThrusterState } from '../simulations/thruster';
 import { useAppStore } from '../store/useAppStore';
+import { DataNote } from './DataNote';
 
 const STATUS_LABEL: Record<ThrusterState['status'], string> = {
   stopped: 'STOPPED',
@@ -226,10 +227,10 @@ export function ThrusterPanel() {
           ))
         )}
       </ul>
-      <p className="text-[9px] leading-snug text-[#7f93a3]">
+      <DataNote>
         P2 standard: CPP tunnel thruster, {P.ratedPowerKW} kW constant-speed motor, Ø{P.tunnelDiameterM} m, {P.blades} blades. Start needs the lever at zero; Stop
-        de-pitches before the motor runs down. Illustrative values.
-      </p>
+        de-pitches before the motor runs down. Thrust and response times are simulation values.
+      </DataNote>
     </section>
   );
 

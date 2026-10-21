@@ -3,7 +3,7 @@ import { VISUAL_MODES, QUALITY_PRESETS, type QualityPreset } from '../equipment/
 import { MODE_STYLES, isModeAvailable } from '../rendering/modes';
 import { rememberQuality } from '../rendering/quality';
 import { useAppStore } from '../store/useAppStore';
-import { getEquipment, vessel } from '../equipment/registry';
+import { getEquipment } from '../equipment/registry';
 import type { LayoutClass } from '../responsive/device';
 
 function ModeButtons({ compact }: { compact: boolean }) {
@@ -26,7 +26,7 @@ function ModeButtons({ compact }: { compact: boolean }) {
             data-testid={`mode-${m}`}
             aria-pressed={active}
             disabled={!available}
-            title={available ? MODE_STYLES[m].description : 'Select an assembly that supports exploded view (bow thruster)'}
+            title={available ? MODE_STYLES[m].description : 'Select a system that can be taken apart, such as the bow thruster'}
             onClick={() => setMode(m)}
             className={`rounded-sm border px-2.5 py-1 font-mono text-[11px] uppercase tracking-wider transition-colors coarse:min-h-[44px] ${
               active
@@ -79,14 +79,21 @@ function Settings() {
 }
 
 /** Desktop and tablet: everything inline. Phones: brand plus a View menu holding modes and settings. */
-export function TopBar({ layout }: { layout: LayoutClass }) {
+export function TopBar({ layout, onGuide }: { layout: LayoutClass; onGuide: () => void }) {
   const [menu, setMenu] = useState(false);
 
   if (layout === 'mobile') {
     return (
       <header className="safe-top pointer-events-auto relative z-40 border-b border-cyan/15 bg-abyss/80 px-3 pb-2 backdrop-blur-md">
         <div className="flex items-center justify-between gap-2">
-          <span className="font-mono text-sm font-semibold tracking-[0.3em] text-cyan-light">SINOR MARINE</span>
+          <span className="flex flex-col leading-tight">
+            <span className="font-mono text-sm font-semibold tracking-[0.3em] text-cyan-light">SINOR MARINE</span>
+            <span className="text-[10px] text-mute">Vessel Systems Simulator</span>
+          </span>
+          <div className="flex gap-2">
+          <button type="button" data-testid="guide-open" onClick={onGuide} className="min-h-[44px] rounded-sm border border-cyan/40 px-3 text-xs">
+            Guide
+          </button>
           <button
             type="button"
             data-testid="view-menu-toggle"
@@ -97,6 +104,7 @@ export function TopBar({ layout }: { layout: LayoutClass }) {
           >
             {menu ? '✕ Close' : 'View ▾'}
           </button>
+          </div>
         </div>
         {menu && (
           <div id="view-menu" data-testid="view-menu" className="mt-2 flex flex-col gap-3 border-t border-cyan/15 pt-3">
@@ -112,10 +120,13 @@ export function TopBar({ layout }: { layout: LayoutClass }) {
     <header className="safe-top pointer-events-auto flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-cyan/15 bg-abyss/70 px-4 pb-2 backdrop-blur-md">
       <div className="flex items-baseline gap-3">
         <span className="font-mono text-sm font-semibold tracking-[0.3em] text-cyan-light">SINOR MARINE</span>
-        <span className="hidden text-xs text-mute sm:inline">Digital Universe · {vessel.name}</span>
+        <span className="hidden text-xs text-mute sm:inline">Vessel Systems Simulator · We bring the vessel to you</span>
       </div>
       <ModeButtons compact={false} />
-      <div className="ml-auto lg:ml-0">
+      <div className="ml-auto flex items-center gap-3 lg:ml-0">
+        <button type="button" data-testid="guide-open" onClick={onGuide} className="rounded-sm border border-cyan/40 px-2.5 py-1 text-[11px] text-ink hover:bg-cyan/10 coarse:min-h-[44px]">
+          Guide
+        </button>
         <Settings />
       </div>
     </header>

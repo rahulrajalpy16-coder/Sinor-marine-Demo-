@@ -33,7 +33,9 @@ Nothing from other Sonardyne machines, transceivers, variants (8142-000-31/-11, 
 | Electrical | 48 V dc ±10 %, typical 15 W, max 120 W | §12.1.3 |
 | Communication | RS485 (baud switchable), Ethernet 100 Mbps | §12.1.3 |
 | Temperatures | Operating −5 to 40 °C, storage −20 to 45 °C | §12.1.3 |
-| Housing | Aluminium bronze, 322 mm long × 225 mm diameter | §12.1.3 |
+| Housing | Aluminium bronze, 322 mm long × 225 mm diameter | §12.1.3; confirmed by the HPT 5000 outline drawing (supplied 2026-10-21) |
+| Top flange | 12 × M8 holes on Ø210.6 mm pitch, bronze face, connector standing above it | Outline drawing |
+| Finish | Dark navy body, "Sonardyne HPT" band with a grey Forward stripe, black slotted transducer guard | Outline drawing |
 | Weight | 26.7 kg in air, 15.3 kg in water | §12.1.3 |
 | Mounting on the 7950 | 6G Transceiver Installation Kit 641-0197 (fixings, O-rings, isolation flange) | §4.4.2.1 |
 | Orientation | Pointing down, connector at the top, black transducer face at the bottom, white arrow forward | §4.3.1 |
@@ -77,7 +79,7 @@ These values are needed to draw or simulate the system. The HMI and inspector la
 - **Layout in the mounting space:** the machine axis sits 0.55 m from the forward wall, the grating 4.3 m above the base plate, and the ladder on the aft wall. These were estimated from the mounting-space drawing.
 - **Other parts:** the gate valve handwheel's turns and the bolt pattern.
 - **Seachest inspection door:** 0.40 m wide, in the starboard face of the seachest between the sealing-section flange and the gate valve stack, hinged on its aft edge. It folds back about 175° flat against the seachest, because the mounting space (0.2 to 0.27 m clearance at the sides) leaves no room to swing it open into. Size, hinge side and bolts are assumed.
-- **HPT 5000 proportions:** the outline follows UM-8142 (aluminium bronze housing bolted to the transducer face base plate with six bolts, black polyurethane acoustic face at the bottom, underwater connector in the top, adaptor flange 210 mm PCD with 10.5 mm holes and 155 mm ID, the 6G kit isolation flange ring, a white forward arrow and a machined groove as forward marks) inside the 322 × 225 mm envelope. The split of heights between flange, body, base plate and face, and the face dome, are assumed because no dimensioned drawing of the transceiver was supplied.
+- **HPT 5000 shape:** since 2026-10-21 the transceiver follows the supplied outline drawing: 322 mm from the top face to the bottom of the guard, Ø225 mm, a shoulder at each end with a waist carrying the "Sonardyne HPT" band and Forward stripe, the bronze top face with 12 × M8 on Ø210.6 mm, the connector above it, and a black guard with vertical slots. The profile radii are read off the drawing at about 0.77 mm per pixel; the slot count (10) is estimated from the visible half.
 - **Acoustic model:** sound speed 1,500 m/s, seabed transponder position and water depth.
 - **Not modelled:** electrical ratings of the 7950, its hydraulic power unit, the local and remote control panel hardware, and the cable routing (8-way AGP tail).
 
@@ -89,6 +91,6 @@ These values are needed to draw or simulate the system. The HMI and inspector la
   - Exploded view separates the seachest, sealing section and top section.
   - In X-ray and blueprint the pole turns translucent to show the main ram.
 - **HPR · HPT 5000 USBL** (`hpr-001`): the transceiver on the pole. It shows the same panel plus the acoustic readouts.
-- **HPT 5000 at rest:** retract the pole, close the gate valve and open the seachest door. The transceiver is then visible through the door, parked 50 mm above the closed valve, with its acoustic face, forward arrow and bolted bronze housing.
+- **HPT 5000 at rest:** retract the pole, close the gate valve and open the seachest door. The transceiver is then visible through the door, parked 50 mm above the closed valve, with its navy body, HPT band and slotted guard. The Close-up button flies to the transceiver wherever it is.
 - **Start state:** the app starts with the vessel on station (valve open, transceiver deployed, every position reference deployed and in use). Add `?start=stowed` to the URL to start with everything stowed and the valve closed.
 - **DP link:** the DP model's HPR reference only measures while the transceiver is fully deployed through an open valve. Otherwise the DP panel shows HPR "NOT DEPLOYED" and raises an alarm. DP1 (GNSS1 + HPR) is then left with a single reference.

@@ -8,7 +8,7 @@ First added on 2026-10-14 from public datasheets (PR #5). Rebuilt the same day t
 4. **SMT Taut Wire 2.0, Z Range Mk2**
 5. Sonardyne **SPRINT-Nav DP** on the Sonardyne **Type 8097 modular over-the-side deployment pole**
 
-Only those documents are used for each unit. Nothing is carried over from the original RadaScan, the older CyScan, the SMT TW-1.0 or the Fugro service page used in PR #5. On 2026-10-15 the CyScan AS and RadaScan View installer's guides and the SPRINT-Nav DP 8388 datasheet (09/2026) were supplied, and the Seastar antenna was confirmed as the Trimble GA830 (public Trimble datasheet used for its size). All values and their sources live in `src/equipment/posrefData.ts`, tagged datasheet, derived or assumed.
+Only those documents are used for each unit. Nothing is carried over from the original RadaScan, the older CyScan, the SMT TW-1.0 or the Fugro service page used in PR #5. On 2026-10-15 the CyScan AS and RadaScan View installer's guides and the SPRINT-Nav DP 8388 datasheet (09/2026) were supplied, and the Seastar antenna was confirmed as the Trimble GA830 (public Trimble datasheet used for its size). On 2026-10-21 the SPRINT-Nav DP 8388 datasheet with its outline drawing (specifications 01/2026) replaced the 09/2026 sheet, and the unit was rebuilt to that drawing. All values and their sources live in `src/equipment/posrefData.ts`, tagged datasheet, derived or assumed.
 
 ## Sources
 
@@ -23,7 +23,7 @@ Only those documents are used for each unit. Nothing is carried over from the or
 | radascanGuide | RadaScan View Installer's Guide 94-0492-4-A |
 | cyscanGuide | CyScan AS Installer's Guide 94-0559-C |
 | ga830 | Trimble GA830 GNSS antenna datasheet (public), PN 44830-00 |
-| sprintnav | Sonardyne SPRINT-Nav DP datasheet 8388, 09/2026 (supplied) |
+| sprintnav | Sonardyne SPRINT-Nav DP datasheet 8388 with outline drawing, specifications 01/2026 (supplied 2026-10-21) |
 
 ## From the documents
 
@@ -61,9 +61,12 @@ Only those documents are used for each unit. Nothing is carried over from the or
 | | Mounting | Pole axis 525 mm above the deck edge; hydraulic lock bracket welded to the hull 2415 mm below, in line with the pole |
 | | Motion | Stowed horizontal along the deck edge, swung down over the side to vertical, locked (datasheet illustration) |
 | | Limits, mass | 5 kn operational, 10 kn survival; 1,000 kg; galvanised steel with epoxy |
-| SPRINT-Nav DP | Unit | Ø225 × 346 mm titanium, 23.9 / 13.1 kg, 100 m rating, 375 kHz DVL / ADCP, altitude 0.4–200 m |
-| | Performance | Station keeping < 3.2 m over 12 h (1DRMS); unaided 1.2 m in 60 s; heave 5 cm |
-| | Interfaces | 1 × RS422, Web UI, TCP/UDP, 2 PPS triggers; Li-ion backup 5 min; 10-minute initialisation |
+| SPRINT-Nav DP | Unit | Ø225 × 346 mm titanium (298 mm from the flange face to the DVL end, connector above), 12 × M8 × 24 deep and 3 dowel holes Ø6 × 8 in the top flange, 23.9 / 13.1 kg (estimated), 100 m rating |
+| | Look (drawing and photo) | Titanium housing: top flange, neck, navy "Sonardyne SPRINT-Nav" band, ribbed lower body, lip, chamfered DVL end cap with dark water-blocked transducers |
+| | Sensors | Inertial sensors, 375 kHz DVL with beam-level aiding (altitude 0.4–200 m), high-accuracy pressure sensor; ADCP 0.4–120 m, ±8.4 m/s, 255 cells, 1 Hz |
+| | Performance | DVL aided: station keeping < 2 m over 24 h, 0.12 % straight line, 0.04 % dynamic (CEP50); unaided 1.2 m in 60 s; GNSS aided up to 7× better; heading 0.05° secant latitude, roll/pitch 0.01° (1DRMS) |
+| | Operation | Initialises from GNSS (10 minutes); the DPO then disables GNSS aiding so it runs independent of GNSS for DP2/DP3 |
+| | Interfaces | 1 × RS422, Web UI, TCP/UDP, 2 PPS triggers; 24 V dc 18 W nominal, 30 W max; Li-ion backup 5 min; > 1 week logging |
 
 ## Derived from the documents
 
@@ -94,7 +97,8 @@ Only those documents are used for each unit. Nothing is carried over from the or
 | SMT position noise in the 42 m scene | 0.3 m (the accuracy table starts at 100 m) |
 | Bulwark opening at the taut wire | 2.25 m, so the boom can pass the deck edge |
 | 8097 pole swing / lock time | 90 s / 5 s |
-| SPRINT-Nav DVL beam angle; housing colour split | 30°; from the datasheet photo |
+| SPRINT-Nav DVL beam angle and transducer count | 30°, four transducers on the end-cap chamfer (the drawing shows two in side view; the count is not stated) |
+| SPRINT-Nav drift pulled back by GNSS aiding | 60 s time constant (the datasheet gives only "up to 7× better") |
 | Placements on the vessel | RadaScan View and CyScan AS at the aft corners of the bridge deck on 1.1 m plinths, antennas on the yardarm ends, taut wire on the starboard upper (forecastle) deck aft end at +3.95 m, just aft of the rescue boat, pole on the port side at −7 m (port aft main deck, as on the GA plan). Reasons in [INSTALLATION_GUIDE.md](INSTALLATION_GUIDE.md) |
 | Fixed platform, responder and target | 110 m astern of the starting position; a scene prop |
 | Water depth | 42 m (the existing scene seabed) |
@@ -105,7 +109,7 @@ Only those documents are used for each unit. Nothing is carried over from the or
 - RadaScan View and CyScan AS: start, lock on, show range and bearing. RadaScan View also shows a radar picture with the responder and the platform echo. The fog switch blinds the laser, not the radar.
 - DGPS: both 9410-AUT receivers show a front-panel view and their DP status; corrections can be lost per receiver.
 - Taut wire: the boom swings from its recovered pose over the weight basket to the deployed pose, then the 400 kg bell weight is lowered and stays on the seabed. The panel shows the across- and along-ship angles, the `$PCPTW` sentence and the datasheet accuracy table. A warning sounds at 20° and DP drops the wire beyond ±30°.
-- SPRINT-Nav DP: the 8097 pole swings down from the deck edge to vertical and the hull lock closes. Power on and the INS aligns; with DVL bottom lock it becomes a reference. Above 5 kn it is withdrawn and alarmed.
+- SPRINT-Nav DP: the 8097 pole swings down from the deck edge to vertical and the hull lock closes. Power on and it initialises from GNSS for 10 minutes; with DVL bottom lock it becomes a reference. GNSS AIDING OFF puts it in independent mode, where its error drifts slowly (< 2 m over 24 h), shown on a positioning plot styled on the unit's web UI with the DVL, vertical aiding and ADCP current. Above 5 kn it is withdrawn and alarmed. The app starts on station with the unit independent of GNSS.
 - DP: the four operator references are fitted on every class but start deselected. Select them in the sensor panel or on the DP Redundancy tab. A selected reference that is not ready raises `REF_NOT_READY`. All ready, selected references are median-voted.
 
 Not connected to real equipment; not certified.

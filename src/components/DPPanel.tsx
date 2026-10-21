@@ -21,6 +21,7 @@ import {
 } from '../simulations/dp';
 import { useAppStore } from '../store/useAppStore';
 import { HmiBtn, Readout, Toggle } from './ThrusterPanel';
+import { DataNote } from './DataNote';
 
 const MODES: { mode: DPMode; label: string }[] = [
   { mode: 'STANDBY', label: 'STANDBY' },
@@ -186,10 +187,10 @@ export function DPPanel() {
         </ul>
         <HmiBtn testid="dp-ack" label={`ACK${open.length ? ` (${open.length})` : ''}`} tone={open.length ? 'warn' : undefined} disabled={!open.length} onClick={() => send({ type: 'acknowledge' })} />
       </div>
-      <p className="text-[9px] leading-snug text-[#7f93a3]">
-        Educational 3-DOF model (wind, current, PID with wind feed-forward, least-squares allocation). Redundancy per DP class follows the distributed
-        Bridge Mate DP architecture datasheet. Not a certified DP system.
-      </p>
+      <DataNote>
+        Three-degree-of-freedom vessel model (surge, sway, yaw) with wind, current, PID control with wind feed-forward and least-squares thrust allocation.
+        Redundancy per DP class follows the distributed Bridge Mate DP architecture datasheet. A training simulation, not a certified DP system.
+      </DataNote>
     </section>
   );
 
@@ -359,7 +360,7 @@ function PositionPlot({ s }: { s: DPState }) {
       {arrowAt(s.current.toDeg, true, '#3fd1c4', `CURR ${s.current.speedKn.toFixed(1)} kn`, size - 26)}
       {truthDiffers && (
         <text x={size - 4} y={size - 6} fontSize="7" fill="#e04444" textAnchor="end">
-          - - actual position (sim truth)
+          - - actual position
         </text>
       )}
     </svg>
@@ -545,7 +546,7 @@ function EnvironmentPage({ s, send }: { s: DPState; send: Send }) {
         <Readout label="Env Fy" value={`${(s.tauEnv[1] / 1000).toFixed(0)} kN`} />
         <Readout label="Env Mz" value={`${(s.tauEnv[2] / 1e6).toFixed(1)} MNm`} />
       </dl>
-      <p className="text-[9px] text-[#7f93a3]">Wind is given as the direction it comes from; current as the direction it sets towards. Forces use simple illustrative coefficients.</p>
+      <p className="text-[9px] text-[#7f93a3]">Wind is given as the direction it comes from; current as the direction it sets towards.</p>
     </div>
   );
 }

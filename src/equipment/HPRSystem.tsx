@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { useEquipmentMaterials, useSelectable } from '../interactions/useSelectable';
 import { EqMesh } from './EqMesh';
+import { makeBandTexture } from './makerLabel';
 import { useAppStore } from '../store/useAppStore';
 import { MODE_STYLES } from '../rendering/modes';
 import { CYAN } from '../rendering/materials';
@@ -308,76 +309,87 @@ export function Type7950Machine() {
 }
 
 /**
- * Sonardyne HPT 5000 USBL transceiver (8142-000-01), drawn from the UM-8142 description inside the manual's
- * 322 × 225 mm envelope (§3.3, §4.3.1, §4.5): an aluminium bronze housing slid over the electronics chassis and
- * secured to the metal base plate of the transducer face assembly with six bolts; the black polyurethane acoustic
- * face at the bottom; the underwater connector in the top; the mounting flange (210 mm PCD, 155 mm bore on the
- * adaptor side) bolted through the 6G kit's isolation flange ring to the end of the 7950 pole; a white
- * forward-pointing arrow on the transducer and a machined groove as the second forward mark.
- * The split of the 322 mm between flange, housing, base plate and face, and the bolt count on the flange, are
- * not dimensioned in the supplied documents (assumed proportions).
+ * Sonardyne HPT 5000 USBL transceiver (8142-000-01), built to the supplied outline drawing: 322 mm from the top
+ * flange face to the bottom of the guard, Ø225 mm, the underwater connector standing above the flange. A dark navy
+ * aluminium bronze body with a shoulder at each end and a waist carrying the "Sonardyne HPT" band and its grey
+ * Forward stripe; the bronze top face with 12 × M8 holes on Ø210.6 mm bolted through the 6G kit isolation ring to
+ * the 7950 pole; a black guard with vertical slots protecting the transducer at the bottom.
+ * Radius and distance below the top face in mm, read off the drawing (about 0.77 mm per pixel).
  */
-export const HPT_PARTS = { flange: 0.022, body: 0.19, base: 0.015, face: 0.095, bodyR: 0.095 } as const;
-
-/** Black transducer section: straight side, rounded lower edge, shallow dome (hemispherical-coverage array). */
-function transducerProfile(R: number, h: number) {
-  const pts: THREE.Vector2[] = [new THREE.Vector2(0.001, 0), new THREE.Vector2(R, 0), new THREE.Vector2(R, -h * 0.55)];
-  const rc = 0.022;
-  for (let k = 1; k <= 6; k++) {
-    const a = (k / 6) * (Math.PI / 2);
-    pts.push(new THREE.Vector2(R - rc + rc * Math.cos(a), -h * 0.55 - rc * Math.sin(a)));
-  }
-  const y0 = -h * 0.55 - rc;
-  for (let k = 1; k <= 8; k++) {
-    const t = k / 8;
-    pts.push(new THREE.Vector2(Math.max(0.001, (R - rc) * (1 - t)), y0 - (h + y0) * (1 - (1 - t) * (1 - t))));
-  }
-  return pts;
-}
+const HPT_PROFILE: [number, number][] = [
+  [0, 0], [104, 0], [110, 2], [112.5, 6], [112.5, 30], [111, 33], [112.5, 36], [112.5, 48], [104, 62], [97, 78],
+  [97, 216], [104, 230], [112.5, 238], [112.5, 241], [111, 243], [112.5, 246], [112.5, 252], [0, 252],
+];
+const HPT_GUARD: [number, number][] = [
+  [0, 252], [108, 252], [108, 298], [106, 308], [101, 316], [94, 320], [86, 322], [0, 322],
+];
+/** "Sonardyne HPT" band on the waist, with the grey Forward stripe at its foot (mm below the top face). */
+const HPT_BAND: [number, number] = [96, 178];
+const HPT_SLOTS = 10;
 
 export function HPT5000Transceiver() {
   const handlers = useSelectable(HPT);
   const { mats, visual } = useEquipmentMaterials(HPT, {
-    bronze: { color: '#b98d4b', metalness: 0.85, roughness: 0.3 },
-    bronzeDark: { color: '#8d6a36', metalness: 0.8, roughness: 0.4 },
-    face: { color: '#15181b', metalness: 0.05, roughness: 0.55 },
+    navy: { color: '#20264a', metalness: 0.35, roughness: 0.42 },
+    band: { color: '#ffffff', metalness: 0.25, roughness: 0.45 },
+    bronze: { color: '#6e4b2f', metalness: 0.75, roughness: 0.4 },
+    guard: { color: '#26282b', metalness: 0.15, roughness: 0.6 },
+    slot: { color: '#050506', metalness: 0, roughness: 0.9 },
     isolator: { color: '#e7e2d6', metalness: 0.1, roughness: 0.7 },
     bolt: { color: '#c9ccce', metalness: 0.9, roughness: 0.3 },
     connector: { color: '#2b2f33', metalness: 0.6, roughness: 0.4 },
+    pin: { color: '#b9bcbf', metalness: 0.8, roughness: 0.35 },
   });
   const o = visual.outline;
   const radial = useQualityProfile().radialSegments;
   const explodeTop = useExploded(MACHINE);
   const reduced = useAppStore((s) => s.reducedMotion);
-  const R = HPT5000.diameter.value / 2;
-  const P = HPT_PARTS;
   const g = useMemo(() => {
-    const ring = (r: number, n: number, y: number, src: THREE.BufferGeometry) =>
-      mergeGeometries(Array.from({ length: n }, (_, k) => src.clone().translate(r * Math.cos(((k + 0.5) * 2 * Math.PI) / n), y, r * Math.sin(((k + 0.5) * 2 * Math.PI) / n)).toNonIndexed()))!;
-    const head = new THREE.CylinderGeometry(0.008, 0.008, 0.008, 6);
+    // Lathe profiles run bottom to top so the faces point outwards.
+    const lathe = (pts: [number, number][]) => new THREE.LatheGeometry([...pts].reverse().map(([r, t]) => new THREE.Vector2(r / 1000, -t / 1000)), radial);
+    const ring = (r: number, n: number, src: THREE.BufferGeometry, offset = 0.5) =>
+      mergeGeometries(Array.from({ length: n }, (_, k) => src.clone().translate(r * Math.cos(((k + offset) * 2 * Math.PI) / n), 0, r * Math.sin(((k + offset) * 2 * Math.PI) / n)).toNonIndexed()))!;
+    const slot = new THREE.BoxGeometry(0.009, 0.046, 0.006);
     return {
       isolator: new THREE.CylinderGeometry(W.pole / 2 + 0.01, W.pole / 2 + 0.01, 0.03, radial),
-      flange: new THREE.CylinderGeometry(R, R, P.flange, radial),
-      flangeBolts: ring(0.105, 8, -P.flange - 0.004, head),
-      body: new THREE.CylinderGeometry(P.bodyR, P.bodyR, P.body, radial),
-      groove: new THREE.BoxGeometry(0.004, P.body * 0.9, 0.006),
-      base: new THREE.CylinderGeometry(R, R, P.base, radial),
-      baseBolts: ring(0.104, 6, 0.004, head),
-      face: new THREE.LatheGeometry(transducerProfile(R, P.face), radial),
-      connector: new THREE.CylinderGeometry(0.03, 0.03, 0.05, 12),
-      arrow: new THREE.ShapeGeometry(
-        new THREE.Shape([new THREE.Vector2(-0.012, -0.02), new THREE.Vector2(0.012, -0.02), new THREE.Vector2(0.012, 0.005), new THREE.Vector2(0.026, 0.005), new THREE.Vector2(0, 0.032), new THREE.Vector2(-0.026, 0.005), new THREE.Vector2(-0.012, 0.005)]),
-      ),
+      body: lathe(HPT_PROFILE),
+      // Bronze top face ring (the drawing's plan view) with the 12 × M8 bolts on the Ø210.6 mm pitch.
+      flangeFace: new THREE.RingGeometry(0.088, HPT5000.diameter.value / 2 - 0.004, radial).rotateX(-Math.PI / 2),
+      bolts: ring(HPT5000.boltPcd.value / 2, 12, new THREE.CylinderGeometry(0.0065, 0.0065, 0.007, 6)),
+      band: new THREE.CylinderGeometry(0.0985, 0.0985, (HPT_BAND[1] - HPT_BAND[0]) / 1000, radial, 1, true, Math.PI),
+      guard: lathe(HPT_GUARD),
+      slots: mergeGeometries(
+        Array.from({ length: HPT_SLOTS }, (_, k) => {
+          const a = ((k + 0.5) * 2 * Math.PI) / HPT_SLOTS;
+          return slot.clone().rotateY(a).translate(0.1065 * Math.sin(a), 0, 0.1065 * Math.cos(a)).toNonIndexed();
+        }),
+      )!,
+      connectorNut: new THREE.CylinderGeometry(0.029, 0.029, 0.014, 6),
+      connector: new THREE.CylinderGeometry(0.021, 0.024, 0.04, 16),
+      connectorTop: new THREE.CylinderGeometry(0.016, 0.016, 0.006, 16),
     };
-  }, [radial, R, P]);
-  const arrowMat = useMemo(() => new THREE.MeshBasicMaterial({ color: '#ffffff', side: THREE.DoubleSide }), []);
-  useEffect(
-    () => () => {
-      Object.values(g).forEach((x) => x.dispose());
-      arrowMat.dispose();
-    },
-    [g, arrowMat],
+  }, [radial]);
+  const bandTex = useMemo(
+    () =>
+      makeBandTexture({
+        width: 2048,
+        height: 272,
+        background: '#191d3a',
+        stripes: [{ y0: 0.82, y1: 0.95, color: '#9aa0a8' }],
+        texts: [
+          { text: 'Sonardyne', x: 0.5, y: 0.2, size: 0.11, weight: 500 },
+          { text: 'HPT', x: 0.5, y: 0.52, size: 0.38, weight: 700 },
+          { text: 'Forward', x: 0.5, y: 0.885, size: 0.1, weight: 600, color: '#1b1f3c' },
+        ],
+      }),
+    [],
   );
+  useEffect(() => {
+    mats.band.map = bandTex;
+    mats.band.needsUpdate = true;
+    return () => bandTex?.dispose();
+  }, [mats.band, bandTex]);
+  useEffect(() => () => Object.values(g).forEach((x) => x.dispose()), [g]);
   const grp = useRef<THREE.Group>(null);
   const exY = useRef(0);
   useFrame((_, dt) => {
@@ -385,25 +397,21 @@ export function HPT5000Transceiver() {
     exY.current = smooth(exY.current, explodeTop ? EXPLODE.top : 0, dt, reduced);
     if (grp.current) grp.current.position.y = HPR_DATUM_Y + transceiverY(s.travel).flange + exY.current;
   });
-  const yBody = -P.flange;
-  const yBase = yBody - P.body;
-  const yFace = yBase - P.base;
   return (
     <group name={`equipment:${HPT}`} {...handlers}>
       <group ref={grp} position={[HPR_AXIS.x, HPR_DATUM_Y + transceiverY(0).flange, HPR_AXIS.z]}>
-        {/* 6G kit isolation flange ring between the pole and the transceiver flange; connector in the top, inside the pole */}
+        {/* 6G kit isolation ring between the pole and the transceiver's top face; the connector rises into the pole. */}
         <EqMesh geometry={g.isolator} material={mats.isolator} outline={o} position={[0, 0.015, 0]} name="isolation-flange" />
-        <mesh geometry={g.connector} material={mats.connector} position={[0, 0.03, 0]} name="underwater-connector" />
-        <EqMesh geometry={g.flange} material={mats.bronze} outline={o} position={[0, -P.flange / 2, 0]} name="mounting-flange" />
-        <mesh geometry={g.flangeBolts} material={mats.bolt} />
-        <EqMesh geometry={g.body} material={mats.bronze} outline={o} position={[0, yBody - P.body / 2, 0]} name="hpt-housing" />
-        {/* Machined groove: forward reference when the label is missing (§4.5) */}
-        <mesh geometry={g.groove} material={mats.bronzeDark} position={[0, yBody - P.body / 2, P.bodyR + 0.001]} rotation={[0, Math.PI / 2, 0]} />
-        <EqMesh geometry={g.base} material={mats.bronzeDark} outline={o} position={[0, yBase - P.base / 2, 0]} name="transducer-base-plate" />
-        <mesh geometry={g.baseBolts} material={mats.bolt} position={[0, yBase, 0]} />
-        <EqMesh geometry={g.face} material={mats.face} outline={o} position={[0, yFace, 0]} name="transducer-face" />
-        {/* White forward arrow on the black transducer face, pointing to the bow (§4.3.1) */}
-        <mesh geometry={g.arrow} material={arrowMat} position={[0, yFace - P.face - 0.002, 0]} rotation={[Math.PI / 2, 0, 0]} name="forward-arrow" />
+        <mesh geometry={g.connectorNut} material={mats.bronze} position={[0, 0.007, 0]} name="connector-nut" />
+        <mesh geometry={g.connector} material={mats.connector} position={[0, 0.034, 0]} name="underwater-connector" />
+        <mesh geometry={g.connectorTop} material={mats.pin} position={[0, 0.057, 0]} />
+        <EqMesh geometry={g.body} material={mats.navy} outline={o} name="hpt-housing" />
+        <mesh geometry={g.flangeFace} material={mats.bronze} position={[0, 0.0006, 0]} name="mounting-flange" />
+        <mesh geometry={g.bolts} material={mats.bolt} position={[0, 0.0035, 0]} name="m8-bolts" />
+        {/* Maker's band facing forward (+Z, the bow), as the drawing's Forward mark requires (§4.3.1). */}
+        <mesh geometry={g.band} material={mats.band} position={[0, -(HPT_BAND[0] + HPT_BAND[1]) / 2000, 0]} name="hpt-band" />
+        <EqMesh geometry={g.guard} material={mats.guard} outline={o} name="transducer-guard" />
+        <mesh geometry={g.slots} material={mats.slot} position={[0, -0.287, 0]} name="guard-slots" />
       </group>
       <AcousticSignals />
     </group>

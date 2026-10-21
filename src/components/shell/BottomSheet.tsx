@@ -1,9 +1,12 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 /** Snap heights as a fraction of the space between the top and bottom bars. */
 export const SHEET_SNAPS = { peek: 0.34, half: 0.58, full: 0.94 } as const;
 export type SheetSnap = keyof typeof SHEET_SNAPS;
 const ORDER: SheetSnap[] = ['peek', 'half', 'full'];
+
+/** How much of the screen the open sheet covers (0 when closed), read by the 3D view to keep its subject in sight. */
+export const sheetCover = { fraction: 0 };
 
 /** Nearest snap to a dragged height fraction. */
 export function nearestSnap(fraction: number): SheetSnap {
@@ -21,6 +24,15 @@ export function BottomSheet({ children, label, initial = 'half' }: { children: R
   const root = useRef<HTMLDivElement>(null);
 
   const frac = drag ?? SHEET_SNAPS[snap];
+  useEffect(() => {
+    sheetCover.fraction = frac;
+  }, [frac]);
+  useEffect(
+    () => () => {
+      sheetCover.fraction = 0;
+    },
+    [],
+  );
 
   const onDown = (e: React.PointerEvent) => {
     const host = root.current?.parentElement?.clientHeight ?? window.innerHeight;
