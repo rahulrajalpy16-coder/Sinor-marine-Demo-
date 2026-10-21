@@ -1,240 +1,225 @@
-// Captures the exhibition demo footage. The page runs on slowed time (every clock and timer K times slower),
-// so the software renderer reaches a smooth frame rate in app time; the recording is sped back up by K in
-// assemble.sh. Each narration segment lasts at least as long as its voice-over (durations.json), and the
-// start of every segment is written to timeline.json in app-time seconds.
-// Usage: node capture.mjs <outDir> <durations.json> [baseUrl] [K]
-import { chromium } from '@playwright/test';
-import { readFileSync, renameSync, writeFileSync, mkdirSync } from 'node:fs';
+// Captures the exhibition advertisement footage, frame by frame (see stage.mjs), as three sessions:
+//   hero  - cinematic shots of the vessel on station in Realistic daylight, interface hidden
+//   app   - the simulator walkthrough on desktop, every system in turn (starts stowed so deployments show)
+//   phone - the same simulator on a phone screen
+// Each narrated part lasts at least as long as its voice-over (durations.json); part starts go to
+// <outDir>/<session>/timeline.json in output seconds.
+// Usage: node capture.mjs <hero|app|phone> <outDir> <durations.json> [baseUrl] [quality] [scale]
+import { readFileSync, writeFileSync } from 'node:fs';
+import { openStage, FPS } from './stage.mjs';
 
-const [, , out, durFile, baseArg, kArg] = process.argv;
+const [, , session, outRoot, durFile, baseArg, qArg, scaleArg] = process.argv;
 const base = baseArg || 'http://localhost:4173';
-const K = Number(kArg || 10);
+const quality = qArg || 'high';
+const scale = Number(scaleArg || 1); // below 1 only for a quick rehearsal of the walkthrough
 const durations = JSON.parse(readFileSync(durFile, 'utf8'));
-mkdirSync(out, { recursive: true });
-const W = 1920;
-const H = 1080;
+const out = `${outRoot}/${session}`;
+const HIDE = `[data-testid=skip-intro]{visibility:hidden!important}`;
 
-const browser = await chromium.launch({
-  executablePath: process.env.PW_CHROMIUM || '/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell',
-  args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
-});
-const ctx = await browser.newContext({ viewport: { width: W, height: H }, recordVideo: { dir: out, size: { width: W, height: H } } });
+async function hero() {
+  const s = await openStage({ base, query: `?quality=${quality}&intro=0`, out, scale });
+  await s.page.evaluate(() => window.__SINOR__.state().setVisualMode('realistic'));
+  await s.cinema(true);
+  await s.skip(2);
+  s.recording = true;
+  // Long-lens shots (narrow field of view) keep the nearby sea surface out of frame.
+  // Across the bow, from port to starboard, the platform coming into view.
+  s.mark('h1');
+  await s.move([
+    { p: [-40, 9.5, 150], t: [0, 8, 15] },
+    { p: [16, 9.5, 158], t: [1, 8, 13] },
+    { p: [72, 10, 141], t: [2, 8, 10] },
+  ], 4.2, { fov: 24 });
+  // Tracking aft along the starboard side.
+  s.mark('h1b');
+  await s.move([
+    { p: [100, 19, 58], t: [0, 7, 12] },
+    { p: [96, 17, 14], t: [0, 7, -2] },
+  ], 4.0, { fov: 24 });
+  // Beneath the hull: bow tunnels, the HPR pole and its acoustic beams, the taut wire to the seabed.
+  s.mark('h2');
+  await s.move([
+    { p: [16, -10.5, 44], t: [0, -5.5, 12] },
+    { p: [9, -9.5, 33], t: [0, -5, 8] },
+  ], 5.5);
+  // From astern, rising over the working deck towards the bridge.
+  s.mark('h3');
+  await s.move([
+    { p: [50, 16, -128], t: [0, 7, 0] },
+    { p: [35, 30, -110], t: [0, 6, 6] },
+    { p: [20, 48, -95], t: [0, 6, 12] },
+  ], 6.5, { fov: 26 });
+  s.mark('end');
+  return s;
+}
 
-// Slowed time: performance.now, Date.now, rAF timestamps and timer delays all run K times slower.
-await ctx.addInitScript((k) => {
-  const pNow = performance.now.bind(performance);
-  const dNow = Date.now;
-  const p0 = pNow();
-  const d0 = dNow();
-  const warp = (t) => p0 + (t - p0) / k;
-  performance.now = () => warp(pNow());
-  Date.now = () => d0 + (pNow() - p0) / k;
-  const raf = window.requestAnimationFrame.bind(window);
-  window.requestAnimationFrame = (cb) => raf((t) => cb(warp(t)));
-  const st = window.setTimeout.bind(window);
-  const si = window.setInterval.bind(window);
-  window.setTimeout = (fn, d, ...a) => st(fn, (d || 0) * k, ...a);
-  window.setInterval = (fn, d, ...a) => si(fn, (d || 0) * k, ...a);
-  // Pointer for the viewer.
-  const css = `#demo-cursor{position:fixed;z-index:2147483647;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;
-    border:2px solid #fff;background:rgba(47,214,255,.30);box-shadow:0 0 14px rgba(47,214,255,.9);pointer-events:none;left:-60px;top:-60px}
-    #demo-cursor.down{background:rgba(47,214,255,.85);width:20px;height:20px;margin:-10px 0 0 -10px}`;
-  const add = () => {
-    if (document.getElementById('demo-cursor')) return;
-    const s = document.createElement('style');
-    s.textContent = css;
-    document.head.appendChild(s);
-    const c = document.createElement('div');
-    c.id = 'demo-cursor';
-    document.body.appendChild(c);
-    addEventListener('mousemove', (e) => { c.style.left = e.clientX + 'px'; c.style.top = e.clientY + 'px'; }, true);
-    addEventListener('mousedown', () => c.classList.add('down'), true);
-    addEventListener('mouseup', () => c.classList.remove('down'), true);
+async function app() {
+  const s = await openStage({ base, query: `?quality=${quality}&start=stowed`, out, scale });
+  await s.page.addStyleTag({ content: HIDE });
+  await s.page.evaluate(() => localStorage.setItem('sinor-guide-seen', '1'));
+  s.recording = true;
+  const seg = async (id, fn, pad = 0.6) => {
+    const start = s.t;
+    s.mark(id);
+    await fn();
+    const left = durations[id] + pad - (s.t - start);
+    if (left > 0) await s.hold(left);
   };
-  if (document.readyState === 'loading') addEventListener('DOMContentLoaded', add);
-  else add();
-}, K);
+  const lapse = async (k, fn) => {
+    s.speed = k;
+    await fn();
+    s.speed = 1;
+  };
+  await seg('platform', async () => {
+    await s.until(() => !window.__SINOR__.state().introActive, null, 12);
+    await s.hold(0.4);
+    await s.drag(-260, 0, 2.6);
+    await s.hold(0.4);
+  });
+  await seg('modes', async () => {
+    await s.tap('mode-realistic', { after: 1.6 });
+    await s.tap('mode-blueprint', { after: 1.5 });
+    await s.tap('mode-xray', { after: 1.7 });
+    await s.tap('mode-hybrid', { after: 0.3 });
+  }, 0.3);
+  await seg('learn', async () => {
+    await s.tap('reset-overview', { after: 0.6, move: 0.35 });
+    await s.tap('guide-open', { after: 1.6 });
+    await s.tap('guide-bow-thruster-001', { after: 0.1 });
+    await s.focused('bow-thruster-001');
+    await s.hold(0.6);
+    await s.tap('tab-learn', { after: 2.2 });
+    await s.tap('action-inspect', { after: 1.8 });
+    await s.tap('tab-operate', { after: 0.4 });
+  }, 0.2);
+  await seg('thruster', async () => {
+    await s.type('thrust-input', 0);
+    await s.tap('thruster-start', { after: 0.2 });
+    await lapse(3, () => s.text('thruster-status', 'running', 30));
+    await s.type('thrust-input', -70);
+    await s.hold(2.0);
+    await s.type('thrust-input', 60);
+    await s.hold(1.5);
+    await s.tap('action-explode', { after: 2.6 });
+    await s.tap('action-explode', { after: 0.6 });
+    await s.tap('thruster-reset', { after: 0.2 });
+  }, 0.2);
+  await seg('dp', async () => {
+    await s.focus('dp-console-001');
+    await s.select('dp-speed', '20');
+    await s.tap('dp-start', { after: 1.0 });
+    await s.tap('dp-tab-thrusters', { after: 0.5 });
+    await s.tap('dp-bt1-take', { after: 1.4 });
+    await s.tap('dp-tab-redundancy', { after: 0.6 });
+    await s.tap('dp-fail-ctrl-A', { after: 2.0 });
+    await s.tap('dp-fail-ctrl-A', { after: 0.4 });
+    await s.tap('dp-tab-position', { after: 0.8 });
+  });
+  await seg('hpr', async () => {
+    await s.focus('deployment-001');
+    await s.select('hpr-speed', '20');
+    await s.tap('hpr-valve-open', { after: 0.6 });
+    await s.tap('hpr-deploy', { after: 0.2 });
+    await lapse(3, () => s.text('hpr-status', 'DEPLOYED', 60));
+    await s.tap('hpr-signals', { after: 0.6 });
+    await s.focus('hpr-001', 0.4);
+    await s.tap('action-closeup', { after: 0.1 });
+    await s.until(() => !window.__SINOR__.state().cameraMoving, null, 10);
+    await s.hold(1.6);
+  }, 0.3);
+  await seg('relative', async () => {
+    await s.tap('mode-hybrid', { after: 0.2 });
+    await s.focus('radascan-001');
+    await s.tap('radascan-start', { after: 0.2 });
+    await lapse(3, () => s.text('radascan-hmi-status', 'TRACKING', 40));
+    await s.hold(0.6);
+    await s.focus('cyscan-001');
+    await s.tap('cyscan-start', { after: 0.2 });
+    await lapse(3, () => s.text('cyscan-hmi-status', 'TRACKING', 40));
+    await s.hold(0.4);
+    await s.tap('cyscan-fog', { after: 2.2 });
+    await s.tap('cyscan-fog', { after: 0.3 });
+  }, 0.3);
+  await seg('absolute', async () => {
+    await s.focus('dgps-001', 1.0);
+    await s.focus('tautwire-001');
+    await s.select('tw-speed', '20');
+    await s.tap('tw-deploy', { after: 0.3 });
+    await lapse(3, () => s.text('tautwire-hmi-status', 'ON BOTTOM · TENSIONED', 60));
+    await s.hold(0.6);
+  }, 0.3);
+  await seg('sprintnav', async () => {
+    await s.focus('sprintnav-001');
+    await s.select('sn-speed', '20');
+    await s.tap('sprintnav-power', { after: 0.2 });
+    await s.tap('pole-deploy', { after: 0.2 });
+    await lapse(3, () => s.text('sprintnav-hmi-status', 'REFERENCE OK', 60));
+    await s.tap('action-closeup', { after: 0.1 });
+    await s.until(() => !window.__SINOR__.state().cameraMoving, null, 10);
+    await s.hold(1.6);
+  }, 0.3);
+  await seg('dpall', async () => {
+    await s.tap('mode-hybrid', { after: 0.2 });
+    await s.focus('dp-console-001');
+    await s.tap('dp-tab-redundancy', { after: 0.5 });
+    await s.tap('dp-drift-TAUTWIRE', { after: 0.2 });
+    await lapse(3, () => s.until(() => window.__SINOR__.dp().refs.find((r) => r.id === 'TAUTWIRE')?.rejected, null, 60));
+    await s.hold(1.6);
+    await s.tap('dp-drift-TAUTWIRE', { after: 0.3 });
+  });
+  // Tail under the transition to the next scene.
+  s.mark('tail');
+  await s.tap('reset-overview', { after: 0.4 });
+  await s.drag(-300, 0, 3.0);
+  s.mark('end');
+  return s;
+}
 
-const p = await ctx.newPage();
-const t0 = Date.now();
-p.on('pageerror', (e) => console.log('pageerror:', e.message));
-const appNow = () => (Date.now() - t0) / 1000 / K;
-const wait = (appSec) => p.waitForTimeout(appSec * 1000 * K);
-let mouse = { x: W / 2, y: H / 2 };
-const glide = async (x, y, appSec = 0.45) => {
-  const steps = 14;
-  const from = { ...mouse };
-  for (let i = 1; i <= steps; i++) {
-    const e = 0.5 - 0.5 * Math.cos((Math.PI * i) / steps);
-    await p.mouse.move(from.x + (x - from.x) * e, from.y + (y - from.y) * e);
-    await p.waitForTimeout((appSec * 1000 * K) / steps);
-  }
-  mouse = { x, y };
-};
-const tap = async (testid, { after = 0.5, last = false } = {}) => {
-  const loc = last ? p.getByTestId(testid).last() : p.getByTestId(testid).first();
-  await loc.scrollIntoViewIfNeeded();
-  const b = await loc.boundingBox();
-  await glide(b.x + b.width / 2, b.y + b.height / 2);
-  await wait(0.12);
-  await loc.click();
-  await wait(after);
-};
-const select = async (testid, value) => {
-  const loc = p.getByTestId(testid).first();
-  await loc.scrollIntoViewIfNeeded();
-  const b = await loc.boundingBox();
-  await glide(b.x + b.width / 2, b.y + b.height / 2, 0.35);
-  await loc.selectOption(value);
-  await wait(0.3);
-};
-const type = async (testid, value) => {
-  await tap(testid, { after: 0.1 });
-  await p.getByTestId(testid).first().fill(String(value));
-  await p.getByTestId(testid).first().press('Enter');
-  await wait(0.3);
-};
-const until = (fn, arg, appTimeout = 60) => p.waitForFunction(fn, arg, { timeout: appTimeout * 1000 * K, polling: 200 });
-const text = (tid, t) => until(([x, y]) => document.querySelector(`[data-testid=${x}]`)?.textContent === y, [tid, t]);
-const focused = (id) =>
-  until((i) => { const s = window.__SINOR__.state(); return s.selectedId === i && s.phase === 'focused' && !s.cameraMoving; }, id, 20);
-const focus = async (id) => {
-  await tap(`tree-${id}`, { after: 0.1 });
-  await focused(id);
-  await wait(0.3);
-};
-const drag = async (dx, dy, appSec = 1.6) => {
-  await glide(W / 2, H / 2, 0.3);
-  await p.mouse.down();
-  await glide(W / 2 + dx, H / 2 + dy, appSec);
-  await p.mouse.up();
-};
-const zoom = async (dy, times, appSec = 1.2) => {
-  for (let i = 0; i < times; i++) {
-    await p.mouse.wheel(0, dy);
-    await p.waitForTimeout((appSec * 1000 * K) / times);
-  }
-};
+// The last walkthrough part on its own, from the on-station start (every reference deployed), so it can be
+// re-captured without the whole walkthrough. Joins the app frames at its 'dpall' mark.
+async function dpall() {
+  const s = await openStage({ base, query: `?quality=${quality}&intro=0`, out, scale });
+  await s.page.addStyleTag({ content: HIDE });
+  await s.page.evaluate(() => localStorage.setItem('sinor-guide-seen', '1'));
+  await s.skip(1.5);
+  s.recording = true;
+  s.mark('dpall');
+  await s.hold(0.3);
+  await s.focus('dp-console-001');
+  await s.select('dp-speed', '20');
+  await s.tap('dp-start', { after: 0.6 });
+  await s.tap('dp-tab-redundancy', { after: 0.5 });
+  await s.tap('dp-drift-TAUTWIRE', { after: 0.2 });
+  s.speed = 3;
+  await s.until(() => window.__SINOR__.dp().refs.find((r) => r.id === 'TAUTWIRE')?.rejected, null, 60);
+  s.speed = 1;
+  await s.hold(1.6);
+  const left = durations.dpall + 0.6 - s.t;
+  if (left > 0) await s.hold(left);
+  s.mark('tail');
+  await s.tap('reset-overview', { after: 0.4 });
+  await s.drag(-300, 0, 3.0);
+  s.mark('end');
+  return s;
+}
 
-const timeline = {};
-/** Runs a narrated segment and pads it to its voice-over length (plus a short breath). */
-const segment = async (id, fn, pad = 0.7) => {
-  const start = appNow();
-  timeline[id] = start;
-  console.log('segment', id, start.toFixed(2));
-  await fn();
-  const left = durations[id] + pad - (appNow() - start);
-  if (left > 0) await wait(left);
-};
+async function phone() {
+  const s = await openStage({ base, query: `?quality=${quality}&intro=0`, out, width: 390, height: 844, scale: scale === 1 ? 2 : scale });
+  await s.page.evaluate(() => localStorage.setItem('sinor-guide-seen', '1'));
+  await s.skip(1.5);
+  s.recording = true;
+  s.mark('start');
+  await s.hold(0.6);
+  await s.drag(-120, 0, 2.2);
+  await s.tap('tree-toggle', { after: 0.9 });
+  await s.tap('tree-sprintnav-001', { after: 0.1 });
+  await s.focused('sprintnav-001');
+  await s.hold(2.6);
+  s.mark('end');
+  return s;
+}
 
-await p.goto(base + '/?quality=low&start=stowed');
-await p.waitForFunction(() => !!window.__SINOR__, null, { timeout: 120000 * K });
-
-await segment('intro', async () => {
-  await until(() => !window.__SINOR__.state().introActive, null, 30).catch(() => {});
-}, 1.2);
-await segment('overview', async () => {
-  await drag(-420, 0, 2.6);
-  await wait(0.3);
-  await glide(W / 2, H / 2, 0.2);
-  await zoom(-200, 8, 1.6);
-  await wait(1.2);
-  await zoom(200, 8, 1.2);
-  await tap('reset-overview', { after: 1.2 });
-});
-await segment('modes', async () => {
-  await tap('mode-realistic', { after: 1.4 });
-  await tap('mode-blueprint', { after: 1.4 });
-  await tap('mode-xray', { after: 1.6 });
-  await tap('mode-hybrid', { after: 0.4 });
-});
-await segment('ibs', async () => {
-  await focus('ibs-001');
-  await wait(1.5);
-  await tap('action-inspect', { after: 1.5 });
-});
-await segment('thruster', async () => {
-  await focus('bow-thruster-001');
-  await type('thrust-input', 0);
-  await tap('thruster-start', { after: 0.2 });
-  await text('thruster-status', 'running');
-  await type('thrust-input', -70);
-  await wait(2.2);
-  await type('thrust-input', 60);
-  await wait(1.6);
-  await tap('action-explode', { after: 2.4 });
-  await tap('action-explode', { after: 0.6 });
-  await tap('thruster-reset', { after: 0.2 });
-}, 0.3);
-await segment('dp', async () => {
-  await focus('dp-console-001');
-  await select('dp-speed', '20');
-  await tap('dp-start', { after: 1.2 });
-  await tap('dp-tab-thrusters', { after: 0.5 });
-  await tap('dp-bt1-take', { after: 1.5 });
-  await tap('dp-tab-redundancy', { after: 0.6 });
-  await tap('dp-fail-ctrl-A', { after: 2.0 });
-  await tap('dp-fail-ctrl-A', { after: 0.4 });
-  await tap('dp-tab-position', { after: 1.0 });
-});
-await segment('hpr', async () => {
-  await focus('deployment-001');
-  await select('hpr-speed', '20');
-  await tap('hpr-valve-open', { after: 0.6 });
-  await tap('hpr-deploy', { after: 0.2 });
-  await text('hpr-status', 'DEPLOYED');
-  await tap('hpr-signals', { after: 0.4 });
-  await focus('hpr-001');
-  await wait(1.5);
-}, 0.4);
-await segment('relative', async () => {
-  await focus('radascan-001');
-  await tap('radascan-start', { after: 0.2 });
-  await text('radascan-hmi-status', 'TRACKING');
-  await tap('radascan-dp-select', { after: 1.0 });
-  await focus('cyscan-001');
-  await tap('cyscan-start', { after: 0.2 });
-  await text('cyscan-hmi-status', 'TRACKING');
-  await tap('cyscan-dp-select', { after: 0.6 });
-  await tap('cyscan-fog', { after: 2.2 });
-  await tap('cyscan-fog', { after: 0.3 });
-}, 0.3);
-await segment('absolute', async () => {
-  await focus('dgps-001');
-  await wait(1.2);
-  await focus('tautwire-001');
-  await select('tw-speed', '20');
-  await tap('tw-deploy', { after: 0.3 });
-  await text('tautwire-hmi-status', 'ON BOTTOM · TENSIONED');
-  await tap('tautwire-dp-select', { after: 0.8 });
-}, 0.3);
-await segment('sprintnav', async () => {
-  await focus('sprintnav-001');
-  await select('sn-speed', '20');
-  await tap('sprintnav-power', { after: 0.3 });
-  await tap('pole-deploy', { after: 0.2 });
-  await text('sprintnav-hmi-status', 'REFERENCE OK');
-  await tap('sprintnav-dp-select', { after: 0.8 });
-}, 0.3);
-await segment('dpall', async () => {
-  await focus('dp-console-001');
-  await tap('dp-tab-redundancy', { after: 0.5 });
-  await tap('dp-drift-TAUTWIRE', { after: 0.2 });
-  await until(() => window.__SINOR__.dp().refs.find((r) => r.id === 'TAUTWIRE')?.rejected, null, 60).catch(() => {});
-  await wait(1.5);
-  await tap('dp-drift-TAUTWIRE', { after: 0.3 });
-});
-await segment('outro', async () => {
-  await tap('reset-overview', { after: 1.0 });
-  await glide(W / 2, H / 2, 0.3);
-  await p.mouse.down();
-  await glide(W / 2 - 300, H / 2, 4.0);
-  await p.mouse.up();
-}, 3.0);
-timeline.end = appNow();
-
-await ctx.close();
-renameSync(await p.video().path(), `${out}/footage.webm`);
-writeFileSync(`${out}/timeline.json`, JSON.stringify({ K, ...timeline }, null, 1));
-await browser.close();
-console.log('done', timeline.end.toFixed(1), 's of app time');
+const s = await { hero, app, dpall, phone }[session]();
+writeFileSync(`${out}/timeline.json`, JSON.stringify({ fps: FPS, frames: s.frame, ...s.timeline }, null, 1));
+await s.close();
+console.log('done', session, s.frame, 'frames', (s.frame / FPS).toFixed(1), 's');
