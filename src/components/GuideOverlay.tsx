@@ -21,7 +21,7 @@ export function GuideOverlay({ open, onClose }: { open: boolean; onClose: () => 
   }, [open, onClose]);
   if (!open) return null;
   return (
-    <div className="pointer-events-auto absolute inset-0 z-50 flex items-end justify-center bg-abyss/70 p-3 backdrop-blur-sm sm:items-center" onClick={onClose}>
+    <div className="pointer-events-auto absolute inset-0 z-50 flex items-end justify-center bg-abyss/80 p-3 sm:items-center" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"

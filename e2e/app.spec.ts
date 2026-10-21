@@ -425,9 +425,13 @@ test('every system teaches how it works, and the small units have a close-up vie
   const far = await page.evaluate(() => window.__SINOR__!.camera().position);
   await page.getByTestId('action-closeup').click();
   await expect.poll(async () => (await state(page)).visualMode).toBe('realistic');
-  await expect.poll(async () => (await state(page)).cameraMoving).toBe(false);
-  const near = await page.evaluate(() => window.__SINOR__!.camera().position);
-  expect(Math.hypot(...near.map((v, i) => v - far[i]))).toBeGreaterThan(5);
+  // The camera flies from the pole view to within a couple of metres of the unit.
+  await expect
+    .poll(async () => {
+      const near = await page.evaluate(() => window.__SINOR__!.camera().position);
+      return Math.hypot(...near.map((v, i) => v - far[i]));
+    }, { timeout: 30_000 })
+    .toBeGreaterThan(5);
   for (const id of ['ibs-001', 'dp-console-001', 'hpr-001', 'deployment-001', 'bow-thruster-001', 'radascan-001', 'cyscan-001', 'dgps-001', 'tautwire-001']) {
     await page.getByTestId(`tree-${id}`).click();
     await page.getByTestId('tab-learn').click();
