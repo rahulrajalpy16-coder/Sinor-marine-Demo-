@@ -113,6 +113,14 @@ export class DPController implements SimulationController<DPState, DPCommand> {
     if (this.state !== before && (this.sinceNotify >= 1 / this.notifyHz || before.alarms.length !== this.state.alarms.length)) this.emit();
   }
 
+  /** Replace the whole state (simulator reset, scenario load) and notify. */
+  replace(next: DPState) {
+    this.state = next;
+    this.stepper.reset();
+    this.lastError = null;
+    this.emit();
+  }
+
   subscribe(listener: (s: DPState) => void) {
     this.listeners.add(listener);
     return () => {

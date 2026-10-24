@@ -62,6 +62,14 @@ export class ThrusterController implements SimulationController<ThrusterState, T
     if (statusChanged || (this.state !== before && this.sinceNotify >= 1 / this.notifyHz)) this.emit();
   }
 
+  /** Replace the whole state (simulator reset, scenario load) and notify. */
+  replace(next: ThrusterState) {
+    this.state = next;
+    this.stepper.reset();
+    this.lastError = null;
+    this.emit();
+  }
+
   subscribe(listener: (s: ThrusterState) => void) {
     this.listeners.add(listener);
     return () => {

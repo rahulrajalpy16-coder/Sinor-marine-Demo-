@@ -38,6 +38,16 @@ input:focus-visible {
   outline-offset: 2px;
 }
 
+/* TV: the focused control must be obvious from across the room. */
+.tv-mode button:focus,
+.tv-mode select:focus,
+.tv-mode input:focus,
+.tv-mode [tabindex]:focus {
+  outline: 4px solid #ffd23f;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 7px rgba(255, 210, 63, 0.25);
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
