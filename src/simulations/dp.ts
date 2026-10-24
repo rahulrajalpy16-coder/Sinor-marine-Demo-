@@ -18,6 +18,8 @@ import { AZIMUTHS, BOW_THRUSTERS } from '../vessels/vesselLayout';
 import { HPT5000_REPEATABILITY } from '../equipment/hprData';
 import { CYSCAN, RADASCAN, SEASTAR, SMT_TW, SPRINTNAV } from '../equipment/posrefData';
 import { HPR_NOMINAL_SLANT_M } from './acoustic';
+import type { ConsumerId } from './power';
+import { apparentWind } from './wind';
 
 export type DPClass = 1 | 2 | 3;
 export type DPMode = 'STANDBY' | 'JOYSTICK' | 'AUTO_HEADING' | 'AUTO_POSITION';
@@ -56,7 +58,18 @@ export type DPAlarm =
   | 'HEADING_WARNING'
   | 'BACKUP_IN_COMMAND'
   | 'HPR_NOT_DEPLOYED'
-  | 'REF_NOT_READY';
+  | 'REF_NOT_READY'
+  | 'NO_HEADING_REF'
+  | 'GYRO_REJECTED'
+  | 'HEADING_DEVIATION'
+  | 'SINGLE_GYRO'
+  | 'NO_MRU'
+  | 'NO_OPERATOR_STATION'
+  | 'WIND_FF_OFF'
+  | 'POWER_LIMIT'
+  | 'THRUSTER_NO_POWER'
+  | 'REF_NO_POWER'
+  | 'WCF_CAPABILITY';
 
 export const DP_ALARM_TEXT: Record<DPAlarm, string> = {
   DP_LOST: 'DP lost: thrusters zeroed, vessel drifting',
@@ -74,7 +87,58 @@ export const DP_ALARM_TEXT: Record<DPAlarm, string> = {
   BACKUP_IN_COMMAND: 'Backup DP (A60 room) in command',
   HPR_NOT_DEPLOYED: 'HPR transceiver not deployed: reference unavailable',
   REF_NOT_READY: 'Selected position reference not ready (not deployed, tracking or aligned)',
+  NO_HEADING_REF: 'No valid gyrocompass: automatic heading and position control unavailable',
+  GYRO_REJECTED: 'Gyrocompass rejected by heading voting',
+  HEADING_DEVIATION: 'Gyrocompasses disagree',
+  SINGLE_GYRO: 'Single gyrocompass left: no heading redundancy',
+  NO_MRU: 'No motion reference unit: reference motion compensation lost',
+  NO_OPERATOR_STATION: 'No DP operator station powered: DP continues, operator commands unavailable',
+  WIND_FF_OFF: 'No valid wind sensor: wind feed-forward off',
+  POWER_LIMIT: 'Thrust limited by available electrical power',
+  THRUSTER_NO_POWER: 'Thruster unavailable: no supply, auxiliaries or control power',
+  REF_NO_POWER: 'Position reference without power',
+  WCF_CAPABILITY: 'Worst-case failure (loss of one power group) would exceed remaining thrust (simplified check)',
 };
+
+export type SensorId = 'GYRO1' | 'GYRO2' | 'GYRO3' | 'MRU1' | 'MRU2';
+export type SensorFault = null | 'fail' | 'drift';
+export interface HeadingSensor {
+  id: SensorId;
+  installed: boolean;
+  powered: boolean;
+  fault: SensorFault;
+  /** Accumulated heading error for a drifting gyro, rad. */
+  bias: number;
+  rejected: boolean;
+}
+export type StationId = 'OS1' | 'OS2' | 'OS3';
+export const SENSOR_LABEL: Record<SensorId, string> = { GYRO1: 'Gyro 1', GYRO2: 'Gyro 2', GYRO3: 'Gyro 3', MRU1: 'MRU 1', MRU2: 'MRU 2' };
+/** Power consumers that feed each DP item (see power.ts consumer map). */
+export const DP_SUPPLY: Record<string, ConsumerId> = {
+  A: 'DP_CTRL_A',
+  B: 'DP_CTRL_B',
+  C: 'DP_CTRL_C',
+  NET_A: 'NET_A',
+  NET_B: 'NET_B',
+  OS1: 'DP_OS1',
+  OS2: 'DP_OS2',
+  OS3: 'DP_OS3',
+  BACKUP: 'DP_BACKUP_CTRL',
+  GNSS1: 'GNSS1',
+  GNSS2: 'GNSS2',
+  HPR: 'HPR',
+  RADASCAN: 'RADASCAN',
+  CYSCAN: 'CYSCAN',
+  TAUTWIRE: 'TAUTWIRE',
+  SPRINTNAV: 'SPRINTNAV',
+  GYRO1: 'GYRO1',
+  GYRO2: 'GYRO2',
+  GYRO3: 'GYRO3',
+  MRU1: 'MRU1',
+  MRU2: 'MRU2',
+};
+/** Thrusters by power/redundancy group (the switchboard section that feeds them). */
+export const THRUSTER_GROUP: Record<ThrusterId, 'A' | 'B'> = { BT1: 'A', AZ1: 'A', BT2: 'B', AZ2: 'B' };
 
 export interface ThrusterGeom {
   id: ThrusterId;
@@ -144,6 +208,10 @@ export interface ThrusterState {
   /** Azimuth angle, rad (0 = thrust ahead, +90° = thrust to starboard). BT1 is fixed at +90°. */
   angle: number;
   cmdAngle: number;
+  /** Largest thrust the electrical supply allows now, N (phase-back / power limit). */
+  limitN: number;
+  /** Drive, auxiliaries and control power available. */
+  powered: boolean;
 }
 
 export interface RefState {
@@ -158,6 +226,8 @@ export interface RefState {
   ready: boolean;
   /** Last measured position (north, east). */
   meas: [number, number];
+  /** Sensor and interface electrically supplied (UPS output). */
+  powered: boolean;
 }
 
 export interface DPState {
@@ -177,15 +247,24 @@ export interface DPState {
   integral: [number, number, number];
   thrusters: ThrusterState[];
   refs: RefState[];
-  controllers: { id: ControllerId; installed: boolean; failed: boolean }[];
-  networks: { id: NetworkId; installed: boolean; failed: boolean }[];
+  controllers: { id: ControllerId; installed: boolean; failed: boolean; powered: boolean }[];
+  networks: { id: NetworkId; installed: boolean; failed: boolean; powered: boolean }[];
+  stations: { id: StationId; installed: boolean; powered: boolean }[];
+  backupPowered: boolean;
+  sensors: HeadingSensor[];
+  /** Heading used by the controller (voted gyro), rad; null when no valid gyro. */
+  psiMeas: number | null;
+  /** Physical wind acting now (mean + gust); equals the operator's mean wind unless the wind model drives it. */
+  windActual: { speedKn: number; fromDeg: number };
+  /** Wind feed-forward from the measured wind (relative to the bow). */
+  windFF: { valid: boolean; relSpeedKn: number; relFromDeg: number };
   /** DP3 only: fire / flooding in the bridge compartment. */
   bridgeCompartmentLost: boolean;
   dpLost: boolean;
   tauCmd: [number, number, number];
   tauAchieved: [number, number, number];
   tauEnv: [number, number, number];
-  consequence: { worst: ThrusterId | null; ok: boolean };
+  consequence: { worst: ThrusterId | null; ok: boolean; worstGroup?: 'A' | 'B' | null; groupOk?: boolean };
   alarms: DPAlarm[];
   acknowledged: DPAlarm[];
   track: [number, number][];
@@ -228,6 +307,8 @@ export function initialDPState(dpClass: DPClass = 2): DPState {
       forceN: 0,
       angle: t.azimuth ? 0 : Math.PI / 2,
       cmdAngle: t.azimuth ? 0 : Math.PI / 2,
+      limitN: t.maxN,
+      powered: true,
     })),
     refs: [...CORE_REFS, ...OPERATOR_REFS].map((id) => {
       const op = OPERATOR_REFS.includes(id);
@@ -240,10 +321,17 @@ export function initialDPState(dpClass: DPClass = 2): DPState {
         rejected: false,
         ready: !op,
         meas: [0, 0] as [number, number],
+        powered: true,
       };
     }),
-    controllers: (['A', 'B', 'C'] as ControllerId[]).map((id, i) => ({ id, installed: i < lay.controllers, failed: false })),
-    networks: (['A', 'B'] as NetworkId[]).map((id, i) => ({ id, installed: i < lay.networks, failed: false })),
+    controllers: (['A', 'B', 'C'] as ControllerId[]).map((id, i) => ({ id, installed: i < lay.controllers, failed: false, powered: true })),
+    networks: (['A', 'B'] as NetworkId[]).map((id, i) => ({ id, installed: i < lay.networks, failed: false, powered: true })),
+    stations: (['OS1', 'OS2', 'OS3'] as StationId[]).map((id, i) => ({ id, installed: i < lay.operatorStations, powered: true })),
+    backupPowered: true,
+    sensors: (['GYRO1', 'GYRO2', 'GYRO3', 'MRU1', 'MRU2'] as SensorId[]).map((id) => ({ id, installed: true, powered: true, fault: null, bias: 0, rejected: false })),
+    psiMeas: 0,
+    windActual: { speedKn: 20, fromDeg: 45 },
+    windFF: { valid: true, relSpeedKn: 20, relFromDeg: 45 },
     bridgeCompartmentLost: false,
     dpLost: false,
     tauCmd: [0, 0, 0],
@@ -275,13 +363,9 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 /** Environmental forces in the body frame (N, N, N·m). */
 export function environmentForces(s: Pick<DPState, 'eta' | 'nu' | 'wind' | 'current'>, p: DPParams = DEFAULT_DP_PARAMS): [number, number, number] {
   const psi = s.eta[2];
-  // Wind: gamma = direction the wind comes from, relative to the bow.
-  const vw = s.wind.speedKn * KN;
-  const g = wrapPi(s.wind.fromDeg * DEG - psi);
-  const q = 0.5 * RHO_AIR * vw * vw;
-  const Xw = -q * p.windAreaFront * 0.7 * Math.cos(g);
-  const Yw = -q * p.windAreaLateral * 0.9 * Math.sin(g);
-  const Nw = -q * p.windAreaLateral * p.lengthM * 0.05 * Math.sin(2 * g);
+  // Wind acts through the apparent (relative) wind: true wind minus the vessel's own velocity.
+  const app = apparentWind(s.wind.speedKn, s.wind.fromDeg, psi, s.nu);
+  const [Xw, Yw, Nw] = windForceRel(app.speedKn, app.relFromDeg, p);
   // Current as quadratic drag on the relative velocity.
   const [uc, vc] = currentBody(s);
   const ur = s.nu[0] - uc;
@@ -292,6 +376,14 @@ export function environmentForces(s: Pick<DPState, 'eta' | 'nu' | 'wind' | 'curr
   const Vr2 = ur * ur + vr * vr;
   const Nc = -0.5 * RHO_WATER * p.currentAreaLateral * p.lengthM * 0.04 * Vr2 * Math.sin(2 * gc);
   return [Xw + Xc, Yw + Yc, Nw + Nc];
+}
+
+/** Wind force and moment in the body frame from a relative wind (speed kn, direction it comes from, deg off the bow). */
+export function windForceRel(speedKn: number, relFromDeg: number, p: DPParams = DEFAULT_DP_PARAMS): [number, number, number] {
+  const vw = speedKn * KN;
+  const g = relFromDeg * DEG;
+  const q = 0.5 * RHO_AIR * vw * vw;
+  return [-q * p.windAreaFront * 0.7 * Math.cos(g), -q * p.windAreaLateral * 0.9 * Math.sin(g), -q * p.windAreaLateral * p.lengthM * 0.05 * Math.sin(2 * g)];
 }
 
 export function currentBody(s: Pick<DPState, 'eta' | 'current'>): [number, number] {
@@ -390,27 +482,40 @@ export function canHold(tau: [number, number, number], available: Record<Thruste
 }
 
 /** Worst-case single thruster failure against the current environment (+25 % margin). */
-export function consequenceAnalysis(s: DPState, p: DPParams = DEFAULT_DP_PARAMS): DPState['consequence'] {
+export function consequenceAnalysis(s: DPState, p: DPParams = DEFAULT_DP_PARAMS, groups = false): DPState['consequence'] {
   const need: [number, number, number] = [-1.25 * s.tauEnv[0], -1.25 * s.tauEnv[1], -1.25 * s.tauEnv[2]];
   const avail = availability(s);
+  let single: { worst: ThrusterId | null; ok: boolean } = { worst: null, ok: true };
   for (const t of s.thrusters) {
     if (!avail[t.id]) continue;
-    if (!canHold(need, { ...avail, [t.id]: false }, p)) return { worst: t.id, ok: false };
+    if (!canHold(need, { ...avail, [t.id]: false }, p)) {
+      single = { worst: t.id, ok: false };
+      break;
+    }
   }
-  return { worst: null, ok: true };
+  if (!groups) return single;
+  // Worst-case failure for the power plant: loss of one switchboard section and every thruster it feeds. The
+  // surviving group keeps its present power limit (simplified: no re-distribution of the lost group's generators).
+  for (const g of ['A', 'B'] as const) {
+    const left = Object.fromEntries(s.thrusters.map((t) => [t.id, avail[t.id] && THRUSTER_GROUP[t.id] !== g])) as Record<ThrusterId, boolean>;
+    if (!s.thrusters.some((t) => avail[t.id] && THRUSTER_GROUP[t.id] === g)) continue;
+    if (!canHold(need, left, p)) return { ...single, worstGroup: g, groupOk: false };
+  }
+  return { ...single, worstGroup: null, groupOk: true };
 }
 
 export function availability(s: DPState): Record<ThrusterId, boolean> {
-  return Object.fromEntries(s.thrusters.map((t) => [t.id, t.available && !t.failed])) as Record<ThrusterId, boolean>;
+  return Object.fromEntries(s.thrusters.map((t) => [t.id, t.available && !t.failed && t.powered !== false])) as Record<ThrusterId, boolean>;
 }
 
 /** Is the DP control system itself able to run (controllers, networks, compartment)? */
 export function controlIntegrity(s: DPState): { ok: boolean; healthyControllers: number; backup: boolean } {
-  const ctrl = s.controllers.filter((c) => c.installed && !c.failed).length;
-  const net = s.networks.filter((n) => n.installed && !n.failed).length;
+  const ctrl = s.controllers.filter((c) => c.installed && !c.failed && c.powered !== false).length;
+  const net = s.networks.filter((n) => n.installed && !n.failed && n.powered !== false).length;
+  const backupOk = s.dpClass === 3 && s.backupPowered !== false;
   if (s.bridgeCompartmentLost) {
     // Only DP3 has an independent backup controller and station in a separate A60 compartment.
-    return { ok: s.dpClass === 3, healthyControllers: s.dpClass === 3 ? 1 : 0, backup: s.dpClass === 3 };
+    return { ok: backupOk, healthyControllers: backupOk ? 1 : 0, backup: backupOk };
   }
   return { ok: ctrl >= 1 && net >= 1, healthyControllers: ctrl, backup: false };
 }
@@ -447,6 +552,7 @@ export function processReferences(
   dt: number,
   readiness: Partial<Record<RefId, boolean>> | boolean = {},
   sprintnavAided = false,
+  noiseScale: Partial<Record<RefId, number>> = {},
 ): { refs: RefState[]; fix: [number, number] | null; deviation: boolean } {
   const ready: Partial<Record<RefId, boolean>> = typeof readiness === 'boolean' ? { HPR: readiness } : readiness;
   const noiseState = { seed: s.seed };
@@ -461,12 +567,12 @@ export function processReferences(
         drift = [drift[0] * k, drift[1] * k];
       } else drift = [drift[0] + SPRINTNAV_DRIFT_RATE * dt * 0.6, drift[1] - SPRINTNAV_DRIFT_RATE * dt * 0.8];
     }
-    const n = REF_NOISE[r.id];
+    const n = REF_NOISE[r.id] * (noiseScale[r.id] ?? 1);
     const meas: [number, number] = [s.eta[0] + drift[0] + n * rand(noiseState), s.eta[1] + drift[1] + n * rand(noiseState)];
     return { ...r, drift, meas };
   });
   s.seed = noiseState.seed;
-  const usable = refs.filter((r) => r.installed && r.enabled && r.ready && r.fault !== 'lost');
+  const usable = refs.filter((r) => r.installed && r.enabled && r.ready && r.fault !== 'lost' && r.powered !== false);
   const rejected = new Set<RefId>();
   let deviation = false;
   if (usable.length >= 3) {
@@ -481,7 +587,7 @@ export function processReferences(
     deviation = Math.hypot(usable[0].meas[0] - usable[1].meas[0], usable[0].meas[1] - usable[1].meas[1]) > REJECT_M;
   }
   const accepted = usable.filter((r) => !rejected.has(r.id));
-  const out = refs.map((r) => ({ ...r, rejected: rejected.has(r.id) || (r.installed && r.enabled && r.fault === 'lost') }));
+  const out = refs.map((r) => ({ ...r, rejected: rejected.has(r.id) || (r.installed && r.enabled && (r.fault === 'lost' || r.powered === false)) }));
   if (!accepted.length) return { refs: out, fix: null, deviation };
   const fix: [number, number] = [
     accepted.reduce((a, r) => a + r.meas[0], 0) / accepted.length,
@@ -499,7 +605,60 @@ export interface DPStepInput {
   ready?: Partial<Record<RefId, boolean>>;
   /** SPRINT-Nav DP still has GNSS aiding enabled (not independent of GNSS). */
   sprintnavAided?: boolean;
+  /** Electrical plant: per-thruster availability and thrust limit, and which DP consumers are powered. */
+  power?: {
+    thrusterAvailable: Record<ThrusterId, boolean>;
+    limitN: Record<ThrusterId, number>;
+    consumers: Partial<Record<ConsumerId, boolean>>;
+  };
+  /** Physical wind (mean + gusts) from the wind model. Defaults to the operator's mean wind. */
+  windActual?: { speedKn: number; fromDeg: number };
+  /** Measured wind for feed-forward. Undefined: ideal sensor (true wind). */
+  windFF?: { valid: boolean; relSpeedKn: number; relFromDeg: number };
 }
+
+const GYRO_REJECT_RAD = 2 * DEG;
+const GYRO_DRIFT_RAD_S = 0.05 * DEG;
+
+/** Apply electrical supply states from the plant to DP items. Also used while DP is stopped, for the displays. */
+export function applySupplies(s: DPState, power: DPStepInput['power']): DPState {
+  if (!power) return s;
+  const on = (k: string) => power.consumers[DP_SUPPLY[k]] !== false;
+  return {
+    ...s,
+    controllers: s.controllers.map((c) => ({ ...c, powered: on(c.id) })),
+    networks: s.networks.map((n) => ({ ...n, powered: on(`NET_${n.id}`) })),
+    stations: s.stations.map((o) => ({ ...o, powered: on(o.id) })),
+    backupPowered: on('BACKUP'),
+    refs: s.refs.map((r) => ({ ...r, powered: on(r.id) })),
+    sensors: s.sensors.map((x) => ({ ...x, powered: on(x.id) })),
+    thrusters: s.thrusters.map((t) => ({ ...t, powered: power.thrusterAvailable[t.id], limitN: Math.min(DEFAULT_DP_PARAMS.thrusters.find((g) => g.id === t.id)!.maxN, power.limitN[t.id]) })),
+  };
+}
+
+/** Gyro voting: median of three, average of two, else the single one. Returns the heading used and flags. */
+export function voteHeading(s: DPState): { psi: number | null; rejected: SensorId[]; deviation: boolean; count: number } {
+  const gyros = s.sensors.filter((g) => g.id.startsWith('GYRO') && g.installed && g.powered && g.fault !== 'fail');
+  const meas = gyros.map((g) => ({ id: g.id, v: s.eta[2] + g.bias }));
+  if (!meas.length) return { psi: null, rejected: [], deviation: false, count: 0 };
+  if (meas.length >= 3) {
+    const sorted = [...meas].sort((a, b) => wrapPi(a.v - meas[0].v) - wrapPi(b.v - meas[0].v));
+    const med = sorted[1].v;
+    const rejected = meas.filter((m) => Math.abs(wrapPi(m.v - med)) > GYRO_REJECT_RAD).map((m) => m.id);
+    const ok = meas.filter((m) => !rejected.includes(m.id));
+    const avg = ok.reduce((a, m) => a + wrapPi(m.v - med), 0) / ok.length;
+    return { psi: wrapPi(med + avg), rejected, deviation: false, count: ok.length };
+  }
+  if (meas.length === 2) {
+    const d = wrapPi(meas[1].v - meas[0].v);
+    return { psi: wrapPi(meas[0].v + d / 2), rejected: [], deviation: Math.abs(d) > GYRO_REJECT_RAD, count: 2 };
+  }
+  return { psi: wrapPi(meas[0].v), rejected: [], deviation: false, count: 1 };
+}
+
+/** Is at least one DP operator station powered (or the DP3 backup station in command)? */
+export const operatorStationAvailable = (s: DPState) =>
+  s.stations.some((o) => o.installed && o.powered && (o.id !== 'OS3' || s.bridgeCompartmentLost)) || (s.dpClass === 3 && s.backupPowered && s.bridgeCompartmentLost);
 
 export interface DPStepOutput {
   state: DPState;
@@ -516,21 +675,36 @@ function setAlarm(alarms: DPAlarm[], code: DPAlarm, on: boolean) {
 /** Advance the model by dt seconds of simulated time. Pure apart from the returned state. */
 export function stepDP(prev: DPState, dt: number, input: DPStepInput, p: DPParams = DEFAULT_DP_PARAMS): DPStepOutput {
   if (!(dt > 0) || prev.status !== 'running') return { state: prev, bt1CmdN: 0 };
-  const s: DPState = { ...prev, alarms: [...prev.alarms], thrusters: prev.thrusters.map((t) => ({ ...t })) };
+  const s: DPState = { ...applySupplies(prev, input.power), alarms: [...prev.alarms] };
+  s.thrusters = s.thrusters.map((t) => ({ ...t }));
+  s.sensors = s.sensors.map((x) => ({ ...x, bias: x.fault === 'drift' ? x.bias + GYRO_DRIFT_RAD_S * dt : x.fault === null ? 0 : x.bias }));
+  s.windActual = input.windActual ?? s.wind;
+  s.windFF = input.windFF ?? (() => {
+    const a = apparentWind(s.windActual.speedKn, s.windActual.fromDeg, s.eta[2], [0, 0]);
+    return { valid: true, relSpeedKn: a.speedKn, relFromDeg: a.relFromDeg };
+  })();
   const [n, e, psi] = s.eta;
-  const c = Math.cos(psi);
-  const sn = Math.sin(psi);
+  // Heading reference: the controller and estimator use the voted gyro heading, the physics the true heading.
+  const vote = voteHeading(s);
+  s.sensors = s.sensors.map((x) => ({ ...x, rejected: vote.rejected.includes(x.id) }));
+  s.psiMeas = vote.psi;
+  const psiC = vote.psi ?? psi;
+  const c = Math.cos(psiC);
+  const sn = Math.sin(psiC);
 
-  // Thruster availability (BT1 depends on the bow thruster's own control station and run state).
+  // Thruster availability (BT1 depends on the bow thruster's own control station and run state; all on power).
   s.thrusters.forEach((t) => {
-    t.available = !t.failed && (t.id !== 'BT1' || input.bt1.available);
+    t.available = !t.failed && t.powered !== false && (t.id !== 'BT1' || input.bt1.available);
   });
   const integrity = controlIntegrity(s);
-  s.dpLost = s.mode !== 'STANDBY' && s.mode !== 'JOYSTICK' && !integrity.ok;
+  const noHeading = vote.psi === null;
+  s.dpLost = s.mode !== 'STANDBY' && s.mode !== 'JOYSTICK' && (!integrity.ok || noHeading);
   const joystickLost = s.mode === 'JOYSTICK' && !integrity.ok;
 
-  // Position references and estimate.
-  const refsOut = processReferences(s, dt, { HPR: input.hpr?.ready ?? true, ...input.ready }, input.sprintnavAided);
+  // Position references and estimate. Without an MRU the motion-compensated references get noisier.
+  const mru = s.sensors.filter((x) => x.id.startsWith('MRU') && x.installed && x.powered && x.fault !== 'fail').length;
+  const noiseScale: Partial<Record<RefId, number>> = mru ? {} : { HPR: 4, CYSCAN: 4, RADASCAN: 4, TAUTWIRE: 2 };
+  const refsOut = processReferences(s, dt, { HPR: input.hpr?.ready ?? true, ...input.ready }, input.sprintnavAided, noiseScale);
   s.refs = refsOut.refs;
   if (refsOut.fix) {
     const k = Math.min(1, dt / 4);
@@ -546,16 +720,17 @@ export function stepDP(prev: DPState, dt: number, input: DPStepInput, p: DPParam
   const kp = [m1, m2, m3].map((m) => m * p.omega * p.omega);
   const kd = [m1, m2, m3].map((m, i) => Math.max(0, 2 * p.zeta * p.omega * m - p.dLin[i]));
   const ki = kp.map((k) => (k * p.omega) / 8);
-  const tauEnv = environmentForces(s, p);
+  // Physical environment: the actual wind (with gusts) and current act whatever the sensors report.
+  const tauEnv = environmentForces({ eta: s.eta, nu: s.nu, wind: s.windActual, current: s.current }, p);
   s.tauEnv = tauEnv;
-  // Wind feed-forward uses the wind sensor (wind part only, at zero vessel speed).
-  const windOnly = environmentForces({ eta: s.eta, nu: [0, 0, 0], wind: s.wind, current: { speedKn: 0, toDeg: 0 } }, p);
+  // Wind feed-forward from the measured relative wind; none when no wind sensor is valid.
+  const windOnly: [number, number, number] = s.windFF.valid ? windForceRel(s.windFF.relSpeedKn, s.windFF.relFromDeg, p) : [0, 0, 0];
   let tau: [number, number, number] = [0, 0, 0];
   const dn = s.est[0] - s.setpoint[0];
   const de = s.est[1] - s.setpoint[1];
   const ex = c * dn + sn * de;
   const ey = -sn * dn + c * de;
-  const epsi = wrapPi(psi - s.setpoint[2]);
+  const epsi = wrapPi(psiC - s.setpoint[2]);
   const maxTau: [number, number, number] = [500e3, 500e3, 18e6];
   const autoPos = s.mode === 'AUTO_POSITION';
   const autoHead = s.mode === 'AUTO_POSITION' || s.mode === 'AUTO_HEADING';
@@ -579,7 +754,9 @@ export function stepDP(prev: DPState, dt: number, input: DPStepInput, p: DPParam
 
   // Allocation (BT1 is excluded when it is not under DP command) and actuator dynamics.
   const avail = availability(s);
-  const alloc = allocate(tau, avail, p);
+  // Power-aware allocation: each thruster's capacity is what its supply allows now.
+  const pl: DPParams = { ...p, thrusters: p.thrusters.map((g, i) => ({ ...g, maxN: Math.max(1, Math.min(g.maxN, s.thrusters[i].limitN ?? g.maxN)) })) };
+  const alloc = allocate(tau, avail, pl);
   let bt1CmdN = 0;
   const kT = 1 - Math.exp(-dt / p.thrustTimeConstantS);
   s.thrusters.forEach((t, i) => {
@@ -592,6 +769,7 @@ export function stepDP(prev: DPState, dt: number, input: DPStepInput, p: DPParam
         t.forceN = input.bt1.available ? input.bt1.forceN : 0;
       } else {
         t.forceN += (t.cmdN - t.forceN) * kT;
+        t.forceN = clamp(t.forceN, -t.limitN, t.limitN);
       }
       return;
     }
@@ -602,8 +780,10 @@ export function stepDP(prev: DPState, dt: number, input: DPStepInput, p: DPParam
     const maxStep = p.azimuthRateRadS * dt;
     t.angle = wrapPi(t.angle + clamp(dA, -maxStep, maxStep));
     // Thrust is held back while the unit is still slewing far from its commanded angle.
-    const target = t.failed ? 0 : mag * Math.max(0, Math.cos(dA));
+    const target = t.failed || !avail[t.id] ? 0 : mag * Math.max(0, Math.cos(dA));
     t.forceN += (target - t.forceN) * kT;
+    // The drive's power limit acts at once (fast phase-back), the rest follows the thrust time constant.
+    t.forceN = Math.min(t.forceN, t.limitN);
   });
 
   // Delivered thrust in the body frame.
@@ -652,8 +832,19 @@ export function stepDP(prev: DPState, dt: number, input: DPStepInput, p: DPParam
   const posErr = Math.hypot(s.eta[0] - s.setpoint[0], s.eta[1] - s.setpoint[1]);
   setAlarm(s.alarms, 'POSITION_WARNING', autoPos && posErr > p.posWarnM);
   setAlarm(s.alarms, 'HEADING_WARNING', autoHead && Math.abs(wrapPi(s.eta[2] - s.setpoint[2])) > p.headWarnRad);
-  if (Math.floor(s.time) !== Math.floor(prev.time)) s.consequence = consequenceAnalysis(s, p);
+  if (Math.floor(s.time) !== Math.floor(prev.time)) s.consequence = consequenceAnalysis(s, input.power ? pl : p, !!input.power);
   setAlarm(s.alarms, 'CONSEQUENCE', s.mode === 'AUTO_POSITION' && s.dpClass > 1 && !s.consequence.ok);
+  setAlarm(s.alarms, 'WCF_CAPABILITY', s.mode === 'AUTO_POSITION' && s.dpClass > 1 && s.consequence.groupOk === false);
+  setAlarm(s.alarms, 'NO_HEADING_REF', noHeading);
+  setAlarm(s.alarms, 'GYRO_REJECTED', vote.rejected.length > 0);
+  setAlarm(s.alarms, 'HEADING_DEVIATION', vote.deviation);
+  setAlarm(s.alarms, 'SINGLE_GYRO', s.dpClass > 1 && vote.count === 1);
+  setAlarm(s.alarms, 'NO_MRU', mru === 0);
+  setAlarm(s.alarms, 'NO_OPERATOR_STATION', !operatorStationAvailable(s));
+  setAlarm(s.alarms, 'WIND_FF_OFF', s.mode !== 'STANDBY' && !s.windFF.valid);
+  setAlarm(s.alarms, 'POWER_LIMIT', s.mode !== 'STANDBY' && s.thrusters.some((t) => avail[t.id] && Math.abs(t.cmdN) > t.limitN + 500));
+  setAlarm(s.alarms, 'THRUSTER_NO_POWER', s.thrusters.some((t) => !t.failed && t.powered === false));
+  setAlarm(s.alarms, 'REF_NO_POWER', s.refs.some((r) => r.installed && r.enabled && r.powered === false));
   s.acknowledged = s.acknowledged.filter((a) => s.alarms.includes(a));
   return { state: s, bt1CmdN };
 }
@@ -677,7 +868,8 @@ export type DPCommand =
   | { type: 'ref-enable'; id: RefId; enabled: boolean }
   | { type: 'fail-controller'; id: ControllerId; failed: boolean }
   | { type: 'fail-network'; id: NetworkId; failed: boolean }
-  | { type: 'bridge-compartment'; lost: boolean };
+  | { type: 'bridge-compartment'; lost: boolean }
+  | { type: 'sensor-fault'; id: SensorId; fault: SensorFault };
 
 const norm360 = (d: number) => ((d % 360) + 360) % 360;
 
@@ -752,6 +944,8 @@ export function applyDPCommand(s: DPState, cmd: DPCommand): DPState {
       return { ...s, networks: s.networks.map((n) => (n.id === cmd.id && n.installed ? { ...n, failed: cmd.failed } : n)) };
     case 'bridge-compartment':
       return { ...s, bridgeCompartmentLost: cmd.lost };
+    case 'sensor-fault':
+      return { ...s, sensors: s.sensors.map((x) => (x.id === cmd.id ? { ...x, fault: cmd.fault, bias: cmd.fault === 'drift' ? x.bias : 0 } : x)) };
   }
 }
 

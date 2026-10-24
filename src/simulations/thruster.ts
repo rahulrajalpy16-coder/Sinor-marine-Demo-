@@ -15,13 +15,14 @@
 export type ThrusterStatus = 'stopped' | 'starting' | 'running' | 'stopping' | 'paused' | 'shutdown';
 export type ControlMode = 'FU' | 'NFU';
 export type ControlStation = 'BRIDGE' | 'DP';
-export type AlarmCode = 'LEVER_NOT_ZERO' | 'LOAD_CLIPPING' | 'EMERGENCY_STOP' | 'NOT_IN_COMMAND';
+export type AlarmCode = 'LEVER_NOT_ZERO' | 'LOAD_CLIPPING' | 'EMERGENCY_STOP' | 'NOT_IN_COMMAND' | 'NO_SUPPLY';
 
 export const ALARM_TEXT: Record<AlarmCode, string> = {
   LEVER_NOT_ZERO: 'Start blocked: lever not at zero',
   LOAD_CLIPPING: 'Load clipping active: pitch limited',
   EMERGENCY_STOP: 'Emergency stop: motor tripped',
   NOT_IN_COMMAND: 'Bridge lever not in command',
+  NO_SUPPLY: 'No electrical supply from main switchboard A: motor tripped / start blocked',
 };
 
 export interface ThrusterParams {
@@ -76,6 +77,9 @@ export interface ThrusterState {
   station: ControlStation;
   /** Available power as a fraction of rated (power management / reduction zone). */
   powerLimit: number;
+  /** Power the switchboard can give now (PMS phase-back), fraction of rated; 0 when the supply is lost. */
+  supplyLimit: number;
+  supplyAvailable: boolean;
   loadClipping: boolean;
   alarms: AlarmCode[];
   acknowledged: AlarmCode[];
@@ -95,6 +99,8 @@ export const initialThrusterState = (): ThrusterState => ({
   mode: 'FU',
   station: 'BRIDGE',
   powerLimit: 1,
+  supplyLimit: 1,
+  supplyAvailable: true,
   loadClipping: false,
   alarms: [],
   acknowledged: [],
@@ -150,7 +156,7 @@ export function stepThruster(s: ThrusterState, dt: number, p: ThrusterParams = D
   let pitch = s.pitch;
 
   // Pitch setpoint: lever (clipped by load control) while the motor is under power, zero while stopping.
-  const pMax = maxPitchForLimit(s.powerLimit, p);
+  const pMax = maxPitchForLimit(Math.min(s.powerLimit, s.supplyLimit ?? 1), p);
   // In DP command the setpoint comes from the DP system (written through the controller), not the lever.
   const leverSet = s.command;
   const powered = status === 'starting' || status === 'running';
@@ -211,7 +217,8 @@ export type ThrusterCommand =
   | { type: 'nudge'; delta: number }
   | { type: 'set-mode'; mode: ControlMode }
   | { type: 'set-station'; station: ControlStation }
-  | { type: 'set-power-limit'; value: number };
+  | { type: 'set-power-limit'; value: number }
+  | { type: 'set-supply'; available: boolean; limit: number };
 
 /** Finite state machine for operator commands. Invalid transitions return the state unchanged. */
 export function applyThrusterCommand(s: ThrusterState, cmd: ThrusterCommand): ThrusterState {
@@ -221,6 +228,8 @@ export function applyThrusterCommand(s: ThrusterState, cmd: ThrusterCommand): Th
       // Start interlock: the bridge lever must be at zero so the propeller is not loaded on start.
       const leverZero = s.station !== 'BRIDGE' || Math.abs(s.command) <= LEVER_ZERO_EPS;
       if (!leverZero) return { ...s, ...setAlarm(s, 'LEVER_NOT_ZERO', true) };
+      // Heavy-consumer interlock: no start without a live supply from the switchboard.
+      if (s.supplyAvailable === false) return { ...s, ...setAlarm(s, 'NO_SUPPLY', true) };
       return { ...s, status: 'starting', ...setAlarm(s, 'LEVER_NOT_ZERO', false) };
     }
     case 'pause':
@@ -251,6 +260,18 @@ export function applyThrusterCommand(s: ThrusterState, cmd: ThrusterCommand): Th
       if (s.station === cmd.station) return s;
       // Bumpless transfer: the lever setpoint is zeroed when command leaves the bridge.
       return { ...s, station: cmd.station, command: 0, ...setAlarm(s, 'NOT_IN_COMMAND', cmd.station !== 'BRIDGE') };
+    }
+    case 'set-supply': {
+      const limit = Math.max(0, Math.min(1, Number.isFinite(cmd.limit) ? cmd.limit : 0));
+      let next: ThrusterState = { ...s, supplyAvailable: cmd.available, supplyLimit: cmd.available ? limit : 0 };
+      if (!cmd.available && (s.status === 'running' || s.status === 'starting' || s.status === 'stopping')) {
+        next = { ...next, status: 'shutdown', resumeStatus: null, ...setAlarm(s, 'NO_SUPPLY', true) };
+      } else if (cmd.available && s.alarms.includes('NO_SUPPLY')) {
+        next = { ...next, ...setAlarm(s, 'NO_SUPPLY', false) };
+        // Supply back: a motor that tripped on supply loss (not an emergency stop) can be started again.
+        if (s.status === 'shutdown' && !s.alarms.includes('EMERGENCY_STOP')) next = { ...next, status: 'stopped', rpm: 0, pitch: 0 };
+      }
+      return next;
     }
     case 'set-power-limit': {
       const v = Number(cmd.value);

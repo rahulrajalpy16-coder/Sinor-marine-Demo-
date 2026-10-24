@@ -26,6 +26,22 @@
     {
       "id": "main-deck",
       "interior": false
+    },
+    {
+      "id": "switchboard-room",
+      "interior": true
+    },
+    {
+      "id": "emergency-generator-room",
+      "interior": true
+    },
+    {
+      "id": "ups-rooms",
+      "interior": true
+    },
+    {
+      "id": "gyro-room",
+      "interior": true
     }
   ],
   "equipmentIds": [
@@ -38,6 +54,14 @@
     "cyscan-001",
     "dgps-001",
     "tautwire-001",
-    "sprintnav-001"
+    "sprintnav-001",
+    "pms-001",
+    "gensets-001",
+    "msb-001",
+    "emergency-gen-001",
+    "ups-001",
+    "wind-001",
+    "gyro-mru-001",
+    "azimuth-001"
   ]
 }

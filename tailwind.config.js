@@ -1,3 +1,5 @@
+import plugin from 'tailwindcss/plugin';
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
@@ -19,5 +21,6 @@ export default {
       },
     },
   },
-  plugins: [],
+  // TV (remote control) mode: bigger targets, set on <html> by the D-pad navigation.
+  plugins: [plugin(({ addVariant }) => addVariant('tv', '.tv-mode &'))],
 };

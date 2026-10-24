@@ -50,6 +50,14 @@ export class DeploymentController implements SimulationController<DeploymentStat
     if (this.state !== before && (changedPhase || this.sinceNotify >= 1 / this.notifyHz)) this.emit();
   }
 
+  /** Replace the whole state (simulator reset, scenario load) and notify. */
+  replace(next: DeploymentState) {
+    this.state = next;
+    this.stepper.reset();
+    this.lastError = null;
+    this.emit();
+  }
+
   subscribe(listener: (s: DeploymentState) => void) {
     this.listeners.add(listener);
     return () => {

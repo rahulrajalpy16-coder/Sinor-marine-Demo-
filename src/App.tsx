@@ -9,6 +9,41 @@ import { SceneErrorBoundary, hasWebGL } from './components/SceneErrorBoundary';
 import { useAppStore } from './store/useAppStore';
 import { initialQuality } from './rendering/quality';
 import { installViewportListeners, useDevice } from './responsive/useDevice';
+import { SimControlsPanel } from './components/SimControls';
+import { DemoMode } from './components/DemoMode';
+import { useSimUi } from './store/useSimUi';
+import { installSpatialNav } from './tv/spatialNav';
+
+declare global {
+  interface Window {
+    /** Called by the Android app's Back key; true when the app handled it (false lets Android leave the app). */
+    __sinorBack?: () => boolean;
+  }
+}
+
+/** One step back: close the open overlay, then leave the selected system, then nothing (the app may exit). */
+function goBack(closeGuide: () => boolean): boolean {
+  const ui = useSimUi.getState();
+  if (ui.demo) {
+    ui.setDemo(false);
+    return true;
+  }
+  if (ui.controlsOpen) {
+    ui.setControlsOpen(false);
+    return true;
+  }
+  if (closeGuide()) return true;
+  const s = useAppStore.getState();
+  if (s.introActive) {
+    s.endIntro();
+    return true;
+  }
+  if (s.selectedId) {
+    s.returnToPrevious();
+    return true;
+  }
+  return false;
+}
 
 const SceneRoot = lazy(() => import('./scene/SceneRoot').then((m) => ({ default: m.SceneRoot })));
 
@@ -38,6 +73,23 @@ export default function App() {
 
   useEffect(() => installViewportListeners(), []);
 
+  const tv = useSimUi((s) => s.tv);
+  const guideRef = useRef(guide);
+  guideRef.current = guide;
+  useEffect(() => {
+    const closeGuide = () => {
+      if (!guideRef.current) return false;
+      setGuide(false);
+      return true;
+    };
+    window.__sinorBack = () => goBack(closeGuide);
+    const off = tv ? installSpatialNav(() => goBack(closeGuide)) : undefined;
+    return () => {
+      off?.();
+      delete window.__sinorBack;
+    };
+  }, [tv]);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const st = useAppStore.getState();
@@ -45,6 +97,8 @@ export default function App() {
     st.setQuality(initialQuality(window.location.search).quality);
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
+      const ui = useSimUi.getState();
+      if (ui.controlsOpen) return ui.setControlsOpen(false);
       const s = useAppStore.getState();
       if (s.introActive) s.endIntro();
       else if (s.selectedId) s.returnToPrevious();
@@ -82,6 +136,8 @@ export default function App() {
       </div>
       <IntroOverlay />
       <GuideOverlay open={guide} onClose={() => setGuide(false)} />
+      <SimControlsPanel />
+      <DemoMode />
     </div>
   );
 }

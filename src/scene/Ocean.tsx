@@ -108,6 +108,8 @@ export function Ocean() {
     const sel = s.selectedId ? getEquipment(s.selectedId) : undefined;
     let targetOpacity = st.oceanOpacity;
     if (sel?.placement.underwater || s.hprSignals) targetOpacity = Math.min(targetOpacity, 0.38);
+    // Inside the hull below the main deck (engine room, switchboard room, HPR trunk) there is no sea to see.
+    if (sel?.placement.interior && sel.placement.target[1] < 1) targetOpacity = 0;
     const u = material.uniforms;
     const k = 1 - Math.exp(-dt * 4);
     u.uOpacity.value += (targetOpacity - u.uOpacity.value) * k;

@@ -1,8 +1,17 @@
-import type { ComponentType } from 'react';
+import { createElement, type ComponentType } from 'react';
 import { ThrusterPanel } from './ThrusterPanel';
 import { HPRPanel } from './HPRPanel';
 import { DPPanel } from './DPPanel';
 import { CyScanPanel, DGPSPanel, RadaScanPanel, SprintNavPanel, TautWirePanel } from './PosRefPanel';
+import { PMSPanel } from './PMSPanel';
+import { UPSPanel } from './UPSPanel';
+import { WindPanel } from './WindPanel';
+import { SensorsPanel } from './SensorsPanel';
+import { AzimuthPanel } from './AzimuthPanel';
+
+// The generator, switchboard and emergency generator views open the same PMS on their own page.
+const GensetPanel = () => createElement(PMSPanel, { initialTab: 'gen' });
+const EmergencyPanel = () => createElement(PMSPanel, { initialTab: 'swbd' });
 
 /**
  * Simulation/HMI panel for each equipment id. The Inspector hosts these inside the responsive
@@ -19,4 +28,12 @@ export const SYSTEM_PANELS: Record<string, ComponentType> = {
   'dgps-001': DGPSPanel,
   'tautwire-001': TautWirePanel,
   'sprintnav-001': SprintNavPanel,
+  'pms-001': PMSPanel,
+  'msb-001': PMSPanel,
+  'gensets-001': GensetPanel,
+  'emergency-gen-001': EmergencyPanel,
+  'ups-001': UPSPanel,
+  'wind-001': WindPanel,
+  'gyro-mru-001': SensorsPanel,
+  'azimuth-001': AzimuthPanel,
 };

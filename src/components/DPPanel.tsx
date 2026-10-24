@@ -9,6 +9,7 @@ import {
   DEFAULT_DP_PARAMS as P,
   DP_ALARM_TEXT,
   headingDeg,
+  operatorStationAvailable,
   positionError,
   unacknowledgedDP,
   wrapPi,
@@ -146,6 +147,12 @@ export function DPPanel() {
         <Readout label="Sim time" value={`${Math.floor(s.time / 60)}:${String(Math.floor(s.time % 60)).padStart(2, '0')}`} />
       </dl>
 
+      {s.status === 'running' && !operatorStationAvailable(s) && (
+        <p role="alert" data-testid="dp-no-station" className="rounded-sm border border-[#e04444] bg-[#8f1d1d]/70 p-1.5 text-[10px] text-white">
+          ▲ No DP operator station has power. The DP keeps working on its last setpoint, but operator commands cannot be given. Restore UPS power
+          (Power Management or DP UPS), or use Simulator › Reset all.
+        </p>
+      )}
       <div role="tablist" aria-label="DP pages" className="grid grid-cols-4 gap-1 text-[10px]">
         {(['position', 'thrusters', 'redundancy', 'environment'] as Tab[]).map((t) => (
           <button
@@ -387,14 +394,18 @@ function ThrustersPage({ s, bt, send }: { s: DPState; bt: ReturnType<typeof bowT
         <tbody>
           {s.thrusters.map((t, i) => {
             const g = P.thrusters[i];
-            const state = t.failed ? 'FAIL' : t.available ? 'DP' : t.id === 'BT1' ? (btInDp ? 'STOPPED' : 'BRIDGE') : 'OFF';
+            const state = t.failed ? 'FAIL' : !t.powered ? 'NO PWR' : t.available ? 'DP' : t.id === 'BT1' ? (btInDp ? 'STOPPED' : 'BRIDGE') : 'OFF';
+            const limited = t.powered && t.limitN < g.maxN * 0.98;
             const load = Math.min(1, Math.abs(t.forceN) / g.maxN);
             const dir = g.azimuth ? `${((((t.angle * 180) / Math.PI) % 360) + 360) % 360 | 0}°` : t.forceN > 500 ? 'STBD' : t.forceN < -500 ? 'PORT' : '—';
             return (
               <tr key={t.id} className="bg-black/25">
                 <td className="px-1">{t.id}</td>
-                <td className={`px-1 ${state === 'DP' ? 'text-[#3fd16b]' : state === 'FAIL' ? 'text-[#e04444]' : 'text-amber-300'}`}>{state}</td>
-                <td className="px-1">{(Math.abs(t.forceN) / 1000).toFixed(0)} kN</td>
+                <td data-testid={`dp-thr-${t.id}-state`} className={`px-1 ${state === 'DP' ? 'text-[#3fd16b]' : state === 'FAIL' || state === 'NO PWR' ? 'text-[#e04444]' : 'text-amber-300'}`}>{state}</td>
+                <td className="px-1" data-testid={`dp-thr-${t.id}-force`}>
+                  {(Math.abs(t.forceN) / 1000).toFixed(0)} kN
+                  {limited && <span className="block text-[9px] text-amber-300">≤{(t.limitN / 1000).toFixed(0)} PMS</span>}
+                </td>
                 <td className="px-1">{dir}</td>
                 <td className="px-1">
                   <div className="h-1.5 w-full rounded bg-white/10">
@@ -439,7 +450,8 @@ function ThrustersPage({ s, bt, send }: { s: DPState; bt: ReturnType<typeof bowT
         <Readout label="Sway Fy" value={`${(total[1] / 1000).toFixed(0)} / ${(s.tauCmd[1] / 1000).toFixed(0)} kN`} />
         <Readout label="Yaw Mz" value={`${(total[2] / 1e6).toFixed(1)} / ${(s.tauCmd[2] / 1e6).toFixed(1)} MNm`} />
       </dl>
-      <p className="text-[9px] text-[#7f93a3]">Delivered / demanded. BT2 is a DP-only twin of the P2 bow thruster; AZ1/AZ2 are the stern azimuths.</p>
+      <p className="text-[9px] text-[#7f93a3]">Delivered / demanded. BT2 is a DP-only twin of the P2 bow thruster; AZ1/AZ2 are the stern azimuths. Thrust above the PMS limit (≤ kN) is not available because of the power on line.</p>
+      <OpenSystems ids={[['pms-001', 'POWER MANAGEMENT'], ['azimuth-001', 'AZIMUTHS']]} />
     </div>
   );
 }
@@ -546,7 +558,23 @@ function EnvironmentPage({ s, send }: { s: DPState; send: Send }) {
         <Readout label="Env Fy" value={`${(s.tauEnv[1] / 1000).toFixed(0)} kN`} />
         <Readout label="Env Mz" value={`${(s.tauEnv[2] / 1e6).toFixed(1)} MNm`} />
       </dl>
-      <p className="text-[9px] text-[#7f93a3]">Wind is given as the direction it comes from; current as the direction it sets towards.</p>
+      <dl className="grid grid-cols-2 gap-1 font-mono">
+        <Readout label="Wind feed-forward" value={s.windFF.valid ? `ON · ${s.windFF.relSpeedKn.toFixed(0)} kn ${s.windFF.relFromDeg.toFixed(0)}° rel` : 'OFF (no valid sensor)'} testid="dp-wind-ff" />
+        <Readout label="Heading source" value={s.psiMeas === null ? 'NONE' : `${s.sensors.filter((x) => x.id.startsWith('GYRO') && x.installed && x.powered && x.fault !== 'fail' && !x.rejected).length} gyro(s) voted`} testid="dp-heading-source" />
+      </dl>
+      <p className="text-[9px] text-[#7f93a3]">Wind is given as the direction it comes from; current as the direction it sets towards. The real wind (with gusts) acts on the vessel whatever the wind sensors report.</p>
+      <OpenSystems ids={[['wind-001', 'WIND SENSORS'], ['gyro-mru-001', 'GYROS & MRUS']]} />
+    </div>
+  );
+}
+
+function OpenSystems({ ids }: { ids: [string, string][] }) {
+  const select = useAppStore((st) => st.select);
+  return (
+    <div className="flex flex-wrap gap-1">
+      {ids.map(([id, label]) => (
+        <HmiBtn key={id} testid={`dp-open-${id}`} label={`OPEN ${label}`} onClick={() => select(id)} />
+      ))}
     </div>
   );
 }

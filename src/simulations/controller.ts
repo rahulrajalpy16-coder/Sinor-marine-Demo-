@@ -62,6 +62,14 @@ export class ThrusterController implements SimulationController<ThrusterState, T
     if (statusChanged || (this.state !== before && this.sinceNotify >= 1 / this.notifyHz)) this.emit();
   }
 
+  /** Replace the whole state (simulator reset, scenario load) and notify. */
+  replace(next: ThrusterState) {
+    this.state = next;
+    this.stepper.reset();
+    this.lastError = null;
+    this.emit();
+  }
+
   subscribe(listener: (s: ThrusterState) => void) {
     this.listeners.add(listener);
     return () => {
@@ -71,6 +79,16 @@ export class ThrusterController implements SimulationController<ThrusterState, T
 
   listenerCount() {
     return this.listeners.size;
+  }
+
+  /** Supply from main switchboard A (PMS): a lost supply trips the motor; the limit clips pitch. Notifies on change. */
+  applySupply(available: boolean, limit: number) {
+    const s = this.state;
+    const lim = Math.round(limit * 100) / 100;
+    if (s.supplyAvailable === available && Math.abs((s.supplyLimit ?? 1) - lim) < 0.005) return;
+    const statusBefore = s.status;
+    this.state = applyThrusterCommand(s, { type: 'set-supply', available, limit: lim });
+    if (statusBefore !== this.state.status || s.supplyAvailable !== available) this.emit();
   }
 
   /** DP sets the pitch setpoint directly while it has command; silent (the UI picks it up on the next tick notify). */

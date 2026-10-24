@@ -59,6 +59,14 @@ export class PosRefController implements SimulationController<PosRefState, PosRe
     if (this.state !== before && (phase(before) !== phase(this.state) || this.sinceNotify >= 1 / this.notifyHz)) this.emit();
   }
 
+  /** Replace the whole state (simulator reset, scenario load) and notify. */
+  replace(next: PosRefState) {
+    this.state = next;
+    this.stepper.reset();
+    this.lastError = null;
+    this.emit();
+  }
+
   subscribe(listener: (s: PosRefState) => void) {
     this.listeners.add(listener);
     return () => {

@@ -1,6 +1,8 @@
 import { useAppStore } from '../store/useAppStore';
 import { getEquipment, vessel } from '../equipment/registry';
 import { useDevice } from '../responsive/useDevice';
+import { SimControlsButton } from './SimControls';
+import { TvCameraPad } from './TvCameraPad';
 
 const CAMERA_LABEL: Record<string, string> = {
   overview: 'Overview',
@@ -51,6 +53,8 @@ export function BottomBar() {
       >
         ◎ Focus{eq && !mobile ? `: ${eq.name}` : ''}
       </button>
+      <SimControlsButton />
+      <TvCameraPad />
       <span className="font-mono text-[11px] uppercase tracking-wider text-mute">
         Camera <span data-testid="camera-mode" className="text-cyan-light">{CAMERA_LABEL[cameraMode]}</span>
       </span>

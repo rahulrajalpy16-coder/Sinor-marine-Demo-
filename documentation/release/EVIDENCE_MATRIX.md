@@ -1,0 +1,31 @@
+# Requirements to evidence matrix (release 1.0.0)
+
+Status words: **Built** (code exists), **Tested** (an automated test ran and passed here), **Device-verified** (run on
+the real target hardware), **Deployed** (live). Evidence files are in `Documentation/evidence` on the pendrive.
+
+| Req | Requirement | Implementation location | Acceptance check | Status | Evidence | Remaining limitation |
+|---|---|---|---|---|---|---|
+| R-01 | Sinor branding | `public/brand/`, `src/components/TopBar.tsx`, `IntroOverlay`, `GuideOverlay`, `index.html`, `packaging/android/res`, `packaging/desktop/sinor.ico` | Logo on start, guide, top bar; exe and APK icons | Built, Tested | e2e suite; `windows-build-checks.txt` (version strings) | OEM equipment keeps its makers' names by design |
+| R-02 | PMS: SLD, generators, switchboard, bus tie, distribution | `src/simulations/power.ts`, `src/components/PMSPanel.tsx`, `src/equipment/ElectricalPlant.tsx` | Unit tests `power.test.ts`; e2e "PMS shows the shared state…" | Built, Tested | `tests-unit-and-browser.txt` | Provisional ratings (AS-01 to AS-05) |
+| R-03 | Load management, auto start/stop, load shedding, phase-back, DP reserve | `power.ts` (`stepPower`) | Unit tests (start on load, shed by priority, phase-back) | Built, Tested | as above | Settings provisional |
+| R-04 | Blackout prevention and recovery | `power.ts` | Unit tests; e2e "a blackout scenario recovers automatically…" | Built, Tested | as above | |
+| R-05 | Interlocks (synchronising, no EG parallel, closing on live bus) | `power.ts` `applyPowerCommand` | e2e: closing G2 unsynchronised rejected, then synchronised close works (test B) | Built, Tested | as above | |
+| R-06 | Generator failure during DP, manageable and insufficient | `vesselCore.ts`, `dp.ts`, `simControl.ts` scenarios | `vesselCore.test.ts`: "manageable: G1 trips with two sets per bus…position is held", "one set per bus: the trip blacks out section A…", "insufficient capability: losing switchboard A in a strong beam wind…the vessel drifts off"; consistency run (test C) | Built, Tested | `consistency/*.json` | |
+| R-07 | Alarms and events, acknowledge, trends, faults; severity not by colour alone | `PMSPanel`, `UPSPanel`, `WindPanel`, `hmi/kit.tsx` (`SEV_SYMBOL`) | e2e checks alarm text | Built, Tested | e2e | |
+| R-08 | DP UPS: rectifier, battery, inverter, static and maintenance bypass, consumer map, runtime | `power.ts` (UPS), `UPSPanel.tsx` | Unit tests; e2e "UPS goes on battery…" (test D) | Built, Tested | e2e | Battery model generic (AS-06) |
+| R-09 | PMS to DP causal link with redundancy groups | `dp.ts` (`DP_SUPPLY`, power limits), `power.ts` `driveAvailable` | Unit tests; e2e DP tests | Built, Tested | e2e | |
+| R-10 | Wind: physical wind separate from sensors; gusts, stale, comms, frozen, bias, disagreement, selection, true and apparent | `src/simulations/wind.ts`, `WindPanel.tsx` | `wind.test.ts`; e2e "wind sensor failure leaves the physical wind…" (test E) | Built, Tested | e2e | Sensor model generic (AS-08) |
+| R-11 | Gyros and MRUs with voting and drift | `dp.ts`, `SensorsPanel.tsx` | Unit tests; gyro-drift scenario | Built, Tested | unit tests | |
+| R-12 | Selectable 3D generators, switchboards, UPS, thrusters, DP, PRS, gyros, MRUs, GNSS, wind sensors | `ElectricalPlant.tsx`, `VesselWithEquipment.tsx`, `registry.ts` | e2e clicks each new system in 3D and checks its screen (test F) | Built, Tested | e2e (8 new click tests + 6 existing) | |
+| R-13 | Keyboard, touch and TV operation | `src/tv/spatialNav.ts`, `TvCameraPad.tsx`, responsive tests | e2e responsive and TV tests; APK content TV test (12 checks) | Built, Tested | `apk/apk-assets-tv.json` | Not run on a physical TV |
+| R-14 | Reset from normal, failure, blackout and demo states | `simControl.ts` `resetAll`, `SimControls.tsx`, `DemoMode.tsx` | Unit test "Reset all recovers from any state"; e2e reset and demo exit | Built, Tested | as above | |
+| R-15 | Exhibition demo mode with an obvious exit | `DemoMode.tsx` | e2e demo test; endurance runs | Built, Tested | `endurance/*.json` | |
+| R-16 | Local persistence with versioned migration; damaged data handled | `simControl.ts` store | Unit tests (migration, damaged); e2e damaged-data test; relaunch counts in offline self-test | Built, Tested | `electron-offline/selftest.json` (`runsOnThisDrive` 2) | |
+| R-17 | Windows offline package, runs from a pendrive | `packaging/build-windows.sh`, `packaging/desktop/main.js` | Build checks; same app and runtime cold-started offline on Linux with the network blocked (test G) | Built, Tested (test bed) | `windows-build-checks.txt`, `electron-offline/` | **Not run on a Windows PC**; exe not code-signed |
+| R-18 | Android TV offline package | `packaging/android/`, `packaging/build-android.sh` | APK signature, manifest, no permissions; bundled content run at the WebView origin with all other requests blocked (test G) | Built, Tested (content) | `apk/apk-build-checks.txt`, `apk/apk-assets-tv.json` | **Not run on a TV or emulator**; install needs a file manager on the TV |
+| R-19 | No macOS build | n/a | n/a | Done (as requested) | | |
+| R-20 | Online and offline give the same results | `src/simulations/consistency.ts`, `packaging/tests/consistency-*.cjs` | Same seed in Node, browser build, offline desktop app, APK content, live site; tolerance 1e-6 (test H) | Tested | `consistency/compare.txt` | |
+| R-21 | Performance and 30 min endurance per target | `packaging/desktop/main.js` (self-test), `packaging/tests/endurance-browser.cjs` | 30 min demo loop, sampled every minute (test I) | see TEST_RESULTS.md | `endurance/*.json` | Software rendering in a container; real hardware will be faster |
+| R-22 | Release artifacts, checksums, deployment, live check, rollback | `CHECKSUMS.sha256`, RELEASE_NOTES.md | Checksums verified; live URL checked after merge (test J) | see TEST_RESULTS.md | | |
+| R-23 | Preserve existing data, OEM info and features | n/a | OEM data files byte-identical to `c64b402`; registry and config additions only; existing 26 e2e tests pass (test A) | Tested | `test-A-preservation.txt` | |
+| R-24 | No claims of class approval, FMEA or certification | ENGINEERING_REGISTER.md, README_FIRST.txt | Text review | Done | | |
