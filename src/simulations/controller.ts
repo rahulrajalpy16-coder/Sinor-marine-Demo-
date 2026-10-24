@@ -73,6 +73,16 @@ export class ThrusterController implements SimulationController<ThrusterState, T
     return this.listeners.size;
   }
 
+  /** Supply from main switchboard A (PMS): a lost supply trips the motor; the limit clips pitch. Notifies on change. */
+  applySupply(available: boolean, limit: number) {
+    const s = this.state;
+    const lim = Math.round(limit * 100) / 100;
+    if (s.supplyAvailable === available && Math.abs((s.supplyLimit ?? 1) - lim) < 0.005) return;
+    const statusBefore = s.status;
+    this.state = applyThrusterCommand(s, { type: 'set-supply', available, limit: lim });
+    if (statusBefore !== this.state.status || s.supplyAvailable !== available) this.emit();
+  }
+
   /** DP sets the pitch setpoint directly while it has command; silent (the UI picks it up on the next tick notify). */
   setDpPitch(pitch: number) {
     if (this.state.station !== 'DP') return;
