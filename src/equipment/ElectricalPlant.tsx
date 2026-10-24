@@ -21,7 +21,7 @@ export const ENGINE_ROOM = { floorY: -3.8, z0: -28, z1: -13.5, x: 4.5 } as const
 export const GENSET_Z: Record<'G1' | 'G2' | 'G3' | 'G4', [number, number]> = { G1: [-ENGINE_ROOM.x, -24.5], G2: [-ENGINE_ROOM.x, -16.8], G3: [ENGINE_ROOM.x, -24.5], G4: [ENGINE_ROOM.x, -16.8] };
 export const MSB_ROOM = { floorY: -1.5, z: -8.6 } as const;
 export const EG_ROOM = { x: -6.0, z: 6.6, floorY: LEVEL.upper } as const;
-export const UPS_ROOMS = { z: 9, x: 2.6, floorY: LEVEL.officers } as const;
+export const UPS_ROOMS = { z: 9, floorY: LEVEL.officers } as const;
 export const GYRO_ROOM = { z: 12.6, floorY: LEVEL.officers } as const;
 export const MRU_POS: [number, number, number][] = [
   [-0.8, -3.8, 1.0],
@@ -265,6 +265,7 @@ export function DpUps() {
     rack: { color: '#3a4148', metalness: 0.6, roughness: 0.5 },
     battery: { color: '#1d2226', metalness: 0.2, roughness: 0.6 },
     screen: { color: '#0f2236', metalness: 0.2, roughness: 0.3 },
+    wall: { color: '#b9c0c6', metalness: 0.1, roughness: 0.8 },
   });
   const g = useMemo(
     () => ({
@@ -274,6 +275,7 @@ export function DpUps() {
       battery: new THREE.BoxGeometry(0.16, 0.2, 0.2),
       screen: new THREE.PlaneGeometry(0.24, 0.16),
       lamp: new THREE.SphereGeometry(0.035, 8, 6),
+      wall: new THREE.BoxGeometry(0.06, 2.6, 2.0),
     }),
     [],
   );
@@ -306,8 +308,10 @@ export function DpUps() {
   );
   return (
     <group name={`equipment:${id}`} {...handlers}>
-      {unit('UPS-A', -UPS_ROOMS.x - 0.4, UPS_ROOMS.z, lamps[0])}
-      {unit('UPS-B', UPS_ROOMS.x - 0.4, UPS_ROOMS.z, lamps[1])}
+      {unit('UPS-A', -1.3, UPS_ROOMS.z, lamps[0])}
+      {unit('UPS-B', 0.9, UPS_ROOMS.z, lamps[1])}
+      {/* Fire-rated division between UPS room A and UPS room B (separation of the redundancy groups). */}
+      <mesh geometry={g.wall} material={mats.wall} position={[0.25, UPS_ROOMS.floorY + 1.3, UPS_ROOMS.z]} name="ups-room-division" />
       <group ref={dp3}>{unit('UPS-C', 6.1, 8.7, lamps[2], -Math.PI / 2)}</group>
     </group>
   );

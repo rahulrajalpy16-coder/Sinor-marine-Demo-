@@ -8,6 +8,8 @@ import { dpSystem } from '../simulations/dpController';
 import { hprDeployment } from '../simulations/deploymentController';
 import { posRefs } from '../simulations/posrefsController';
 import { toScene, vesselMatrix } from './vesselTransform';
+import { powerSystem, windSystem } from '../simulations/powerController';
+import { runScenario, type ScenarioOptions } from '../simulations/vesselCore';
 
 declare global {
   interface Window {
@@ -19,6 +21,10 @@ declare global {
       dp: () => ReturnType<typeof dpSystem.getState>;
       hpr: () => ReturnType<typeof hprDeployment.getState>;
       posrefs: () => ReturnType<typeof posRefs.getState>;
+      power: () => ReturnType<typeof powerSystem.getState>;
+      wind: () => ReturnType<typeof windSystem.getState>;
+      /** Runs the deterministic headless scenario engine (the same core the app uses), for test H. */
+      runScenario: (o: ScenarioOptions) => ReturnType<typeof runScenario>;
       camera: () => { position: number[] };
       /** Places the camera at a vessel-frame pose at once (the exhibition video's cinematic shots). */
       setCamera: (position: [number, number, number], target: [number, number, number], fov?: number) => void;
@@ -60,6 +66,9 @@ export function TestBridge() {
       dp: () => dpSystem.getState(),
       hpr: () => hprDeployment.getState(),
       posrefs: () => posRefs.getState(),
+      power: () => powerSystem.getState(),
+      wind: () => windSystem.getState(),
+      runScenario: (o) => runScenario(o),
       camera: () => ({ position: camera.position.toArray() }),
       setCamera: (position, target, fov) => {
         const m = vesselMatrix();

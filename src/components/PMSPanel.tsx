@@ -298,7 +298,7 @@ function GenCard({ s, id, send }: P & { id: GenId }) {
         </span>
       </div>
       <Bar pct={(g.kw / c.ratedKW) * 100} label={`${id} load`} />
-      <div className="grid grid-cols-2 gap-x-3">
+      <div className="grid grid-cols-1">
         <KV k="kW / kVAr" v={`${g.kw.toFixed(0)} / ${g.kvar.toFixed(0)}`} testid={`pms-gen-${id}-kw`} />
         <KV k="kVA · PF" v={`${kva.toFixed(0)} · ${pf.toFixed(2)}`} />
         <KV k="Current" v={`${amps(g.kw, g.kvar, g.v).toFixed(0)} A`} />
@@ -327,7 +327,7 @@ function Generators({ s, send }: P) {
   return (
     <div className="flex flex-col gap-1.5">
       <p className="text-[10px] text-[#9fb3c2]">Standby order: {order.filter((g) => g.state !== 'online').map((g) => g.id).join(' → ') || 'none'} · CLOSE is only allowed on a dead bus; use SYNC & CLOSE on a live bus.</p>
-      <div className="grid gap-1.5 md:grid-cols-2">
+      <div className="grid gap-1.5">
         {s.gens.map((g) => (
           <GenCard key={g.id} s={s} id={g.id} send={send} />
         ))}

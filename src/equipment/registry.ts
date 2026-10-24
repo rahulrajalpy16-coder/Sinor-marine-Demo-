@@ -267,8 +267,8 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
   },
   'gensets-001': {
     short: 'Generators',
-    target: [0, -2.6, -20.6],
-    camera: [0, -1.0, -11.2],
+    target: [0, -2.8, -21.0],
+    camera: [0, 0.9, -10.6],
     underwater: false,
     interior: true,
     interiorMaxDistance: 13,
@@ -286,11 +286,11 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
   },
   'msb-001': {
     short: 'Switchboard',
-    target: [0, -0.3, -8.6],
-    camera: [0.8, 0.5, -4.4],
+    target: [0, -0.2, -8.6],
+    camera: [0.6, 1.0, -1.6],
     underwater: false,
     interior: true,
-    interiorMaxDistance: 7,
+    interiorMaxDistance: 9,
     explodable: false,
     implemented: true,
     summary:
@@ -304,11 +304,11 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
   },
   'emergency-gen-001': {
     short: 'Emergency Gen',
-    target: [-5.5, 8.1, 6.6],
-    camera: [-3.0, 9.3, 9.6],
+    target: [-5.4, 8.0, 6.6],
+    camera: [-1.6, 9.6, 10.4],
     underwater: false,
     interior: true,
-    interiorMaxDistance: 6,
+    interiorMaxDistance: 8,
     explodable: false,
     implemented: true,
     summary:
@@ -324,10 +324,10 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
   'ups-001': {
     short: 'DP UPS',
     target: [0, 11.0, 9.0],
-    camera: [0.2, 11.9, 12.2],
+    camera: [0, 11.8, 13.4],
     underwater: false,
     interior: true,
-    interiorMaxDistance: 6,
+    interiorMaxDistance: 8,
     explodable: false,
     implemented: true,
     summary:
