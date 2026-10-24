@@ -118,9 +118,10 @@ async function selfTest(win, blocked) {
     await js(`document.querySelector('[data-testid=sim-controls-open]').click()`);
     await new Promise((r) => setTimeout(r, 500));
     await js(`document.querySelector('[data-testid=demo-start]').click()`);
-    const end = Date.now() + minutes * 60000;
-    while (Date.now() < end) {
-      await new Promise((r) => setTimeout(r, 60000));
+    // One sample at the end of every minute, on a fixed schedule (the sampling time does not add up).
+    const t1 = Date.now();
+    for (let i = 1; i <= minutes; i++) {
+      await new Promise((r) => setTimeout(r, Math.max(0, t1 + i * 60000 - 2000 - Date.now())));
       const m = await js(`new Promise((res) => { let n = 0; const t = performance.now(); const f = () => { n++; if (performance.now() - t < 2000) requestAnimationFrame(f); else res({ fps: n / ((performance.now() - t) / 1000),
         heapMB: performance.memory ? performance.memory.usedJSHeapSize / 1048576 : null, events: window.__SINOR__.power().events.length,
         demo: !!document.querySelector('[data-testid=demo-overlay]'), title: document.querySelector('[data-testid=demo-title]')?.textContent, lit: window.__SINOR__.sample().lit }); }; requestAnimationFrame(f); })`);
