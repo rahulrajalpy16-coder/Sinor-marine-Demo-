@@ -1,0 +1,21 @@
+Installing Sinor Marine Simulator on Android TV / Google TV (offline)
+
+Needs: Android 7.0 or newer, about 10 MB free, a file manager app on the TV.
+
+1. Plug this pendrive into a USB port of the TV or TV box.
+2. Open the TV's file manager. Open the USB drive, then the folder Android_TV.
+   No file manager on the TV? One (for example "X-plore File Manager") must be added once from
+   Google Play, or by your IT administrator, before the event. This is the only step that may need internet.
+3. Select SinorMarine-1.0.0.apk.
+4. The TV says installs from this source are not allowed: choose Settings, switch on
+   "Allow from this source" for the file manager only, press Back, then Install.
+5. If Google Play Protect offers to scan the app, you may let it. The app has no internet permission.
+6. Open "Sinor Marine Simulator" from the apps row (it shows the Sinor banner).
+
+Remote: arrows move the yellow focus ring, OK presses, Back closes panels and finally leaves the app.
+The camera pad at the bottom right turns and zooms the 3D view.
+
+To update later: install the newer APK the same way; saved scenarios are kept.
+To remove: Settings > Apps > Sinor Marine Simulator > Uninstall.
+
+Signing certificate SHA-256 is listed in Version_Information\VERSION.txt.

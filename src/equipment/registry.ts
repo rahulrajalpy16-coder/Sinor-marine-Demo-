@@ -247,7 +247,7 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
   'pms-001': {
     short: 'PMS',
     // Engine control room console facing the main switchboard, seen from behind the operator.
-    target: [0, -0.5, -6.2],
+    target: [0, -0.6, -5.7],
     camera: [1.6, 0.6, -3.2],
     underwater: false,
     interior: true,
@@ -304,7 +304,7 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
   },
   'emergency-gen-001': {
     short: 'Emergency Gen',
-    target: [-5.4, 8.0, 6.6],
+    target: [-6.0, 8.0, 6.6],
     camera: [-1.6, 9.6, 10.4],
     underwater: false,
     interior: true,
@@ -323,7 +323,7 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
   },
   'ups-001': {
     short: 'DP UPS',
-    target: [0, 11.0, 9.0],
+    target: [-0.55, 10.9, 8.9],
     camera: [0, 11.8, 13.4],
     underwater: false,
     interior: true,
@@ -342,7 +342,7 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
   },
   'wind-001': {
     short: 'Wind Sensors',
-    target: [0, 25.5, 14],
+    target: [0, 25.3, 14],
     camera: [3.2, 26.6, 18.2],
     underwater: false,
     explodable: false,
@@ -376,8 +376,8 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
   },
   'azimuth-001': {
     short: 'Azimuths',
-    target: [0, -4.3, -34],
-    camera: [13, -2.6, -45],
+    target: [-4.8, -4.3, -34],
+    camera: [8, -2.6, -45],
     underwater: true,
     explodable: false,
     implemented: true,

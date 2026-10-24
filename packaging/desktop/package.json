@@ -1,0 +1,9 @@
+{
+  "name": "sinor-marine-simulator",
+  "productName": "Sinor Marine Vessel Systems Simulator",
+  "version": "1.0.0",
+  "description": "Sinor Marine Vessel Systems Simulator (offline)",
+  "main": "main.js",
+  "author": "Sinor Marine Services Middle East FZCO",
+  "private": true
+}

@@ -10,11 +10,14 @@ import { posRefs } from '../simulations/posrefsController';
 import { toScene, vesselMatrix } from './vesselTransform';
 import { powerSystem, windSystem } from '../simulations/powerController';
 import { runScenario, type ScenarioOptions } from '../simulations/vesselCore';
+import { consistencyRun } from '../simulations/consistency';
 
 declare global {
   interface Window {
     __SINOR__?: {
       project: (id: string) => { x: number; y: number } | null;
+      /** Screen point of a vessel-frame position. */
+      projectPoint: (p: [number, number, number]) => { x: number; y: number };
       sample: () => { lit: number; cyan: number; total: number };
       state: () => ReturnType<typeof useAppStore.getState>;
       thruster: () => ReturnType<typeof bowThruster.getState>;
@@ -25,6 +28,8 @@ declare global {
       wind: () => ReturnType<typeof windSystem.getState>;
       /** Runs the deterministic headless scenario engine (the same core the app uses), for test H. */
       runScenario: (o: ScenarioOptions) => ReturnType<typeof runScenario>;
+      /** Test H reference run (identical inputs in every build). */
+      consistency: () => ReturnType<typeof consistencyRun>;
       camera: () => { position: number[] };
       /** Places the camera at a vessel-frame pose at once (the exhibition video's cinematic shots). */
       setCamera: (position: [number, number, number], target: [number, number, number], fov?: number) => void;
@@ -41,6 +46,11 @@ export function TestBridge() {
         const eq = getEquipment(id);
         if (!eq) return null;
         const v = new THREE.Vector3(...toScene(eq.placement.target)).project(camera);
+        const r = gl.domElement.getBoundingClientRect();
+        return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height };
+      },
+      projectPoint: (p) => {
+        const v = new THREE.Vector3(...toScene(p)).project(camera);
         const r = gl.domElement.getBoundingClientRect();
         return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height };
       },
@@ -69,6 +79,7 @@ export function TestBridge() {
       power: () => powerSystem.getState(),
       wind: () => windSystem.getState(),
       runScenario: (o) => runScenario(o),
+      consistency: () => consistencyRun(),
       camera: () => ({ position: camera.position.toArray() }),
       setCamera: (position, target, fov) => {
         const m = vesselMatrix();
