@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const [SRC, OUT] = process.argv.slice(2);
 (async () => {
-  const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+  const b = await chromium.launch({ executablePath: process.env.PW_CHROMIUM, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const ctx = await b.newContext({ viewport: { width: 1280, height: 720 } });
   let url = SRC;
   if (!/^https?:/.test(SRC)) {

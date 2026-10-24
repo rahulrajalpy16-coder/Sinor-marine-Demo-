@@ -9,7 +9,7 @@ const MIME = { html: 'text/html', js: 'text/javascript', css: 'text/css', png: '
 (async () => {
   const res = { checks: [], blocked: [], errors: [] };
   const ok = (name, pass, detail) => { res.checks.push({ name, pass: !!pass, detail }); console.log(pass ? 'PASS' : 'FAIL', name, detail ?? ''); };
-  const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+  const b = await chromium.launch({ executablePath: process.env.PW_CHROMIUM, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const ctx = await b.newContext({ viewport: { width: 1920, height: 1080 } });
   await ctx.route('**/*', async (route) => {
     const u = new URL(route.request().url());
