@@ -83,7 +83,7 @@ describe('wind sensors', () => {
   it('measure the apparent wind, with the leeward sensor in the mast wake', () => {
     const s = run(calm(), 5);
     const [ws1, ws2] = s.sensors;
-    // Wind from starboard: WS1 on the port yardarm is leeward of the mast.
+    // Wind from starboard: WS1 on the port mast arm is leeward of the mast.
     expect(ws1.shadowed).toBe(true);
     expect(ws2.shadowed).toBe(false);
     expect(ws2.relSpeedKn).toBeGreaterThan(19);

@@ -2,6 +2,7 @@ import { BULWARK_GAPS, CRASH_RAIL_GAPS } from '../equipment/posrefData';
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { dpSystem } from '../simulations/dpController';
+import { useSelectable } from '../interactions/useSelectable';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Box, HybridPart } from '../rendering/HybridPart';
@@ -398,6 +399,7 @@ function AzimuthPods() {
   const pod = useMemo(() => new THREE.CapsuleGeometry(0.9, 2.4, 6, 14), []);
   const nozzle = useMemo(() => new THREE.TorusGeometry(1.5, 0.28, 8, 24), []);
   const refs = useRef<(THREE.Group | null)[]>([]);
+  const handlers = useSelectable('azimuth-001');
   useFrame(() => {
     const th = dpSystem.getState().thrusters;
     ['AZ1', 'AZ2'].forEach((id, i) => {
@@ -408,7 +410,7 @@ function AzimuthPods() {
     });
   });
   return (
-    <group name="segment:azimuth-pods">
+    <group name="segment:azimuth-pods" {...handlers}>
       {[-AZIMUTHS.x, AZIMUTHS.x].map((x, i) => (
         <group key={x} position={[x, AZIMUTHS.y, AZIMUTHS.z]} name={i === 0 ? 'AZ1' : 'AZ2'}>
           <HybridPart geometry={strutG} material="dark" position={[0, 0.4, 0]} />

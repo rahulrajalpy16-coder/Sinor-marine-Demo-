@@ -86,9 +86,12 @@ export function TopBar({ layout, onGuide }: { layout: LayoutClass; onGuide: () =
     return (
       <header className="safe-top pointer-events-auto relative z-40 border-b border-cyan/15 bg-abyss/80 px-3 pb-2 backdrop-blur-md">
         <div className="flex items-center justify-between gap-2">
-          <span className="flex flex-col leading-tight">
-            <span className="font-mono text-sm font-semibold tracking-[0.3em] text-cyan-light">SINOR MARINE</span>
-            <span className="text-[10px] text-mute">Vessel Systems Simulator</span>
+          <span className="flex items-center gap-2 leading-tight">
+            <img src={`${import.meta.env.BASE_URL}brand/sinor-mark.png`} alt="" aria-hidden className="h-7 w-auto" data-testid="brand-mark" />
+            <span className="flex flex-col">
+              <span className="font-mono text-sm font-semibold tracking-[0.3em] text-cyan-light">SINOR MARINE</span>
+              <span className="text-[10px] text-mute">Vessel Systems Simulator</span>
+            </span>
           </span>
           <div className="flex gap-2">
           <button type="button" data-testid="guide-open" onClick={onGuide} className="min-h-[44px] rounded-sm border border-cyan/40 px-3 text-xs">
@@ -118,7 +121,8 @@ export function TopBar({ layout, onGuide }: { layout: LayoutClass; onGuide: () =
 
   return (
     <header className="safe-top pointer-events-auto flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-cyan/15 bg-abyss/70 px-4 pb-2 backdrop-blur-md">
-      <div className="flex items-baseline gap-3">
+      <div className="flex items-center gap-3">
+        <img src={`${import.meta.env.BASE_URL}brand/sinor-mark.png`} alt="" aria-hidden className="h-7 w-auto" data-testid="brand-mark" />
         <span className="font-mono text-sm font-semibold tracking-[0.3em] text-cyan-light">SINOR MARINE</span>
         <span className="hidden text-xs text-mute sm:inline">Vessel Systems Simulator · We bring the vessel to you</span>
       </div>

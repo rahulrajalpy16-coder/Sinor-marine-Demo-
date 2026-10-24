@@ -8,7 +8,7 @@ export function IntroOverlay() {
   if (!intro) return null;
   return (
     <div className="pointer-events-none absolute inset-x-0 top-20 flex flex-col items-center gap-3 text-center">
-      <p className="font-mono text-xs uppercase tracking-[0.4em] text-cyan">Sinor Marine</p>
+      <img src={`${import.meta.env.BASE_URL}brand/sinor-logo-light.png`} alt="Sinor Marine Services" className="h-16 w-auto opacity-95 md:h-20" />
       <h1 className="text-2xl font-light tracking-wide text-ink md:text-4xl">Vessel Systems Simulator</h1>
       <p className="text-sm text-ink/80">We bring the vessel to you</p>
       <button

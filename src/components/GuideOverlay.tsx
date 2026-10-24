@@ -32,7 +32,7 @@ export function GuideOverlay({ open, onClose }: { open: boolean; onClose: () => 
       >
         <header className="flex items-start justify-between gap-3">
           <div>
-            <p className="font-mono text-[11px] uppercase tracking-[0.35em] text-cyan">Sinor Marine</p>
+            <img src={`${import.meta.env.BASE_URL}brand/sinor-logo-light.png`} alt="Sinor Marine Services" className="h-12 w-auto" />
             <h2 id="guide-title" className="mt-1 text-xl font-light text-ink sm:text-2xl">
               Vessel Systems Simulator
             </h2>

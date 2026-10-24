@@ -19,7 +19,10 @@
  * actual wind sensor make and model were not supplied.
  */
 
-import { MAST } from '../vessels/vesselLayout';
+import { LEVEL, MAST } from '../vessels/vesselLayout';
+
+/** Wind sensor cross-arm near the mast top (the yardarm ends carry the GNSS antennas). */
+export const WIND_ARM = { y: LEVEL.mastTop - 0.7, half: 1.0 } as const;
 
 export type WindSensorId = 'WS1' | 'WS2';
 export type WindFault = null | 'fail' | 'comms' | 'frozen' | 'bias';
@@ -40,9 +43,9 @@ const inRange = (rel: number, [lo, hi]: [number, number]) => {
 
 export const WIND_CONFIG = {
   sensors: [
-    // Port and starboard yardarm ends of the mast: one of the two always sees undisturbed flow.
-    { id: 'WS1' as WindSensorId, label: 'Wind sensor 1 · port yardarm', pos: [-MAST.yardHalf + 0.25, MAST.yard + 0.55, MAST.z] as [number, number, number], shadowRel: [40, 140] as [number, number] },
-    { id: 'WS2' as WindSensorId, label: 'Wind sensor 2 · stbd yardarm', pos: [MAST.yardHalf - 0.25, MAST.yard + 0.55, MAST.z] as [number, number, number], shadowRel: [220, 320] as [number, number] },
+    // Port and starboard ends of a cross-arm near the mast top: one of the two always sees undisturbed flow.
+    { id: 'WS1' as WindSensorId, label: 'Wind sensor 1 · port mast arm', pos: [-WIND_ARM.half + 0.05, WIND_ARM.y + 0.4, MAST.z] as [number, number, number], shadowRel: [40, 140] as [number, number] },
+    { id: 'WS2' as WindSensorId, label: 'Wind sensor 2 · stbd mast arm', pos: [WIND_ARM.half - 0.05, WIND_ARM.y + 0.4, MAST.z] as [number, number, number], shadowRel: [220, 320] as [number, number] },
   ],
   /** Mast wake on the leeward sensor: speed deficit and direction error (demonstration values). */
   shadowSpeedFactor: 0.8,

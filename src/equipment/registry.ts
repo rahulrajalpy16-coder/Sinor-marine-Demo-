@@ -244,6 +244,151 @@ export const PLACEMENTS: Record<string, EquipmentPlacement> = {
       { label: 'Source', value: 'SPRINT-Nav DP 8388 and 8097 pole datasheets (supplied)' },
     ],
   },
+  'pms-001': {
+    short: 'PMS',
+    // Engine control room console facing the main switchboard, seen from behind the operator.
+    target: [0, -0.5, -6.2],
+    camera: [1.6, 0.6, -3.2],
+    underwater: false,
+    interior: true,
+    interiorMaxDistance: 7,
+    explodable: false,
+    implemented: true,
+    summary:
+      'Power management system for a diesel-electric DP vessel. It watches every generator, breaker and consumer, starts and stops generators to match the load, shares load between running sets, keeps a power reserve for the thrusters, sheds non-essential loads before an overload and restores the plant automatically after a blackout. The single-line diagram here is live: every breaker can be opened or closed, every generator started and stopped, and faults can be injected to see how the plant and the DP system respond.',
+    specs: [
+      { label: 'Location', value: 'Engine control room, facing the main switchboard; repeater on the bridge' },
+      { label: 'Plant', value: '4 × 1,700 kW 690 V 60 Hz main generators, split main switchboard with bus tie, 2 × 690/440 V transformers, 250 kW emergency generator (provisional values)' },
+      { label: 'Functions', value: 'Auto start/stop, load sharing, standby order, thruster phase-back, priority load shedding, blackout recovery, DP power reserve' },
+      { label: 'Operating modes', value: 'Open bus with one or two sets per side, or closed bus (configurable)' },
+      { label: 'Interlocks', value: 'Synchronising check before closing onto a live bus; emergency generator never parallels the main plant' },
+      { label: 'Status', value: 'Demonstration model: quasi-steady load flow, not an approved FMEA or electrical study' },
+    ],
+  },
+  'gensets-001': {
+    short: 'Generators',
+    target: [0, -2.6, -20.6],
+    camera: [0, -1.0, -11.2],
+    underwater: false,
+    interior: true,
+    interiorMaxDistance: 13,
+    explodable: false,
+    implemented: true,
+    summary:
+      'Four main diesel generator sets in the engine room: G1 and G2 on the port side feed switchboard section A, G3 and G4 on the starboard side feed section B. Each set is a medium-speed diesel engine driving an alternator on a common skid. The status lamp on each local panel shows the live state from the power management system: green on the board, amber running or starting, red tripped.',
+    specs: [
+      { label: 'Location', value: 'Engine room on the tank top, port pair and starboard pair either side of the centre walkway (z −28 to −13.5 m)' },
+      { label: 'Rating', value: '1,700 kWe / 2,125 kVA each, 690 V, 60 Hz, PF 0.8 (provisional: vessel data not supplied)' },
+      { label: 'Start to load', value: 'About 13 s to run up, synchronise and close, then a 10 s load ramp (provisional)' },
+      { label: 'Supply', value: 'G1 + G2 → MSB-A, G3 + G4 → MSB-B; cooling and fuel pumps on the 440 V board of the same side' },
+      { label: 'Protection', value: 'Overload trip above 105 % for 5 s; trip after 60 s without auxiliaries' },
+    ],
+  },
+  'msb-001': {
+    short: 'Switchboard',
+    target: [0, -0.3, -8.6],
+    camera: [0.8, 0.5, -4.4],
+    underwater: false,
+    interior: true,
+    interiorMaxDistance: 7,
+    explodable: false,
+    implemented: true,
+    summary:
+      'Main 690 V switchboard in two sections joined by the bus-tie breaker. Section A (port) carries G1, G2, azimuth AZ1, bow thruster BT1 and transformer A; section B carries G3, G4, AZ2, BT2 and transformer B. The 440 V boards A and B stand behind it. With the bus tie open, a fault on one side cannot take down the other, which is how a DP2 vessel keeps half its thrusters after the worst single failure. The lamp on each cubicle shows its breaker live from the simulation.',
+    specs: [
+      { label: 'Location', value: 'Switchboard room forward of the engine room, below the main deck' },
+      { label: 'Sections', value: 'MSB-A and MSB-B, 690 V 60 Hz, bus tie between them' },
+      { label: 'Distribution', value: '440 V boards A and B through 690/440 V transformers, with a normally open 440 V tie' },
+      { label: 'Bus philosophy', value: 'Open bus by default (configurable to closed bus): to be confirmed for the real vessel' },
+    ],
+  },
+  'emergency-gen-001': {
+    short: 'Emergency Gen',
+    target: [-5.5, 8.1, 6.6],
+    camera: [-3.0, 9.3, 9.6],
+    underwater: false,
+    interior: true,
+    interiorMaxDistance: 6,
+    explodable: false,
+    implemented: true,
+    summary:
+      'Emergency generator and emergency switchboard in their own room above the main deck. The emergency board is normally fed from 440 V board A. If it goes dead, the emergency generator starts by itself and takes the emergency lighting, navigation and communications and the emergency fire pump. It never runs in parallel with the main plant: when main power is back and stable the board transfers back.',
+    specs: [
+      { label: 'Location', value: 'Emergency generator room, upper deck, port aft corner of the accommodation' },
+      { label: 'Rating', value: '250 kW, 440 V (provisional)' },
+      { label: 'Start', value: 'Automatic on a dead emergency board; model reaches load in about 11 s' },
+      { label: 'Interlock', value: 'No parallel operation with the main supply (46 CFR 112.05-3 as summarised in USCG PRG E2)' },
+      { label: 'Requirement cited', value: 'Automatic start and full load within 45 s (46 CFR 112.50-1(d), via USCG PRG E2): the model meets it' },
+    ],
+  },
+  'ups-001': {
+    short: 'DP UPS',
+    target: [0, 11.0, 9.0],
+    camera: [0.2, 11.9, 12.2],
+    underwater: false,
+    interior: true,
+    interiorMaxDistance: 6,
+    explodable: false,
+    implemented: true,
+    summary:
+      'Uninterruptible power supplies for the DP system. UPS A feeds the A side (controller A, operator station 1, network A, DGPS 1, gyro 1, MRU 1, wind sensor 1 and the A-side thruster controls); UPS B feeds the B side. Shared items such as gyro 3 and controller C take both. If the 440 V supply is lost the batteries carry the DP equipment with no break. On DP3 a third UPS in the A60 backup room feeds the backup station.',
+    specs: [
+      { label: 'Location', value: 'Separate UPS rooms A (port) and B (starboard) on the officers deck; UPS C in the A60 backup DP room (DP3)' },
+      { label: 'Type', value: 'Online double conversion: rectifier, battery, inverter, static bypass, external maintenance bypass' },
+      { label: 'Rating', value: 'A/B 5 kVA, battery 108 × 2 V 12 Ah; C 3 kVA, 9 Ah (provisional)' },
+      { label: 'Autonomy', value: 'Each DP UPS at least 30 min (ABS DPS Guide Pt 3 Ch 9 as summarised); the model gives well over 30 min at the mapped load' },
+      { label: 'Lessons modelled', value: 'IMCA DPE 03/19 (failure of a DP UPS) and DPE 04/18 (isolation of backup supplies)' },
+    ],
+  },
+  'wind-001': {
+    short: 'Wind Sensors',
+    target: [0, 25.5, 14],
+    camera: [3.2, 26.6, 18.2],
+    underwater: false,
+    explodable: false,
+    implemented: true,
+    summary:
+      'Two ultrasonic wind sensors on a cross-arm near the top of the mast, one each side so at least one is always clear of the mast wake. The DP uses their reading to push against the wind before the vessel moves. What they measure is kept separate from the real wind: if both fail, the wind still pushes the vessel, but DP loses its feed-forward and must wait for the position error.',
+    specs: [
+      { label: 'Location', value: 'Mast cross-arm about 25 m above the waterline, above the radars and clear of the GNSS antennas' },
+      { label: 'Type', value: 'Generic 2-axis ultrasonic anemometer, NMEA MWV at 1 Hz (make not supplied)' },
+      { label: 'Supply', value: 'Sensor 1 from UPS A, sensor 2 from UPS B' },
+      { label: 'Checks', value: 'Stale (3 s), no data (9 s), frozen output, disagreement (3 kn or 20 %, 20° for 5 s); windward sensor preferred' },
+    ],
+  },
+  'gyro-mru-001': {
+    short: 'Gyros & MRUs',
+    target: [0, 10.8, 12.6],
+    camera: [1.6, 11.8, 15.4],
+    underwater: false,
+    interior: true,
+    interiorMaxDistance: 6,
+    explodable: false,
+    implemented: true,
+    summary:
+      'Three gyrocompasses in the gyro room give DP its heading; the DP takes the middle value of the three, so a single wrong gyro is voted out. Two motion reference units low in the hull near midships measure roll and pitch so the position references can be corrected for the vessel motion.',
+    specs: [
+      { label: 'Location', value: 'Gyro room on the officers deck under the bridge; MRUs on the tank top near midships' },
+      { label: 'Voting', value: 'Median of three with 2° rejection; two left: average with a deviation alarm; one left: alarm' },
+      { label: 'Supply', value: 'Gyro 1 and MRU 1 from UPS A, gyro 2 and MRU 2 from UPS B, gyro 3 from both' },
+      { label: 'Type', value: 'Generic (makes not supplied)' },
+    ],
+  },
+  'azimuth-001': {
+    short: 'Azimuths',
+    target: [0, -4.3, -34],
+    camera: [13, -2.6, -45],
+    underwater: true,
+    explodable: false,
+    implemented: true,
+    summary:
+      'Two azimuth thrusters at the stern, AZ1 port and AZ2 starboard. Each can turn its propeller to push in any direction, so together with the bow thrusters the DP can move the vessel sideways, forwards and around. AZ1 is powered from switchboard section A, AZ2 from section B.',
+    specs: [
+      { label: 'Location', value: 'Stern, 4.8 m either side of the centreline, about 5 m from the transom' },
+      { label: 'Rating', value: '1,800 kW, 250 kN each (provisional)' },
+      { label: 'Power', value: 'AZ1 drive on MSB-A, AZ2 on MSB-B; thrust limited by the PMS phase-back' },
+    ],
+  },
 };
 
 export const equipment: Equipment[] = registry.equipment.map((rec) => {
@@ -264,4 +409,6 @@ export const CATEGORY_LABELS: Record<string, string> = {
   'position-reference': 'Position Reference',
   propulsion: 'Propulsion',
   mechanical: 'Mechanical Systems',
+  electrical: 'Power & Electrical',
+  'dp-sensors': 'Heading & Wind Sensors',
 };

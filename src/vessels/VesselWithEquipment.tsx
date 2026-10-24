@@ -6,6 +6,7 @@ import { HPT5000Transceiver, Type7950Machine } from '../equipment/HPRSystem';
 import { BowThruster } from '../equipment/BowThruster';
 import { CyScanSensor, DGPSAntennas, RadaScanSensor, SprintNavPole, TautWireUnit } from '../equipment/PositionReferences';
 import { BT2Tunnel, DPNetworkOverlay } from '../scene/DPSceneOverlay';
+import { DpUps, EmergencyGenerator, Gensets, HeadingSensors, MainSwitchboard, PmsConsole, WindSensors } from '../equipment/ElectricalPlant';
 
 export function VesselWithEquipment() {
   return (
@@ -21,6 +22,13 @@ export function VesselWithEquipment() {
       <EquipmentAsset id="dgps-001" fallback={<DGPSAntennas />} />
       <EquipmentAsset id="tautwire-001" fallback={<TautWireUnit />} />
       <EquipmentAsset id="sprintnav-001" fallback={<SprintNavPole />} />
+      <EquipmentAsset id="pms-001" fallback={<PmsConsole />} />
+      <EquipmentAsset id="gensets-001" fallback={<Gensets />} />
+      <EquipmentAsset id="msb-001" fallback={<MainSwitchboard />} />
+      <EquipmentAsset id="emergency-gen-001" fallback={<EmergencyGenerator />} />
+      <EquipmentAsset id="ups-001" fallback={<DpUps />} />
+      <EquipmentAsset id="wind-001" fallback={<WindSensors />} />
+      <EquipmentAsset id="gyro-mru-001" fallback={<HeadingSensors />} />
       <BT2Tunnel />
       <DPNetworkOverlay />
     </group>

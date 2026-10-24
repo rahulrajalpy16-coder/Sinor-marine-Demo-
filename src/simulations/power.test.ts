@@ -267,6 +267,25 @@ describe('PMS: protection, load management and recovery', () => {
     expect(gen(s, 'EG').breaker).toBe(false);
   });
 
+  it('a tripped emergency board feeder keeps the ESB on the emergency generator until reset, then transfers back', () => {
+    let s = run(initialPowerState(), 2, thrust(0.2));
+    s = cmd(s, { type: 'tie-trip', id: 'ESB_FEED' });
+    s = run(s, 15, thrust(0.2));
+    expect(gen(s, 'EG').breaker).toBe(true);
+    expect(s.buses.ESB.live).toBe(true);
+    // Main supply is healthy, but the feeder is tripped: no transfer back (no flip-flop between sources).
+    s = run(s, 60, thrust(0.2));
+    expect(gen(s, 'EG').breaker).toBe(true);
+    expect(s.ties.ESB_FEED.closed).toBe(false);
+    s = cmd(s, { type: 'tie-reset', id: 'ESB_FEED' });
+    s = run(s, POWER_CONFIG.pms.esbReturnDelayS - 1, thrust(0.2));
+    expect(gen(s, 'EG').breaker).toBe(true);
+    s = run(s, 2, thrust(0.2));
+    expect(s.ties.ESB_FEED.closed).toBe(true);
+    expect(gen(s, 'EG').breaker).toBe(false);
+    expect(s.buses.ESB.live).toBe(true);
+  });
+
   it('models the shared auxiliary dependency: losing 440 V board A trips G1 after the ride-through unless re-fed', () => {
     let s = run(initialPowerState(), 2, thrust(0.2));
     s = cmd(s, { type: 'tie-trip', id: 'TR_A' });

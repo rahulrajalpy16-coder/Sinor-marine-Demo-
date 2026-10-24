@@ -144,6 +144,117 @@
         "reset"
       ],
       "manufacturer": "Sonardyne"
+    },
+    {
+      "id": "pms-001",
+      "name": "Power Management System",
+      "category": "electrical",
+      "location": "engine-control-room",
+      "model": null,
+      "simulation": "pms",
+      "actions": [
+        "inspect",
+        "simulate",
+        "reset"
+      ],
+      "manufacturer": null
+    },
+    {
+      "id": "gensets-001",
+      "name": "Main Diesel Generators G1 to G4",
+      "category": "electrical",
+      "location": "engine-room",
+      "model": null,
+      "simulation": "pms",
+      "actions": [
+        "inspect",
+        "simulate",
+        "reset"
+      ],
+      "manufacturer": null
+    },
+    {
+      "id": "msb-001",
+      "name": "Main Switchboard and Bus Tie",
+      "category": "electrical",
+      "location": "switchboard-room",
+      "model": null,
+      "simulation": "pms",
+      "actions": [
+        "inspect",
+        "simulate",
+        "reset"
+      ],
+      "manufacturer": null
+    },
+    {
+      "id": "emergency-gen-001",
+      "name": "Emergency Generator and Switchboard",
+      "category": "electrical",
+      "location": "emergency-generator-room",
+      "model": null,
+      "simulation": "pms",
+      "actions": [
+        "inspect",
+        "simulate",
+        "reset"
+      ],
+      "manufacturer": null
+    },
+    {
+      "id": "ups-001",
+      "name": "DP UPS A, B and C",
+      "category": "electrical",
+      "location": "ups-rooms",
+      "model": null,
+      "simulation": "ups",
+      "actions": [
+        "inspect",
+        "simulate",
+        "reset"
+      ],
+      "manufacturer": null
+    },
+    {
+      "id": "wind-001",
+      "name": "Wind Sensors",
+      "category": "dp-sensors",
+      "location": "mast",
+      "model": null,
+      "simulation": "wind",
+      "actions": [
+        "inspect",
+        "simulate",
+        "reset"
+      ],
+      "manufacturer": null
+    },
+    {
+      "id": "gyro-mru-001",
+      "name": "Gyrocompasses and MRUs",
+      "category": "dp-sensors",
+      "location": "gyro-room",
+      "model": null,
+      "simulation": "heading-voting",
+      "actions": [
+        "inspect",
+        "simulate",
+        "reset"
+      ],
+      "manufacturer": null
+    },
+    {
+      "id": "azimuth-001",
+      "name": "Stern Azimuth Thrusters",
+      "category": "propulsion",
+      "location": "stern",
+      "model": null,
+      "simulation": "dp-3dof",
+      "actions": [
+        "inspect",
+        "simulate"
+      ],
+      "manufacturer": null
     }
   ]
 }

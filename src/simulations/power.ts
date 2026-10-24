@@ -260,8 +260,8 @@ export const POWER_CONFIG: PowerConfig = {
     GYRO3: C('Gyrocompass 3 (dual-fed)', ['UPS_A', 'UPS_B'], 0.06, 'A+B'),
     MRU1: C('Motion reference unit 1', ['UPS_A'], 0.02, 'A'),
     MRU2: C('Motion reference unit 2', ['UPS_B'], 0.02, 'B'),
-    WS1: C('Wind sensor 1 (port yardarm)', ['UPS_A'], 0.01, 'A'),
-    WS2: C('Wind sensor 2 (stbd yardarm)', ['UPS_B'], 0.01, 'B'),
+    WS1: C('Wind sensor 1 (port mast arm)', ['UPS_A'], 0.01, 'A'),
+    WS2: C('Wind sensor 2 (stbd mast arm)', ['UPS_B'], 0.01, 'B'),
     IJS: C('Independent joystick', ['UPS_B'], 0.08, 'B'),
     AZ1_CTRL: C('AZ1 thruster control', ['UPS_A'], 0.15, 'A'),
     BT1_CTRL: C('BT1 Z-Thrust control', ['UPS_A'], 0.1, 'A'),
@@ -888,7 +888,7 @@ function solve(s: PowerState, dt: number, demand: PowerDemand, cfg: PowerConfig)
       if (eg.state === 'running' || eg.state === 'synchronising') eg.closeRequest = true;
     }
   } else s.timers.esbDead = 0;
-  if (eg.breaker && eg.state === 'online' && live('DB_A') && s.pmsAuto) {
+  if (eg.breaker && eg.state === 'online' && live('DB_A') && !s.ties.ESB_FEED.tripped && s.pmsAuto) {
     s.timers.esbReturn += dt;
     if (s.timers.esbReturn >= P.esbReturnDelayS) {
       // Transfer back: open the EG breaker, then close the main feeder (no parallel operation).
