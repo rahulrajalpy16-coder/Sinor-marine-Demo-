@@ -3,7 +3,7 @@
 // time, rendered once and saved as a JPEG. The software renderer can take seconds per frame; the motion in
 // the video stays perfectly smooth.
 import { chromium } from '@playwright/test';
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 
 export const FPS = 30;
 const DT = 1000 / FPS;
@@ -79,7 +79,9 @@ export async function openStage({ base, query, out, width = 1920, height = 1080,
     async step() {
       await p.clock.runFor(DT * s.speed);
       await p.evaluate(() => window.__frame());
-      if (s.recording) {
+      if (s.recording && process.env.RESUME && existsSync(`${out}/f${String(s.frame).padStart(6, '0')}.jpg`)) {
+        s.frame++; // resuming a deterministic capture: keep the frame already saved
+      } else if (s.recording) {
         const { data } = await cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 94, optimizeForSpeed: true });
         await import('node:fs').then((fs) => fs.writeFileSync(`${out}/f${String(s.frame).padStart(6, '0')}.jpg`, Buffer.from(data, 'base64')));
         s.frame++;
@@ -121,7 +123,10 @@ export async function openStage({ base, query, out, width = 1920, height = 1080,
     },
     async box(testid, last = false) {
       const loc = last ? p.getByTestId(testid).last() : p.getByTestId(testid).first();
-      await loc.scrollIntoViewIfNeeded();
+      if (process.env.RESUME && existsSync(`${out}/f${String(s.frame).padStart(6, '0')}.jpg`)) {
+        // Fast-forwarding saved frames renders nothing, so Playwright's stability wait would never settle.
+        await loc.evaluate((e) => { const r = e.getBoundingClientRect(); if (r.top < 0 || r.bottom > innerHeight) e.scrollIntoView({ block: 'center' }); });
+      } else await loc.scrollIntoViewIfNeeded();
       return { loc, b: await loc.boundingBox() };
     },
     async tap(testid, { after = 0.5, last = false, move = 0.45 } = {}) {
