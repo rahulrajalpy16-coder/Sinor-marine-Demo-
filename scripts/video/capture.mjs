@@ -4,7 +4,8 @@
 //   phone - the same simulator on a phone screen
 // Each narrated part lasts at least as long as its voice-over (durations.json); part starts go to
 // <outDir>/<session>/timeline.json in output seconds.
-// Usage: node capture.mjs <hero|app|phone> <outDir> <durations.json> [baseUrl] [quality] [scale]
+//   systems, tv - the release 1.0 walkthrough and the TV version (used instead of app for the 1.0 film)
+// Usage: node capture.mjs <hero|app|dpall|systems|tv|phone> <outDir> <durations.json> [baseUrl] [quality] [scale]
 import { readFileSync, writeFileSync } from 'node:fs';
 import { openStage, FPS } from './stage.mjs';
 
@@ -203,6 +204,126 @@ async function dpall() {
   return s;
 }
 
+// Release 1.0 walkthrough: the power plant, DP UPS, wind and heading sensors and the exhibition demo, from the
+// on-station start. The engineering screens open full screen, enlarged for the video.
+// No backdrop blur: over the high-quality 3D view it makes the software renderer slower with every frame.
+const ZOOM = `.fixed.inset-0.z-50 > .max-w-4xl{zoom:1.45} .fixed.inset-0.z-50{backdrop-filter:none!important;background:rgba(2,8,19,.8)!important}`;
+async function systems() {
+  const s = await openStage({ base, query: `?quality=${quality}&intro=0`, out, scale });
+  await s.page.addStyleTag({ content: HIDE + ZOOM });
+  await s.page.evaluate(() => localStorage.setItem('sinor-guide-seen', '1'));
+  await s.skip(1.5);
+  s.recording = true;
+  const seg = async (id, fn, pad = 1.2) => {
+    const start = s.t;
+    s.mark(id);
+    await fn();
+    const left = durations[id] + pad - (s.t - start);
+    if (left > 0) await s.hold(left);
+  };
+  const lapse = async (k, fn) => {
+    s.speed = k;
+    await fn();
+    s.speed = 1;
+  };
+  const full = (id) => s.tap(`${id}-expand`, { after: 0.6 });
+  const shut = async () => {
+    const open = await s.page.evaluate(() => [...document.querySelectorAll('[data-testid$="-hmi-expand"]')].find((b) => b.textContent === '✕')?.dataset.testid);
+    if (open) await s.tap(open, { after: 0.3 });
+  };
+  const scenario = async (id) => {
+    await shut();
+    await s.tap('sim-controls-open', { after: 0.9 });
+    await s.tap(`sim-scenario-${id}`, { after: 0.2 });
+    await s.until(() => !window.__SINOR__.state().cameraMoving && window.__SINOR__.state().phase === 'focused', null, 20);
+    await s.hold(0.3);
+  };
+  await seg('platform', async () => {
+    await s.hold(0.4);
+    await s.drag(-260, 0, 3.0);
+    await s.hold(0.4);
+  });
+  await seg('pms', async () => {
+    await s.focus('pms-001', 0.4);
+    await full('pms-hmi');
+    await s.hold(2.4);
+    await s.tap('pms-tab-gen', { after: 0.6 });
+    await s.tap('pms-gen-G2-start', { after: 0.2 });
+    await lapse(3, () => s.until(() => window.__SINOR__.power().gens.find((g) => g.id === 'G2').state === 'running', null, 30));
+    await s.tap('pms-gen-G2-close', { after: 2.2 });
+    await s.tap('pms-gen-G2-sync', { after: 0.2 });
+    await s.until(() => window.__SINOR__.power().gens.find((g) => g.id === 'G2').breaker, null, 30);
+    await s.hold(1.0);
+  }, 0.8);
+  await seg('blackout', async () => {
+    await scenario('blackout');
+    await full('pms-hmi');
+    await s.tap('pms-tab-sld', { after: 0.2 });
+    await lapse(3, () => s.until(() => window.__SINOR__.power().alarms.length > 0, null, 30));
+    // Real time from the trip: the dead bus, the standby set closing and the drives restarting.
+    await s.until(() => !window.__SINOR__.power().alarms.some((a) => a.startsWith('DRIVE_NOT_READY')), null, 30);
+    await s.hold(1.0);
+  });
+  await seg('ups', async () => {
+    await scenario('ups-battery');
+    await full('ups-hmi');
+    await lapse(2, () => s.until(() => document.querySelector('[data-testid=ups-UPS_A-mode]')?.textContent.includes('ON BATTERY'), null, 30));
+    await s.hold(2.0);
+  });
+  await seg('wind', async () => {
+    await scenario('wind-sensors');
+    await full('wind-hmi');
+    await lapse(2, () => s.until(() => document.querySelector('[data-testid=wind-status]')?.textContent.includes('NO VALID SENSOR'), null, 30));
+    await s.hold(2.0);
+  });
+  await seg('gyro', async () => {
+    await scenario('gyro-drift');
+    await full('sensors-hmi');
+    await lapse(3, () => s.until(() => window.__SINOR__.dp().sensors.find((x) => x.id === 'GYRO2')?.rejected, null, 60));
+    await s.hold(1.6);
+  });
+  await seg('demo', async () => {
+    await shut();
+    await s.tap('sim-controls-open', { after: 0.6 });
+    await s.tap('demo-start', { after: 0.2 });
+    await s.until(() => !window.__SINOR__.state().cameraMoving && window.__SINOR__.state().phase === 'focused', null, 20);
+    await s.hold(2.0);
+  }, 0.2);
+  s.mark('tail');
+  await s.tap('demo-exit', { after: 0.6 });
+  await s.drag(-300, 0, 3.0);
+  s.mark('end');
+  return s;
+}
+
+// The TV version: large controls, the on-screen camera pad and remote-control (D-pad) navigation.
+async function tv() {
+  const s = await openStage({ base, query: `?quality=${quality}&intro=0&tv=1`, out, scale });
+  await s.page.addStyleTag({ content: HIDE });
+  await s.page.evaluate(() => localStorage.setItem('sinor-guide-seen', '1'));
+  await s.skip(1.5);
+  s.recording = true;
+  s.mark('tv');
+  await s.hold(0.8);
+  for (const k of ['cam-ArrowLeft', 'cam-ArrowLeft', 'cam-ArrowLeft']) await s.tap(k, { after: 0.35, move: 0.35 });
+  await s.glide(s.W + 40, s.H / 2, 0.3);
+  const key = async (k, after = 0.45) => {
+    await s.page.keyboard.press(k);
+    await s.hold(after);
+  };
+  await s.page.getByTestId('tree-wind-001').focus();
+  await s.hold(0.6);
+  for (const k of ['ArrowUp', 'ArrowDown', 'ArrowDown']) await key(k);
+  await s.page.getByTestId('tree-ups-001').focus();
+  await s.hold(0.6);
+  await key('Enter', 0.2);
+  await s.until(() => !window.__SINOR__.state().cameraMoving && window.__SINOR__.state().phase === 'focused', null, 20);
+  const left = durations.tv + 1.2 - s.t;
+  if (left > 0) await s.hold(left);
+  s.mark('end');
+  return s;
+}
+
 async function phone() {
   const s = await openStage({ base, query: `?quality=${quality}&intro=0`, out, width: 390, height: 844, scale: scale === 1 ? 2 : scale });
   await s.page.evaluate(() => localStorage.setItem('sinor-guide-seen', '1'));
@@ -212,14 +333,14 @@ async function phone() {
   await s.hold(0.6);
   await s.drag(-120, 0, 2.2);
   await s.tap('tree-toggle', { after: 0.9 });
-  await s.tap('tree-sprintnav-001', { after: 0.1 });
-  await s.focused('sprintnav-001');
+  await s.tap('tree-wind-001', { after: 0.1 });
+  await s.focused('wind-001');
   await s.hold(2.6);
   s.mark('end');
   return s;
 }
 
-const s = await { hero, app, dpall, phone }[session]();
+const s = await { hero, app, dpall, systems, tv, phone }[session]();
 writeFileSync(`${out}/timeline.json`, JSON.stringify({ fps: FPS, frames: s.frame, ...s.timeline }, null, 1));
 await s.close();
 console.log('done', session, s.frame, 'frames', (s.frame / FPS).toFixed(1), 's');

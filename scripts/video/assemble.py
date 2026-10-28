@@ -21,7 +21,12 @@ FPS = 30
 dur = json.load(open(f"{vo}/durations.json"))
 caps = json.load(open(f"{vo}/captions.json"))
 segs = {s["id"]: s for s in json.load(open(narration_file))}
-tl = {k: json.load(open(f"{cap}/{k}/timeline.json")) for k in ("hero", "app", "phone")}
+APP = os.environ.get("APP_SESSION", "app")  # "systems" for the release 1.0 film
+TV = os.path.exists(f"{cap}/tv/timeline.json")
+tl = {k: json.load(open(f"{cap}/{k}/timeline.json")) for k in ("hero", APP, "phone") + (("tv",) if TV else ())}
+tl["app"] = tl[APP]
+# Walkthrough parts (on the app capture's timeline) and their chapter cards; the first part has none.
+app_seq = [k for k, v in segs.items() if v.get("app")] or ["platform", "modes", "learn", "thruster", "dp", "hpr", "relative", "absolute", "sprintnav", "dpall"]
 
 
 def run(cmd):
@@ -70,7 +75,7 @@ if stock:
 #   APP_JOIN=dpall  - the separately captured last part replaces the app frames from its mark on
 #   APP_FAST=a:b:k,... - app seconds a..b played k times faster (dropping frames) to trim waiting
 a = dict(tl["app"])
-src = [f"{cap}/app/f{i:06d}.jpg" for i in range(a.get("frames", 10**9)) if os.path.exists(f"{cap}/app/f{i:06d}.jpg")]
+src = [f"{cap}/{APP}/f{i:06d}.jpg" for i in range(a.get("frames", 10**9)) if os.path.exists(f"{cap}/{APP}/f{i:06d}.jpg")]
 join = os.environ.get("APP_JOIN")
 if join:
     j = json.load(open(f"{cap}/{join}/timeline.json"))
@@ -99,10 +104,13 @@ for i, path in enumerate(keep):
     os.symlink(path, dst)
 a["frames"] = len(keep)
 clips.append(("app", frames_clip("app", f"{seq}/f%06d.jpg", 0, a["frames"]), a["frames"] / FPS, 0.8))
+if TV:
+    n = tl["tv"]["frames"]
+    clips.append(("tv", frames_clip("tv", f"{cap}/tv/f%06d.jpg", 0, n), n / FPS, 0.6))
 
 # Devices scene: the walkthrough's visual-modes part on a laptop, the phone capture on a phone.
 DEV = max(7.0, dur["devices"] + 1.6)
-m0 = round(a["modes"] * FPS)
+m0 = round(a[os.environ.get("LAPTOP_FROM", app_seq[1])] * FPS)
 laptop = frames_clip("laptop", f"{seq}/f%06d.jpg", m0, int(DEV * FPS), "scale=1120:630:flags=lanczos")
 p = tl["phone"]
 phone = frames_clip("phone", f"{cap}/phone/f%06d.jpg", 0, p["frames"], "scale=330:714:flags=lanczos")
@@ -132,16 +140,15 @@ for i, (name, _, d, x) in enumerate(clips):
 TOTAL = t
 
 # ---- Voice-over placement ----------------------------------------------------------------------------
-vo_at = {
-    "hero1": start["h1"] + 0.5,
-    "intro": start.get("twin", 0) + 0.8,
-    "initiative": start.get("network", 0) + 0.6,
-    "hero2": start["h2"] + 0.2,
-    "hero3": start["h3"] + 0.3,
-    "devices": start["devices"] + 0.6,
-    "outro": start["endcard"] + 1.0,
-}
-for k in ("platform", "modes", "learn", "thruster", "dp", "hpr", "relative", "absolute", "sprintnav", "dpall"):
+# Each segment's "at": [clip, seconds after the clip starts]; walkthrough parts follow their marks.
+AT = {"hero1": ["h1", 0.5], "intro": ["twin", 0.8], "initiative": ["network", 0.6], "hero2": ["h2", 0.2], "hero3": ["h3", 0.3],
+      "devices": ["devices", 0.6], "outro": ["endcard", 1.0]}
+vo_at = {}
+for k, v in segs.items():
+    clip, off = v.get("at", AT.get(k, [None, 0]))
+    if clip in start:
+        vo_at[k] = start[clip] + off
+for k in app_seq:
     vo_at[k] = start["app"] + a[k] + 0.35
 order = [k for k in segs if k in vo_at and (k != "intro" or "twin" in start) and (k != "initiative" or "network" in start)]
 
@@ -173,25 +180,30 @@ ass = [
     "Style: Sub,Inter Medium,38,&H00FCF8F4,&H00FCF8F4,&H64130802,&H64130802,0,0,0,0,100,100,0.2,0,3,14,0,2,200,200,74,1",
     "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
 ]
-skip = {("hero3", 1), ("outro", 0), ("outro", 1)}  # spoken while the same words are on screen as titles
+skip = {(k, i) for k, v in segs.items() for i in v.get("nosub", [])} or {("hero3", 1), ("outro", 0), ("outro", 1)}  # same words on screen as titles
 for k in order:
     for i, (c0, c1, text) in enumerate(caps[k]):
         if (k, i) in skip:
             continue
         s0, s1 = vo_at[k] + c0 - 0.05, vo_at[k] + c1 + 0.25
-        ass.append(f"Dialogue: 0,{ts(s0)},{ts(s1)},Sub,,0,0,0,,{{\\fad(120,160)}}{wrap(text)}")
+        mv = segs[k].get("subMarginV", 0)  # raise the subtitles above on-screen captions in the footage
+        ass.append(f"Dialogue: 0,{ts(s0)},{ts(s1)},Sub,,0,0,{mv},,{{\\fad(120,160)}}{wrap(text)}")
 open(f"{work}/subs.ass", "w").write("\n".join(ass) + "\n")
 
 # ---- Overlays ----------------------------------------------------------------------------------------
 overlays = []  # (png, start, stop, fade_in, fade_out)
-tag0 = vo_at["hero3"] + caps["hero3"][1][0] - 0.2
+tk = next((k for k, v in segs.items() if "tagline" in v), "hero3")
+tag0 = vo_at[tk] + caps[tk][segs[tk].get("tagline", 1)][0] - 0.2
 overlays.append(("tagline", tag0, start.get("network", start["app"]) + 0.5, 0.6, 0.6))
-app_ids = ["modes", "learn", "thruster", "dp", "hpr", "relative", "absolute", "sprintnav", "dpall"]
+app_ids = app_seq[1:]
 for i, k in enumerate(app_ids):
     s0 = start["app"] + a[k] + 0.15
     nxt = start["app"] + (a[app_ids[i + 1]] if i + 1 < len(app_ids) else a["tail"])
     overlays.append((f"chapter-{k}", s0, min(s0 + 4.0, nxt - 0.3), 0.4, 0.4))
-
+for k, v in segs.items():  # chapter cards on other clips (e.g. the TV version)
+    if v.get("chapter") in start:
+        s0 = start[v["chapter"]] + 0.4
+        overlays.append((f"chapter-{k}", s0, s0 + 4.0, 0.4, 0.4))
 # ---- Music -------------------------------------------------------------------------------------------
 music = f"{work}/music.wav"
 hits = [0.35, start["app"] + 0.1, start["endcard"] + 0.2] + ([2.0, start["network"] + 0.3] if stock else [])
