@@ -5,6 +5,7 @@
 set -euo pipefail
 ZIP="$1"; OUT="$2"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+VERSION="$(node -p "require('$ROOT/packaging/desktop/package.json').version")"
 EXPECT=c325a6d905c67107e166267813ea2151ae7fd316c0a88de0081db0b9851a9946
 echo "$EXPECT  $ZIP" | sha256sum -c -
 rm -rf "$OUT"; mkdir -p "$OUT"
@@ -21,6 +22,6 @@ if [ -n "${RCEDIT:-}" ] && command -v wine >/dev/null; then
   WINEDEBUG=-all xvfb-run -a wine "$RCEDIT" "$OUT/app/Sinor Marine Simulator.exe" --set-icon "$ROOT/packaging/desktop/sinor.ico" \
     --set-version-string ProductName "Sinor Marine Vessel Systems Simulator" --set-version-string FileDescription "Sinor Marine Vessel Systems Simulator" \
     --set-version-string CompanyName "Sinor Marine Services Middle East FZCO" --set-version-string LegalCopyright "Sinor Marine Services Middle East FZCO" \
-    --set-file-version 1.0.0 --set-product-version 1.0.0 || echo "rcedit failed: executable keeps the default icon"
+    --set-file-version "$VERSION" --set-product-version "$VERSION" || echo "rcedit failed: executable keeps the default icon"
 fi
 echo "Built $OUT/app"
