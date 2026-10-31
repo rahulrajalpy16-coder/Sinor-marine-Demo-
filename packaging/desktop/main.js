@@ -1,16 +1,20 @@
 // Sinor Marine Vessel Systems Simulator: offline desktop shell.
 // Serves the bundled app from the program folder over a private app:// scheme and blocks every network request,
-// so it runs the same from a pendrive with no internet. Saved scenarios and settings are kept next to the program
-// (SinorMarineData), so they travel with the pendrive; if the drive is read-only the user profile is used instead.
-const { app, BrowserWindow, Menu, net, protocol, session } = require('electron');
+// so it runs the same from a pendrive with no internet. On Windows and Linux, saved scenarios and settings are kept
+// next to the program (SinorMarineData), so they travel with the pendrive; if the drive is read-only the user profile
+// is used instead. On macOS they stay in the user profile, because writing inside the app bundle breaks its signature.
+// For all-day exhibition use, the display never sleeps while the simulator is open and the 3D view keeps full speed
+// even when the window is not in front.
+const { app, BrowserWindow, Menu, net, powerSaveBlocker, protocol, session } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
 
 const WEB = path.join(__dirname, 'web');
 const HERE = process.env.PORTABLE_EXECUTABLE_DIR || path.dirname(process.execPath);
+const MAC = process.platform === 'darwin';
 
-try {
+if (!MAC) try {
   const data = path.join(HERE, 'SinorMarineData');
   fs.mkdirSync(data, { recursive: true });
   fs.accessSync(data, fs.constants.W_OK);
@@ -21,6 +25,10 @@ try {
 
 // Trusted local content only: allow software WebGL on PCs without a usable graphics driver.
 app.commandLine.appendSwitch('enable-unsafe-swiftshader');
+// Full frame rate all day: no timer throttling or slow-down when the window is covered or not in front.
+app.commandLine.appendSwitch('disable-background-timer-throttling');
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
 
@@ -46,7 +54,10 @@ app.whenReady().then(() => {
     cb({ cancel });
   });
   session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
-  Menu.setApplicationMenu(null);
+  // macOS needs an app menu for the standard Cmd+Q, Cmd+H and full-screen shortcuts; elsewhere there is no menu bar.
+  Menu.setApplicationMenu(MAC ? Menu.buildFromTemplate([{ role: 'appMenu' }, { label: 'View', submenu: [{ role: 'togglefullscreen' }] }]) : null);
+  // Keep the screen awake for the whole exhibition day.
+  powerSaveBlocker.start('prevent-display-sleep');
 
   const win = new BrowserWindow({
     width: 1600,
@@ -55,7 +66,7 @@ app.whenReady().then(() => {
     title: 'Sinor Marine · Vessel Systems Simulator',
     icon: path.join(WEB, 'brand', 'sinor-icon-512.png'),
     autoHideMenuBar: true,
-    webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false },
+    webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, backgroundThrottling: false },
   });
   win.maximize();
   if (args.includes('--fullscreen') || args.includes('--demo')) win.setFullScreen(true);
@@ -63,15 +74,34 @@ app.whenReady().then(() => {
   win.webContents.on('will-navigate', (e, url) => {
     if (!url.startsWith('app://')) e.preventDefault();
   });
-  // F11 full screen, Ctrl+Q quit, Ctrl+R reload.
+  // F11 full screen, Ctrl+Q quit, Ctrl+R reload (on a Mac also Cmd+Q, Cmd+R and Ctrl+Cmd+F).
   win.webContents.on('before-input-event', (e, input) => {
     if (input.type !== 'keyDown') return;
     if (input.key === 'F11') {
       win.setFullScreen(!win.isFullScreen());
       e.preventDefault();
-    } else if (input.control && input.key.toLowerCase() === 'q') app.quit();
-    else if (input.control && input.key.toLowerCase() === 'r') win.reload();
+    } else if ((input.control || input.meta) && input.key.toLowerCase() === 'q') app.quit();
+    else if ((input.control || input.meta) && input.key.toLowerCase() === 'r') win.reload();
   });
+  // Self-recovery for an unattended day: if the page or the graphics process ever crashes, or the page stops
+  // responding for 20 s, reload it (the same start options, so a running exhibition demo starts again by itself).
+  let recovering = false;
+  const recover = (why) => {
+    if (recovering || win.isDestroyed()) return;
+    recovering = true;
+    console.error(`Recovering after ${why}`);
+    setTimeout(() => {
+      recovering = false;
+      if (!win.isDestroyed()) win.reload();
+    }, 1500);
+  };
+  win.webContents.on('render-process-gone', (_e, d) => d.reason !== 'clean-exit' && recover(`page ${d.reason}`));
+  app.on('child-process-gone', (_e, d) => d.type === 'GPU' && d.reason !== 'clean-exit' && recover(`graphics ${d.reason}`));
+  let hang = null;
+  win.on('unresponsive', () => {
+    hang = setTimeout(() => recover('page not responding'), 20000);
+  });
+  win.on('responsive', () => clearTimeout(hang));
   const q = query.toString();
   win.loadURL(`app://sinor/index.html${q ? `?${q}` : ''}`);
   if (args.includes('--selftest')) selfTest(win, blocked);
@@ -83,6 +113,7 @@ app.whenReady().then(() => {
 async function selfTest(win, blocked) {
   const out = (() => {
     try {
+      if (MAC) throw new Error('keep the app bundle unchanged');
       fs.accessSync(HERE, fs.constants.W_OK);
       return HERE;
     } catch {
@@ -136,7 +167,9 @@ async function selfTest(win, blocked) {
   const pass =
     !!report && report.sample.lit > 500 && report.powerTime > 5 && report.buses.MSB_A && report.buses.MSB_B && blocked.length === 0 &&
     (minutes === 0 || (endurance.length >= minutes && endurance.every((e) => e.demo && e.lit > 300) && after && !after.demo));
-  const result = { pass, version: app.getVersion(), electron: process.versions.electron, platform: process.platform, arch: process.arch, startMs, runsOnThisDrive: runs, blockedNetworkRequests: blocked, report, endurance, afterExit: after };
+  const result = { pass, displaySleepBlocked: true, backgroundThrottling: win.webContents.getBackgroundThrottling ? win.webContents.getBackgroundThrottling() : false, version: app.getVersion(), electron: process.versions.electron, platform: process.platform, arch: process.arch, startMs, runsOnThisDrive: runs, blockedNetworkRequests: blocked, report, endurance, afterExit: after };
   fs.writeFileSync(path.join(out, 'selftest.json'), JSON.stringify(result, null, 2));
   app.exit(pass ? 0 : 1);
 }
+
+app.on('window-all-closed', () => app.quit());

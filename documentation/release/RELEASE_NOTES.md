@@ -1,3 +1,30 @@
+# Release notes: Sinor Marine Vessel Systems Simulator 1.0.1
+
+Release date: 2026-10-31. Previous release: 1.0.0 (2026-10-24). The simulator itself (systems, screens, 3D, demo) is
+unchanged from 1.0.0; this release adds a Mac package and makes the offline packages ready for a full day at a stand.
+
+| Package | File | Runs from |
+|---|---|---|
+| **Mac, Apple Silicon (new)** | `Mac/Sinor Marine Simulator.zip` with `Install on this Mac.command` (Electron 33.2.1, darwin arm64) | Installed once into Applications with Apple's built-in tools |
+| Windows 10 / 11 x64, portable | `Windows/Sinor Marine Simulator/Sinor Marine Simulator.exe` (Electron 33.2.1) | The pendrive or the PC's drive, no installation |
+| Android TV | `Android_TV/SinorMarine-1.0.0.apk` (unchanged) | Installed once from the pendrive |
+
+New in 1.0.1 (Mac and Windows):
+
+* The display does not sleep while the simulator is open.
+* No background slow-down: the 3D view and the simulation keep full speed when the window is covered or not in front.
+* Self-recovery: after a page crash, a graphics process crash, or 20 s without response, the window reloads itself
+  with the same start options (a running exhibition demo restarts on its own).
+* Mac: standard Cmd+Q, Cmd+R, Ctrl+Cmd+F shortcuts and app menu; the app quits when its window is closed; saved data
+  in the user Library so the signed app bundle is never modified.
+* Version shown in the app and in saved scenarios: 1.0.1.
+
+Not yet done: neither the Mac nor the Windows package has been run on a real Mac or Windows PC. The same app and
+runtime were tested on a Linux test bed (see Test results). The Mac app is not notarised by Apple; the Windows exe is
+not code-signed.
+
+---
+
 # Release notes: Sinor Marine Vessel Systems Simulator 1.0.0
 
 Release date: 2026-10-24. Previous release: the online version built from main at `c64b402` (2026-10-21).

@@ -17,7 +17,7 @@ import { startOnStation } from './startState';
  * corrupt data rejected instead of loaded).
  */
 
-export const APP_VERSION = '1.0.0';
+export const APP_VERSION = '1.0.1';
 
 /** Puts every model back to the start-up state (on station, DP2, plant normal) and the camera to the overview. */
 export function resetAll(onStation = startOnStation()) {
