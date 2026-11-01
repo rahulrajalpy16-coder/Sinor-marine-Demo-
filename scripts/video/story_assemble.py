@@ -9,10 +9,13 @@ Every output frame is composed here in Python: screen close-ups cropped from the
 with a slow push, a colour grade per kind of shot, crossfades, a power flicker at the generator trip, a
 digital glitch where the simulator's interface appears, the pull back into a laptop with a television and a
 phone, chapter titles and the tagline. ffmpeg then burns in the subtitles, mixes voice, ducked music and
-effects, and encodes 1080p30 H.264 (two passes, to a size budget) with AAC.
+effects, and encodes 1080p30 (or 2160p30) H.264 (two passes, to a size budget) with AAC. Captions are large
+(sized for a 55 inch 4K television) and never more than two lines on screen.
 
 Usage: python3 story_assemble.py <captureDir> <voDir> <overlayDir> <story.json> <score.py> <logoClip.mp4> <out.mp4>
-Environment: TARGET_MB (default 62), PREVIEW=1 (quick single-pass encode), FROM/TO (render a time range, seconds).
+Environment: TARGET_MB (default 62), PREVIEW=1 (quick single-pass encode), FROM/TO (render a time range, seconds),
+REUSE=1 (keep the already composed picture and redo only captions, mix and encode), UHD=1 (3840x2160 output
+for 4K televisions, H.264 High level 5.1).
 """
 import json
 import os
@@ -349,45 +352,98 @@ if __name__ == "__main__":
     t_to = min(TOTAL, float(os.environ.get("TO", TOTAL)))
     frames = range(round(t_from * FPS), round(t_to * FPS))
     video = f"{work}/video.mp4"
-    enc = subprocess.Popen(["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS),
-                            "-i", "-", "-c:v", "libx264", "-preset", "veryfast", "-crf", "10", "-pix_fmt", "yuv444p", video], stdin=subprocess.PIPE)
-    with Pool(int(os.environ.get("JOBS", 4))) as pool:
-        for k, b in enumerate(pool.imap(render, frames, chunksize=6)):
-            enc.stdin.write(b)
-            if k % 300 == 0:
-                print(f"frame {k}/{len(frames)}", flush=True)
-    enc.stdin.close()
-    enc.wait()
+    if not (os.environ.get("REUSE") and os.path.exists(video)):  # REUSE=1 keeps the composed picture, redoing captions and mix
+        enc = subprocess.Popen(["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS),
+                                "-i", "-", "-c:v", "libx264", "-preset", "veryfast", "-crf", "10", "-pix_fmt", "yuv444p", video], stdin=subprocess.PIPE)
+        with Pool(int(os.environ.get("JOBS", 4))) as pool:
+            for k, b in enumerate(pool.imap(render, frames, chunksize=6)):
+                enc.stdin.write(b)
+                if k % 300 == 0:
+                    print(f"frame {k}/{len(frames)}", flush=True)
+        enc.stdin.close()
+        enc.wait()
 
     # Subtitles.
     def ts(x):
         c_ = int(round(max(0, x - t_from) * 100))
         return f"{c_ // 360000}:{c_ // 6000 % 60:02d}:{c_ // 100 % 60:02d}.{c_ % 100:02d}"
 
-    def wrap(text, width=60):
-        words, lines, cur = text.split(), [], ""
-        for w_ in words:
-            if len(cur) + len(w_) + 1 > width and cur:
-                lines.append(cur)
-                cur = w_
-            else:
-                cur = f"{cur} {w_}".strip()
-        lines.append(cur)
-        if len(lines) == 2 and len(lines[1]) < 14:
-            return wrap(text, width - 10)
-        return "\\N".join(lines)
+    # Captions sized for a 55 inch 4K television seen from a few metres: large semibold type on a dark box,
+    # at most two lines at a time. Long sentences are split into timed parts at their commas.
+    from PIL import ImageFont
+    SUB_FONT, SUB_SIZE, SUB_MAXW = "Inter SemiBold", 62, 1480
+    font = ImageFont.truetype("/usr/share/fonts/opentype/inter/Inter-SemiBold.otf", SUB_SIZE)
+    width_of = lambda t_: font.getlength(t_)
 
-    ass = ["[Script Info]", "ScriptType: v4.00+", "PlayResX: 1920", "PlayResY: 1080", "WrapStyle: 2", "", "[V4+ Styles]",
+    def lines_of(words):
+        out_, cur = [], []
+        for w_ in words:
+            if cur and width_of(" ".join(cur + [w_])) > SUB_MAXW:
+                out_.append(cur)
+                cur = [w_]
+            else:
+                cur.append(w_)
+        out_.append(cur)
+        return out_
+
+    def balanced(words):
+        """Two lines of similar length (no orphan word on the second line)."""
+        if len(lines_of(words)) == 1:
+            return " ".join(words)
+        def cost(i):
+            c_ = max(width_of(" ".join(words[:i])), width_of(" ".join(words[i:])))
+            c_ -= 300 if words[i - 1][-1] in ",.;:" else 0  # break after a comma when it is close to balanced
+            c_ += 1000 if words[i - 1] == "Sinor" else 0  # keep the name together
+            return c_ if c_ <= SUB_MAXW + 300 and width_of(" ".join(words[:i])) <= SUB_MAXW and width_of(" ".join(words[i:])) <= SUB_MAXW else 1e9
+        best = min(range(1, len(words)), key=cost)
+        return " ".join(words[:best]) + "\\N" + " ".join(words[best:])
+
+    def parts(text):
+        """Splits a caption into pieces of at most two lines, preferring clause boundaries."""
+        clauses, cur = [], []
+        for w_ in text.split():
+            cur.append(w_)
+            if w_[-1] in ",.;:?!":
+                clauses.append(cur)
+                cur = []
+        if cur:
+            clauses.append(cur)
+        chunks, cur = [], []
+        for cl in clauses:
+            if cur and len(lines_of(cur + cl)) > 2:
+                chunks.append(cur)
+                cur = []
+            cur = cur + cl
+            while len(lines_of(cur)) > 2:  # a single clause longer than two lines
+                ls = lines_of(cur)
+                chunks.append(ls[0] + ls[1])
+                cur = [w_ for l_ in ls[2:] for w_ in l_]
+        if cur:
+            chunks.append(cur)
+        if len(chunks) > 1 and len(" ".join(chunks[-1])) < 12:  # avoid a lonely last word
+            chunks[-2:] = [chunks[-2] + chunks[-1]] if len(lines_of(chunks[-2] + chunks[-1])) <= 2 else chunks[-2:]
+        return [" ".join(c) for c in chunks]
+
+    ass = ["[Script Info]", "ScriptType: v4.00+", "PlayResX: 1920", "PlayResY: 1080", "WrapStyle: 2", "ScaledBorderAndShadow: yes", "",
+           "[V4+ Styles]",
            "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, "
            "ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-           "Style: Sub,Inter Medium,40,&H00FCF8F4,&H00FCF8F4,&H50130802,&H50130802,0,0,0,0,100,100,0.2,0,3,15,0,2,200,200,70,1",
+           f"Style: Sub,{SUB_FONT},{SUB_SIZE},&H00FFFFFF,&H00FFFFFF,&H38130802,&H38130802,0,0,0,0,100,100,0.3,0,3,20,0,2,150,150,64,1",
            "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text"]
     for k in story:
         skip = set(story[k].get("nosub", []))
         for i, (c0, c1, text) in enumerate(caps[k]):
             if i in skip:
                 continue
-            ass.append(f"Dialogue: 0,{ts(vo_at[k] + c0 - 0.05)},{ts(vo_at[k] + c1 + 0.25)},Sub,,0,0,0,,{{\\fad(120,160)}}{wrap(text)}")
+            ps = parts(text)
+            total_chars = sum(len(p_) for p_ in ps)
+            a = c0
+            for j, p_ in enumerate(ps):
+                b = c1 if j == len(ps) - 1 else a + (c1 - c0) * len(p_) / total_chars
+                end_pad = 0.25 if j == len(ps) - 1 else -0.05  # parts follow each other exactly
+                fade = "\\fad(120,160)" if len(ps) == 1 else ("\\fad(120,0)" if j == 0 else ("\\fad(0,160)" if j == len(ps) - 1 else ""))
+                ass.append(f"Dialogue: 0,{ts(vo_at[k] + a - 0.05)},{ts(vo_at[k] + b + end_pad)},Sub,,0,0,0,,{{{fade}}}{balanced(p_.split())}")
+                a = b
     open(f"{work}/subs.ass", "w").write("\n".join(ass) + "\n")
 
     # Score and effects.
@@ -408,7 +464,9 @@ if __name__ == "__main__":
     inputs += ["-i", f"{work}/music.wav", "-i", f"{work}/sfx.wav"]
     M = 1 + len(order)
     D = t_to - t_from
-    f = [f"[0:v]subtitles='{work}/subs.ass':fontsdir=/usr/share/fonts,format=yuv420p[vout]"]
+    UHD = os.environ.get("UHD")  # UHD=1: 3840x2160 for 4K televisions, captions drawn at full 4K sharpness
+    up = "scale=3840:2160:flags=lanczos," if UHD else ""
+    f = [f"[0:v]{up}subtitles='{work}/subs.ass':fontsdir=/usr/share/fonts,format=yuv420p[vout]"]
     for i, k in enumerate(order):
         ms = max(0, int((vo_at[k] - t_from) * 1000))
         f.append(f"[{1 + i}:a]aresample=48000,aformat=channel_layouts=stereo,adelay={ms}|{ms}[a{i}]")
@@ -427,7 +485,7 @@ if __name__ == "__main__":
         mb = float(os.environ.get("TARGET_MB", 62))
         vk = int((mb * 8 * 1024 * 1024 / D - 192_000) / 1000)
         x264 = ["-c:v", "libx264", "-preset", "slow", "-b:v", f"{vk}k", "-maxrate", f"{int(vk * 1.8)}k", "-bufsize", f"{vk * 3}k",
-                "-profile:v", "high", "-level", "4.1", "-pix_fmt", "yuv420p", "-g", "60", "-x264-params", f"stats={work}/x264.log"]
+                "-profile:v", "high", "-level", "5.1" if UHD else "4.1", "-pix_fmt", "yuv420p", "-g", "60", "-x264-params", f"stats={work}/x264.log"]
         run([*inputs, *common, *x264, "-pass", "1", "-an", "-f", "mp4", "/dev/null"])
         run([*inputs, *common, *x264, "-pass", "2", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-movflags", "+faststart", out])
     json.dump({"clips": clips, "vo": vo_at, "events": events, "total": TOTAL}, open(f"{work}/edit.json", "w"), indent=1)

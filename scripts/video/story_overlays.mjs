@@ -31,15 +31,15 @@ const style = `
   .floor{position:absolute;left:0;right:0;top:860px;bottom:0;background:linear-gradient(180deg,rgba(0,217,255,.07),transparent 70%)}
   .rule{height:2px;background:linear-gradient(90deg,transparent,#00D9FF 30%,#67F0FF 50%,#00D9FF 70%,transparent)}
   .lrule{height:2px;background:linear-gradient(90deg,#00D9FF,rgba(0,217,255,0))}
-  /* chapter title: top left, clear of the subtitles */
-  .chapbg{position:absolute;left:0;top:0;width:1100px;height:420px;background:radial-gradient(ellipse 60% 55% at 22% 30%,rgba(2,8,19,.82) 0%,rgba(2,8,19,.5) 45%,rgba(2,8,19,0) 100%)}
+  /* chapter title: top left, clear of the subtitles; sized for a 55 inch TV */
+  .chapbg{position:absolute;left:0;top:0;width:1300px;height:520px;background:radial-gradient(ellipse 60% 55% at 22% 30%,rgba(2,8,19,.82) 0%,rgba(2,8,19,.5) 45%,rgba(2,8,19,0) 100%)}
   .chap{position:absolute;left:110px;top:92px;display:flex;align-items:flex-start;gap:26px;
     filter:drop-shadow(0 6px 26px rgba(0,0,0,.75))}
-  .chap .n{font:200 92px Inter;line-height:.9;color:#00D9FF;letter-spacing:-.02em}
-  .chap .r{padding-top:14px}
+  .chap .n{font:200 132px Inter;line-height:.9;color:#00D9FF;letter-spacing:-.02em}
+  .chap .r{padding-top:20px}
   .chap .k{font:600 17px 'JetBrains Mono',monospace;letter-spacing:.42em;color:#9fdcf0}
-  .chap .t{font:600 52px Inter;letter-spacing:-.01em;margin-top:6px}
-  .chap .lrule{width:340px;margin-top:14px}
+  .chap .t{font:600 76px Inter;letter-spacing:-.01em;margin-top:6px}
+  .chap .lrule{width:480px;margin-top:18px}
   .tag{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
     background:radial-gradient(ellipse 55% 42% at 50% 50%,rgba(2,8,19,.6) 0%,rgba(2,8,19,.22) 60%,rgba(2,8,19,0) 100%)}
   .tag .t{font:300 88px Inter;letter-spacing:-.01em;margin-top:26px;text-shadow:0 8px 50px rgba(0,0,0,.7)}
