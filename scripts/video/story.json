@@ -1,0 +1,15 @@
+[
+  {"id": "cold", "text": ["Out here, there is no anchor.", 0.5, "A vessel holds its position with thrusters, sensors and computers, working together, every second."]},
+  {"id": "hidden", "text": ["Most of it happens out of sight.", "Below the waterline, and behind the bridge door.", 0.3, "Few people ever get to see it."]},
+  {"id": "wind", "chapter": ["01", "The wind"], "text": ["Then the weather turns.", 0.3, "In the gusts, both wind sensors fail.", "The DP loses its early warning, and the wind pushes the vessel off its mark, until the thrusters catch up."]},
+  {"id": "trip", "chapter": ["02", "Blackout"], "text": [{"say": "Below deck, generator one trips.", "show": "Below deck, generator G1 trips."}, 0.2, "Switchboard A goes dark."]},
+  {"id": "recover", "text": ["Automatically, the power management system closes the standby generator onto the dead bus, and restarts the thruster drives, one by one."]},
+  {"id": "ups", "chapter": ["03", "No-break power"], "text": ["If the board that feeds the DP is lost, its UPS takes over from the battery, with no break.", "The DP equipment stays powered, while the battery time counts down."]},
+  {"id": "gyro", "chapter": ["04", "True heading"], "text": ["And when one gyrocompass slowly drifts, the other two out-vote it, and the vessel keeps its true heading."]},
+  {"id": "asone", "text": ["Every system has a moment it was built for.", 0.2, "Together, they keep the vessel on station."]},
+  {"id": "reveal", "text": ["None of this happened at sea.", 0.4, "It happened here, in the Sinor Marine Vessel Systems Simulator."]},
+  {"id": "devices", "text": ["A digital vessel, where anyone can step aboard, trigger a failure, and see how every system responds.", "On a laptop, a phone, or the big screen, even fully offline."]},
+  {"id": "why", "text": ["Because when people understand the systems, they operate them better, and the whole vessel works more efficiently."]},
+  {"id": "tagline", "nosub": [0, 1], "text": ["Not everyone can step on board.", 0.5, "So we bring the vessel to you."]},
+  {"id": "outro", "nosub": [0], "text": ["An exclusive Sinor Marine initiative."]}
+]
