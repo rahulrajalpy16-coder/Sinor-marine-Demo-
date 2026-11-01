@@ -69,6 +69,8 @@ export async function openStage({ base, query, out, width = 1920, height = 1080,
     H: height,
     frame: 0,
     recording: false,
+    /** Full viewport at the device pixel ratio (the plain capture returns CSS pixels in newer headless Chromium). */
+    clip: { x: 0, y: 0, width, height, scale },
     /** App seconds per output second: above 1 the capture is a time-lapse (one render per output frame). */
     speed: 1,
     timeline: {},
@@ -82,7 +84,7 @@ export async function openStage({ base, query, out, width = 1920, height = 1080,
       if (s.recording && process.env.RESUME && existsSync(`${out}/f${String(s.frame).padStart(6, '0')}.jpg`)) {
         s.frame++; // resuming a deterministic capture: keep the frame already saved
       } else if (s.recording) {
-        const { data } = await cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 94, optimizeForSpeed: true });
+        const { data } = await cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 94, optimizeForSpeed: true, clip: s.clip });
         await import('node:fs').then((fs) => fs.writeFileSync(`${out}/f${String(s.frame).padStart(6, '0')}.jpg`, Buffer.from(data, 'base64')));
         s.frame++;
         if (s.frame % 150 === 0) console.log(`frame ${s.frame} (${(s.frame / FPS).toFixed(1)} s)`);
