@@ -3,6 +3,7 @@ with a short pause, so the subtitle timing is exact. Writes <id>.wav per segment
 captions.json (per segment: [start, end, text] in seconds from the segment start).
 
 A sentence is a string, or {"say": spoken form, "show": subtitle form} when the two differ (numbers, units).
+A number between sentences adds that many seconds of extra pause (for storytelling pace).
 Usage: python3 voice.py <narration.json> <model.onnx> <voices.bin> <outDir> [voice] [speed]
 """
 import json
@@ -21,16 +22,22 @@ durations, captions = {}, {}
 for seg in json.load(open(narration)):
     parts, caps, t = [], [], 0.0
     sr = 24000
+    extra = 0.0
     for i, s in enumerate(seg["text"]):
+        if isinstance(s, (int, float)):
+            extra += s
+            continue
         say, show = (s, s) if isinstance(s, str) else (s["say"], s["show"])
         samples, sr = k.create(say, voice=voice, speed=speed, lang="en-us")
         # Trim the model's leading and trailing near-silence so the gaps are even.
         idx = np.where(np.abs(samples) > 0.01)[0]
         if len(idx):
             samples = samples[max(0, idx[0] - int(0.03 * sr)): idx[-1] + int(0.08 * sr)]
-        if i:
-            parts.append(np.zeros(int(GAP * sr), dtype=samples.dtype))
-            t += GAP
+        if parts:
+            gap = GAP + extra
+            parts.append(np.zeros(int(gap * sr), dtype=samples.dtype))
+            t += gap
+        extra = 0.0
         caps.append([round(t, 3), round(t + len(samples) / sr, 3), show])
         parts.append(samples)
         t += len(samples) / sr

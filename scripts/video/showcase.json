@@ -1,0 +1,282 @@
+{
+  "title": "Partner technology on board",
+  "intro": {
+    "kicker": "Sinor Marine · Vessel Systems Simulator",
+    "headline": "The technology that keeps a vessel on station",
+    "sub": "Demonstrated on board our virtual DP2 vessel, with our technology partners",
+    "pillars": [
+      "Control",
+      "Thrust",
+      "Position reference"
+    ]
+  },
+  "chapters": [
+    {
+      "brand": "Marine Technologies",
+      "field": "Dynamic positioning and integrated bridge",
+      "products": [
+        {
+          "id": "mt-dp",
+          "category": "Dynamic positioning system",
+          "name": "Bridge Mate DP",
+          "how": [
+            "Sensors and position references feed the DP control computers",
+            "The computers work out the thrust that holds position and heading",
+            "Distributed IO units pass the commands to every thruster"
+          ],
+          "adv": [
+            {
+              "big": "3",
+              "small": "control computers with majority voting in DP2"
+            },
+            {
+              "big": "Redundant",
+              "small": "at all levels in DP2: a single failure will not lose position"
+            },
+            {
+              "big": "Less cable",
+              "small": "distributed IO units sit close to thrusters and sensors"
+            }
+          ],
+          "source": "Marine Technologies, Bridge Mate Dynamic Positioning, MT-SAL-0004 v2.0"
+        },
+        {
+          "id": "mt-ibs",
+          "category": "Integrated bridge system",
+          "name": "Bridge Mate IBS",
+          "how": [
+            "Radar, ECDIS, conning and more run on multi-function workstations",
+            "Every application is available on any workstation",
+            "Routes, charts, radar and sensor data are shared across the bridge"
+          ],
+          "adv": [
+            {
+              "big": "Dual",
+              "small": "redundant network with no single point of failure"
+            },
+            {
+              "big": "One-man",
+              "small": "bridge operation, to IMO and class requirements"
+            },
+            {
+              "big": "No fans",
+              "small": "and no hard disks: durable marine-approved computers"
+            }
+          ],
+          "source": "Marine Technologies, Bridge Mate Integrated Bridge System, MT-SAL-0009 v2.0"
+        }
+      ]
+    },
+    {
+      "brand": "Amphicos",
+      "field": "Propulsion and thruster control",
+      "products": [
+        {
+          "id": "zthrust",
+          "category": "Thruster control system · bow tunnel thruster",
+          "name": "Z-Thrust",
+          "how": [
+            "PLC based control for thrusters, propulsion and steering",
+            "Works with DP, autopilot and joystick systems",
+            "Monitors key parameters and keeps equipment within safe limits"
+          ],
+          "adv": [
+            {
+              "big": "Load clipping",
+              "small": "prevents overloading of the power source"
+            },
+            {
+              "big": "Redundant",
+              "small": "redundancy for critical systems"
+            },
+            {
+              "big": "One place",
+              "small": "complete SCADA monitoring of the system"
+            }
+          ],
+          "source": "Amphicos Engineering Services, Z-Thrust brochure"
+        }
+      ]
+    },
+    {
+      "brand": "Fugro",
+      "field": "Satellite positioning",
+      "products": [
+        {
+          "id": "seastar",
+          "category": "DGNSS position reference",
+          "name": "Seastar 9410-AUT",
+          "how": [
+            "Tracks GPS, GLONASS, Galileo and BeiDou satellites",
+            "Applies Fugro Seastar corrections by L-band satellite or internet",
+            "Sends a corrected position to the DP system"
+          ],
+          "adv": [
+            {
+              "big": "<10 cm",
+              "small": "horizontal accuracy with Seastar G4 (95%)"
+            },
+            {
+              "big": "672",
+              "small": "channels for simultaneous satellite tracking"
+            },
+            {
+              "big": "4",
+              "small": "constellations: more resistance to ionospheric scintillation"
+            }
+          ],
+          "source": "Fugro, Seastar 9410-AUT GNSS receiver datasheet (EUAF/MAI/092023)"
+        }
+      ]
+    },
+    {
+      "brand": "Sonardyne",
+      "field": "Acoustic and inertial positioning",
+      "products": [
+        {
+          "id": "hpr",
+          "category": "Hydroacoustic position reference",
+          "name": "Type 7950 + HPT 5000",
+          "how": [
+            "The Type 7950 lowers the transceiver through the hull",
+            "The HPT 5000 interrogates a transponder on the seabed",
+            "Range and bearing of the reply give the vessel's position"
+          ],
+          "adv": [
+            {
+              "big": "7,000 m",
+              "small": "operating range"
+            },
+            {
+              "big": "±90°",
+              "small": "acoustic coverage"
+            },
+            {
+              "big": "<15 mm",
+              "small": "range precision"
+            }
+          ],
+          "source": "Sonardyne UM-8142 Issue C1, §4.3 and §12.1.3 (Type 8142-000-01)"
+        },
+        {
+          "id": "sprintnav",
+          "category": "Inertial position reference · Type 8097 pole",
+          "name": "SPRINT-Nav DP",
+          "how": [
+            "The Type 8097 pole swings the sensor down over the side",
+            "Inertial sensors, DVL and pressure sensor in one titanium housing",
+            "Starts from GNSS, then positions independently of satellites"
+          ],
+          "adv": [
+            {
+              "big": "<2 m",
+              "small": "station keeping over 24 hours, DVL aided (CEP50)"
+            },
+            {
+              "big": "10 min",
+              "small": "initialisation"
+            },
+            {
+              "big": "5 min",
+              "small": "internal battery: keeps navigating through power dropouts"
+            }
+          ],
+          "source": "Sonardyne SPRINT-Nav DP datasheet 8388 (01/2026); Type 8097 datasheet (03/2023)"
+        }
+      ]
+    },
+    {
+      "brand": "Guidance Marine",
+      "field": "Laser and radar position references",
+      "products": [
+        {
+          "id": "cyscan",
+          "category": "Laser position reference",
+          "name": "CyScan AS",
+          "how": [
+            "A pulsed laser scans for reflective targets on the structure",
+            "Absolute Signature positively identifies each AS target",
+            "Range and bearing give the position relative to the structure"
+          ],
+          "adv": [
+            {
+              "big": "2,500 m",
+              "small": "range with prism targets: the longest range DP laser on the market today"
+            },
+            {
+              "big": "50 mm",
+              "small": "range noise, with 0.2 mrad bearing noise"
+            },
+            {
+              "big": "Add targets",
+              "small": "without interrupting tracking"
+            }
+          ],
+          "source": "Guidance Marine, CyScan AS leaflet (2025)"
+        },
+        {
+          "id": "radascan",
+          "category": "Radar position reference",
+          "name": "RadaScan View",
+          "how": [
+            "Microwave radar measures range and bearing to coded responders",
+            "Position reference and radar picture on one display",
+            "Operators confirm the responder locations on the asset"
+          ],
+          "adv": [
+            {
+              "big": "All weather",
+              "small": "works through rain, snow, fog, steam and dust"
+            },
+            {
+              "big": "Coded",
+              "small": "responders: immune to false reflections"
+            },
+            {
+              "big": "No GPS shadow",
+              "small": "unaffected when working close to platforms"
+            }
+          ],
+          "source": "Guidance Marine, RadaScan View brochure"
+        }
+      ]
+    },
+    {
+      "brand": "SMT",
+      "field": "Taut wire position reference",
+      "products": [
+        {
+          "id": "tautwire",
+          "category": "Mechanical position reference",
+          "name": "Taut Wire 2.0 Z Range Mk2",
+          "how": [
+            "A 400 kg depressor weight is lowered to the seabed",
+            "A constant tension winch keeps the wire taut",
+            "A gimbal head measures the wire angles for the DP system"
+          ],
+          "adv": [
+            {
+              "big": "500 m",
+              "small": "water depth range, with 700 m of cable on the drum"
+            },
+            {
+              "big": "±30°",
+              "small": "measuring range"
+            },
+            {
+              "big": "No air",
+              "small": "required, with a fail-safe electric brake"
+            }
+          ],
+          "source": "SMT, Taut Wire Z Range Mk2 system specification AD 0004-10"
+        }
+      ]
+    }
+  ],
+  "finale": {
+    "headline": "Every reference. One position.",
+    "sub": "Satellite · Acoustic · Inertial · Laser · Radar · Taut wire",
+    "tagline1": "An exclusive Sinor Marine initiative",
+    "tagline2": "We bring the vessel to you"
+  }
+}
